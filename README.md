@@ -1,10 +1,101 @@
-# Zinc
+# Zinc - Draft 2
+
+#### Design Goals
+
+ - Verifiable & consistent file distributions
+ - Transparent and human friendly
+ - Versioned, with minor and major updates
+ - S3/CloudFront compatible
+
+
+#### Terminology
+
+ - Repository (or Repo) - top level zinc concept. Contains everything else.
+ - Bundle - group of files. A repo contains 1 or more bundles.
+
+## Zinc Repo
+
+     <repo>/
+     |- info.json
+     |- objects/
+     |  |- burp+3e36854d83448fed0b9c4a6d6da0c2c3a85fbe21.wav
+     |  |- cat1+3716da9df43aa8a45fc40432706403e5fab6db2d.jpg
+     |  |- cat2+a5a5fd2dd22f9081bed0546fe871ef486321ce49.jpg
+     |  |- potatoes+1fb4cd01299779e4c48f0a49a7bd4f3b58a03be0.doc
+     |  |- socks+f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a.pdf
+     |- archives/
+     |  |- catburp+cd9e290639a98fbbb797685f0c99f3c977692bc9.zip
+     |  |- sockpotatoes+51b8d94f26703b7d56cea32c93b8e79971e756d9.zip
+     |- manifests/
+        |- catburp+cd9e290639a98fbbb797685f0c99f3c977692bc9.json
+        |- sockpotatoes+51b8d94f26703b7d56cea32c93b8e79971e756d9.json
+
+#### info.json
+
+    {
+      'zinc_format' : '1',
+      'zinc_repo' : {
+         'versions' : [20, 21],
+         'bundles' : {
+            20 : {
+              'catburp' : {
+                'manifest' : 'f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a',
+                'archive'  : '3716da9df43aa8a45fc40432706403e5fab6db2d',
+               },
+               'sockpotatoes' : {
+                 'manifest' : 'f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a',
+                 'archive'  : '3716da9df43aa8a45fc40432706403e5fab6db2d',
+                }
+             },
+            21 : {
+              'catburp' : {
+                'manifest' : 'f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a',
+                'archive'  : '3716da9df43aa8a45fc40432706403e5fab6db2d',
+               },
+               'sockpotatoes' : {
+                 'manifest' : 'f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a',
+                 'archive'  : '3716da9df43aa8a45fc40432706403e5fab6db2d',
+                }
+             }
+          }
+       }
+    }
+
+
+
+#### manifest: catburp+cd9e290639a98fbbb797685f0c99f3c977692bc9.json
+
+    {
+       'version' : 20
+       'files' {
+          'images/cat1.jpg' : 'cat1+3716da9df43aa8a45fc40432706403e5fab6db2d.jpg',
+          'images/cat2.jpg' : 'cat2+a5a5fd2dd22f9081bed0546fe871ef486321ce49.jpg',
+          'sounds/burp.wav' : 'burp+3e36854d83448fed0b9c4a6d6da0c2c3a85fbe21.wav',
+        }
+    }
+
+
+#### manifest: sockpotatoes+51b8d94f26703b7d56cea32c93b8e79971e756d9.json
+
+    {
+       'version' : 20
+       'files' {
+          'potatoes.doc' : 'potatoes+1fb4cd01299779e4c48f0a49a7bd4f3b58a03be0.doc',
+          'socks.pdf'    : 'socks+f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a.pdf',
+        }
+    }
+
+----
+
+
+# Zinc - Draft 1
 
 #### Design Goals
  - Verifiable & consistent file distributions
  - Transparent and human friendly
  - Versioned, with minor and major updates
  - S3/CloudFront compatible
+
 
 ## Example
 
@@ -144,3 +235,114 @@ Here `cat2.jpg` was deleted and `help.html` was added. If we `zinc update` again
 #### Why JSON?
 
 JSON has become a de-facto interchange format, yada, yada, and is human-friendly.
+
+
+----
+
+# Attic, random notes
+
+#### other layout ideas, draft 2
+
+1)
+
+     <repo>/
+     |- info.json
+     |- objects/
+     |  |- cat1+3716da9df43aa8a45fc40432706403e5fab6db2d.jpg
+     |  |- cat2+a5a5fd2dd22f9081bed0546fe871ef486321ce49.jpg
+     |  |- burp+3e36854d83448fed0b9c4a6d6da0c2c3a85fbe21.wav
+     |- bundles/
+        |- catburp.json
+
+
+2)
+
+     <repo>/
+     |- info.json
+     |- objects/
+     |  |- cat1+3716da9df43aa8a45fc40432706403e5fab6db2d.jpg
+     |  |- cat2+a5a5fd2dd22f9081bed0546fe871ef486321ce49.jpg
+     |  |- burp+3e36854d83448fed0b9c4a6d6da0c2c3a85fbe21.wav
+     |- bundles/
+        |- catburp/
+           |- manifest.json
+           |- catburp.zip
+
+3)
+    
+     <repo>/
+     |- info.json
+     |- objects/
+     |  |- cat1+3716da9df43aa8a45fc40432706403e5fab6db2d.jpg
+     |  |- cat2+a5a5fd2dd22f9081bed0546fe871ef486321ce49.jpg
+     |  |- burp+3e36854d83448fed0b9c4a6d6da0c2c3a85fbe21.wav
+     |- bundles/
+        |- catburp.zip
+        |- catburp.zip.zsync
+        |- catburp/
+           |- manifest.json
+
+
+
+
+
+
+     <repo>/
+     |- info.json
+     |- objects/
+     |  |- burp+3e36854d83448fed0b9c4a6d6da0c2c3a85fbe21.wav
+     |  |- cat1+3716da9df43aa8a45fc40432706403e5fab6db2d.jpg
+     |  |- cat2+a5a5fd2dd22f9081bed0546fe871ef486321ce49.jpg
+     |  |- potatoes+1fb4cd01299779e4c48f0a49a7bd4f3b58a03be0.doc
+     |  |- socks+f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a.pdf
+     |- bundles/
+        |- catburp.zip
+        |- catburp.zip.zsync
+        |- catburp.json
+        |- sockpotatoes.zip
+        |- sockpotatoes.zip.zsync
+        |- sockpotatoes.zip.json
+
+     <repo>/
+     |- info.json
+     |- objects/
+     |  |- burp+3e36854d83448fed0b9c4a6d6da0c2c3a85fbe21.wav
+     |  |- cat1+3716da9df43aa8a45fc40432706403e5fab6db2d.jpg
+     |  |- cat2+a5a5fd2dd22f9081bed0546fe871ef486321ce49.jpg
+     |  |- potatoes+1fb4cd01299779e4c48f0a49a7bd4f3b58a03be0.doc
+     |  |- socks+f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a.pdf
+     |- bundles/
+        |- catburp+20.zip
+        |- catburp+20.zip.zsync
+        |- catburp+20.json
+        |- sockpotatoes+20.zip
+        |- sockpotatoes+20.zip.zsync
+        |- sockpotatoes+20.zip.json
+
+
+     <repo>/
+     |- info.json
+     |- objects/
+     |  |- burp+3e36854d83448fed0b9c4a6d6da0c2c3a85fbe21.wav
+     |  |- cat1+3716da9df43aa8a45fc40432706403e5fab6db2d.jpg
+     |  |- cat2+a5a5fd2dd22f9081bed0546fe871ef486321ce49.jpg
+     |  |- potatoes+1fb4cd01299779e4c48f0a49a7bd4f3b58a03be0.doc
+     |  |- socks+f78200b67a1ee01a140eb3c3ad8fef9ce904ab4a.pdf
+     |- bundles/
+        |-20/
+          |- catburp.zip
+          |- catburp.zip.zsync
+          |- catburp.json
+          |- sockpotatoes.zip
+          |- sockpotatoes.zip.zsync
+          |- sockpotatoes.zip.json
+
+
+
+    {
+      'zinc_format' : '1',
+      'zinc_repo' : {
+         'version' : 20,
+         'bundles' : ['catburp', 'sockpotatoes'],
+       }
+    }
