@@ -106,16 +106,15 @@ class ZincInstance(object):
                     results_by_file[file] = ZincErrors.OK
         return results_by_file
 
+#def copy_contents_only(path):
+#    return path[-1] == os.sep
 
-def copy_contents_only(path):
-    return path[-1] == os.sep
-
-def create_dir_if_needed(path):
-    try:
-        os.makedirs(path)
-    except os.error as e: 
-        if e.errno != errno.EEXIST:
-            raise e
+#def create_dir_if_needed(path):
+#    try:
+#        os.makedirs(path)
+#    except os.error as e: 
+#        if e.errno != errno.EEXIST:
+#            raise e
 
 # ##commands
 #
@@ -136,7 +135,6 @@ def _verify(path):
             error_count = error_count + 1
         total_count = total_count + 1
     print "Verified %d files, %d errors" % (total_count, error_count)
-
 
 def main():
     commands = ("verify", "update", "clean")
@@ -174,7 +172,7 @@ def main():
         exit(1)
 
     command = args[0]
-    if command == 'verify':
+    if command == "verify":
         if len(args) < 2:
             parser.print_usage()
             exit(1)
