@@ -12,6 +12,8 @@ ZINC_FORMAT = "1"
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
 
+### Utils ####################################################################
+
 def sha1_for_path(path):
     sha1 = hashlib.sha1()
     f = open(path, 'rb')
@@ -20,6 +22,14 @@ def sha1_for_path(path):
     finally:
         f.close()
     return sha1.hexdigest()
+
+def canonical_path(path):
+    path = os.path.expanduser(path)
+    path = os.path.normpath(path)
+    path = os.path.realpath(path)
+    return path
+
+### Errors ###################################################################
 
 class ZincError(object):
     def __init__(self, code, message):
@@ -32,13 +42,98 @@ class ZincErrors(object):
     INCORRECT_SHA = ZincError(1, "SHA did not match")
     DOES_NOT_EXIST = ZincError(2, "Does not exist")
 
-class ZincInstance(object):
+### ZincOperation ############################################################
 
-    def _read_info_file(self):
-        info_path = pjoin(self.path, "info.json")
-        info_file = open(info_path, "r")
-        self._info_dict = json.load(info_file)
-        info_file.close()
+class ZincOperation(object):
+
+    def commit():
+        pass
+
+### ZincIndex ################################################################
+
+class ZincIndex(object):
+
+    def __init__(self):
+        self.format = ZINC_FORMAT
+
+    def write(self, path):
+        index_file = open(path, 'w')
+        index_file.write(json.dumps(self.__dict__, indent=2, sort_keys=True))
+        index_file.close()
+
+def load_index(path):
+    index_file = open(path, 'r')
+    dict = json.load(index_file)
+    index_file.close()
+    index = ZincIndex()
+    index.format = dict['format']
+    return index
+
+       
+### ZincConfig ###############################################################
+
+class ZincConfig(object):
+
+    def __init__(self):
+        pass
+
+    def write(self, path):
+        config_file = open(path, 'w')
+        config_file.write('')
+        config_file.close()
+
+### Bundle ###################################################################
+
+class ZincBundle(object):
+
+    class NewVersionOperation(ZincOperation):
+
+        def __init__(self, bundle):
+            self.bundle = bundle
+            self._paths = []
+
+        # TODO: make this accept a list
+        def add_path(self, path):
+            self._paths.append(canonical_path(path))
+
+    def __init__(self, name, repo=None):
+        self.name = name
+        self._versions = ()
+        self.current_version = None
+        self.repo = repo
+
+    def add_version(self):
+        if self.repo == None:
+            raise Exception("must have a repo")
+        return NewVersionOperation(self)
+
+
+### Repo #####################################################################
+
+def create_repo_at_path(path):
+
+    path = canonical_path(path)
+
+    zinc_dir = pjoin(path, "zinc")
+    os.makedirs(zinc_dir)
+        
+    zinc_config_path = pjoin(zinc_dir, "config")
+    ZincConfig().write(zinc_config_path)
+
+    zinc_index_path = pjoin(path, "index.json")
+    ZincIndex().write(zinc_index_path)
+
+    # TODO: check exceptions?
+
+    return ZincRepo(path)
+
+class ZincRepo(object):
+
+    def _read_index_file(self):
+        index_path = pjoin(self.path, "index.json")
+        self.index = load_index(index_path)
+        if self.index.format != ZINC_FORMAT:
+            raise Exception("Incompatible format %s" % (self.index.format))
 
     def _read_manifests(self):
         self.manifests = dict()
@@ -54,26 +149,44 @@ class ZincInstance(object):
                     self.manifests[manifest_version_major] = manifest_dict
 
     def _load(self):
-        self._read_info_file()
+        self._read_index_file()
         # TODO: check format, just assume 1 for now
         self._read_manifests()
         self._loaded = True
 
     def __init__(self, path):
         self._loaded = False
-        self.path = os.path.realpath(path)
-        #self.available_versions = []
-        #self.format = ZINC_FORMAT
+        self.path = canonical_path(path)
+        self._bundles = {}
         self._load()
+
+    def format(self):
+        return self.index.format
+
+    def is_loaded(self):
+        return self._loaded
+
+    def _objects_dir(self):
+        objects_path = pjoin(self.path, "objects")
+        if not os.path.exists(objects_path):
+            os.mkdir(objects_path)
+        return objects_path
+
+    def _path_for_object_with_sha(self, sha):
+        return pjoin(self._objects_dir(), sha)
+
+    def import_path(self, src_path):
+        src_path_sha = sha1_for_path(src_path)
+        copyfile(src_path, self._path_for_object_with_sha(src_path_sha))
+        
+    def lock(self):
+        pass
+    
+    def unlock(self):
+        pass
 
     def clean(self):
         pass
-
-    def available_versions(self):
-        return self.manifests.keys()
-
-    def latest_version(self):
-        return sorted(self.available_versions())[-1]
 
     def path_for_file(self, file, version=None):
         if version == None:
@@ -106,28 +219,28 @@ class ZincInstance(object):
                     results_by_file[file] = ZincErrors.OK
         return results_by_file
 
-#def copy_contents_only(path):
-#    return path[-1] == os.sep
+    def get_bundle(self, bundle_name):
+        return self._bundles.get(bundle_name)
 
-#def create_dir_if_needed(path):
-#    try:
-#        os.makedirs(path)
-#    except os.error as e: 
-#        if e.errno != errno.EEXIST:
-#            raise e
+    def add_bundle(self, bundle_name):
+        bundle = self.get_bundle(bundle_name)
+        if bundle is not None:
+            raise ValueError("Bundle already exists")
+            return None
+        bundle = ZincBundle(bundle_name, self)
+        self._bundles[bundle_name] = bundle
+        return bundle
 
-# ##commands
-#
-# $ zinc init
-#
-# $ zinc update zincspec.json
-# 
-# $ zinc publish zincspec.json
+    def bundle_names(self):
+        return self._bundles.keys()
 
-def _verify(path):
-    path = os.path.realpath(path)
-    zinc_instance = ZincInstance(path)
-    results = zinc_instance.verify()
+
+
+### Commands #################################################################
+
+def _cmd_verify(path):
+    repo = ZincRepo(path)
+    results = repo.verify()
     error_count = total_count = 0
     for (file, error) in results.items():
         if error.code != ZincErrors.OK.code:
@@ -136,8 +249,15 @@ def _verify(path):
         total_count = total_count + 1
     print "Verified %d files, %d errors" % (total_count, error_count)
 
+### Main #####################################################################
+
 def main():
-    commands = ("verify", "update", "clean")
+
+    commands = {
+            "repo" : ("create", "verify"),
+            "bundle": ("create", "commit"),
+            }
+
     usage = "usage: %prog <command> [options]"
     parser = optparse.OptionParser(usage)
     parser.add_option("-i", "--input", dest="input_path",
@@ -172,19 +292,29 @@ def main():
         exit(1)
 
     command = args[0]
-    if command == "verify":
+    if command == "repo:verify":
         if len(args) < 2:
             parser.print_usage()
             exit(1)
         path = args[1]
-        _verify(path)
+        _cmd_verify(path)
         exit(0)
-
+    elif command == "repo:create": # TODO: better command parsing
+        if len(args) < 2:
+            parser.print_usage()
+            exit(1)
+        path = args[1]
+        init_repo_at_path(path)
+        exit(0)
 
     if len(args) != 2:
         parser.print_usage()
         exit(1)
 
+if __name__ == "__main__":
+    main()
+
+def old_crap():
     src = os.path.realpath(args[0])
     dst = os.path.realpath(args[1])
 
@@ -242,15 +372,12 @@ def main():
     #sha_file.write(sha)
     #sha_file.close()
 
-    # write info file
-    info = {
+    # write index file
+    index = {
             'zinc_fileormat' :  ZINC_FORMAT,
             }
-    info_path = pjoin(dst, "info.json")
-    info_file = open(info_path, "w")
-    info_file.write(json.dumps(info, indent=2, sort_keys=True))
-    info_file.close()
+    index_path = pjoin(dst, "index.json")
+    index_file = open(index_path, "w")
+    index_file.write(json.dumps(index, indent=2, sort_keys=True))
+    index_file.close()
 
-
-if __name__ == "__main__":
-    main()
