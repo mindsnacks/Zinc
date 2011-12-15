@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.DEBUG,
 ### Utils ####################################################################
 
 def sha1_for_path(path):
+    """Returns the SHA1 hash as a string for the given path"""
     sha1 = hashlib.sha1()
     f = open(path, 'rb')
     try:
@@ -347,7 +348,6 @@ class ZincRepo(object):
     def save(self):
         self._write_manifests()
         self._write_index_file()
-
 
 ### Commands #################################################################
 
