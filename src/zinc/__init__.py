@@ -92,7 +92,6 @@ def load_index(path):
     index.distributions = dict['distributions']
     return index
 
-       
 ### ZincConfig ###############################################################
 
 class ZincConfig(object):
@@ -106,14 +105,6 @@ class ZincConfig(object):
         config_file.close()
 
 ### ZincManifest #############################################################
-
-def load_manifest(path):
-    manifest_file = open(path, 'r')
-    dict = json.load(manifest_file)
-    manifest_file.close()
-    bundle_name = dict['bundle']
-    version = int(dict['version'])
-    manifest = ZincManifest(bundle_name, version)
 
 class ZincManifest(object):
 
@@ -139,6 +130,18 @@ class ZincManifest(object):
         manifest_file.write(json.dumps(dict, indent=2, sort_keys=True))
         manifest_file.close()
 
+def load_manifest(path):
+    manifest_file = open(path, 'r')
+    dict = json.load(manifest_file)
+    manifest_file.close()
+    bundle_name = dict['bundle']
+    version = int(dict['version'])
+    manifest = ZincManifest(bundle_name, version)
+    manifest.files = dict['files']
+    return manifest
+
+##############################################################################
+
 class CreateBundleVersionOperation(ZincOperation):
 
     def __init__(self, repo, bundle_name, src_dir):
@@ -158,12 +161,12 @@ class CreateBundleVersionOperation(ZincOperation):
         os.chdir(self.src_dir)
         for root, dirs, files in os.walk(self.src_dir):
             for f in files:
-                #path = pjoin(root, f)
                 path = f
                 sha = sha1_for_path(path)
                 self.repo._import_path(path)
                 manifest.add_file(path, sha)
         self.repo.index.add_version_for_bundle(self.bundle_name, version)
+        self.repo._write_manifest(manifest)
         self.repo.save()
 
 ### ZincBundle ###############################################################
@@ -178,7 +181,6 @@ def ZincMetaBundle(object):
     # bundle name
     # version
     pass
-
 
 ### ZincRepo #################################################################
 
@@ -201,44 +203,10 @@ def create_repo_at_path(path):
 
 class ZincRepo(object):
 
-    def _read_index_file(self):
-        index_path = pjoin(self.path, "index.json")
-        self.index = load_index(index_path)
-        if self.index.format != ZINC_FORMAT:
-            raise Exception("Incompatible format %s" % (self.index.format))
-
-    def _write_index_file(self):
-        index_path = pjoin(self.path, "index.json")
-        self.index.write(index_path)
-
-    def _read_manifests(self):
-        self.manifests = dict()
-        versions_path = pjoin(self.path, "versions")
-        for root, dirs, files in os.walk(versions_path):
-            for f in files:
-                if f == "manifest.json":
-                    manifest_path = pjoin(root, f)
-                    manifest_file = open(manifest_path, "r")
-                    manifest_dict = json.load(manifest_file)
-                    manifest_file.close()
-                    manifest_version_major = manifest_dict.get("version").split(".")[0]
-                    self.manifests[manifest_version_major] = manifest_dict
-
-    def _write_manifest(self, manifest):
-        manifest_filename = "%s-%d.json" % (manifest.bundle_name,
-                manifest.version)
-        manifest_path = pjoin(self._manifests_dir(), manifest_filename)
-        manifest.write(manifest_path)
-
-    def _write_manifests(self):
-        for versions in self._manifests.values():
-            for manifest in versions.values():
-                self._write_manifest(manifest)
-
     def _load(self):
         self._read_index_file()
         # TODO: check format, just assume 1 for now
-        self._read_manifests()
+        #self._read_manifests()
         self._loaded = True
 
     def __init__(self, path):
@@ -264,6 +232,52 @@ class ZincRepo(object):
         if not os.path.exists(manifests_path):
             os.mkdir(manifests_path)
         return manifests_path
+
+    def _read_index_file(self):
+        index_path = pjoin(self.path, "index.json")
+        self.index = load_index(index_path)
+        if self.index.format != ZINC_FORMAT:
+            raise Exception("Incompatible format %s" % (self.index.format))
+
+    def _write_index_file(self):
+        index_path = pjoin(self.path, "index.json")
+        self.index.write(index_path)
+
+#    def _read_manifests(self):
+#        self.manifests = dict()
+#        versions_path = pjoin(self.path, "versions")
+#        for root, dirs, files in os.walk(versions_path):
+#            for f in files:
+#                if f == "manifest.json":
+#                    manifest_path = pjoin(root, f)
+#                    manifest_file = open(manifest_path, "r")
+#                    manifest_dict = json.load(manifest_file)
+#                    manifest_file.close()
+#                    manifest_version_major = manifest_dict.get("version").split(".")[0]
+#                    self.manifests[manifest_version_major] = manifest_dict
+
+    def _path_for_manifest_for_bundle_version(self, bundle_name, version):
+        manifest_filename = "%s-%d.json" % (bundle_name, version)
+        manifest_path = pjoin(self._manifests_dir(), manifest_filename)
+        return manifest_path
+
+    def _path_for_manifest(self, manifest):
+        return self._path_for_manifest_for_bundle_version(manifest.bundle_name,
+                manifest.version)
+
+    def _manifest_for_bundle_version(self, bundle_name, version):
+        if version not in self.index.versions_for_bundle(bundle_name):
+            return None # throw exception?
+        manifest_path = self._path_for_manifest_for_bundle_version(bundle_name, version)
+        return load_manifest(manifest_path)
+
+    def _write_manifest(self, manifest):
+        manifest.write(self._path_for_manifest(manifest))
+
+    #def _write_manifests(self):
+    #    for versions in self._manifests.values():
+    #        for manifest in versions.values():
+    #            self._write_manifest(manifest)
 
     def _path_for_object_with_sha(self, sha):
         return pjoin(self._objects_dir(), sha)
@@ -296,6 +310,16 @@ class ZincRepo(object):
             raise Exception("not loaded")
             # TODO: better exception
             # TODO: wrap in decorator?
+
+        for (bundle_name, versions) in self.index.bundles.iteritems():
+            for version in versions:
+                manifest = self._manifest_for_bundle_version(bundle_name, version)
+                if manifest is None:
+                    raise Exception("manifest not found: %s-%d" % (bundle_name,
+                        version))
+                for (key, sha) in manifest.files.iteritems():
+                    if sha1_for_path(pjoin(self._objects_dir(), sha)) != sha:
+                        raise Exception("Wrong SHA")
 
         results_by_file = dict()
         #for version, manifest in self.manifests.items():
@@ -346,7 +370,7 @@ class ZincRepo(object):
         op.run()
 
     def save(self):
-        self._write_manifests()
+        #self._write_manifests()
         self._write_index_file()
 
 ### Commands #################################################################

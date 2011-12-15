@@ -84,8 +84,8 @@ class ZincRepoTestCase(TempDirTestCase):
         f2 = create_random_file(one_dir)
         repo = create_repo_at_path(self.repo_dir)
         repo.create_bundle_version("meep", self.scratch_dir)
+        results = repo.verify()
         
-
     def test_create_second_bundle_version(self):
         repo = self._build_test_repo()
         # add a file
@@ -95,6 +95,10 @@ class ZincRepoTestCase(TempDirTestCase):
         new_index = load_index(os.path.join(repo.path, "index.json"))
         assert 1 in new_index.bundles["meep"]
         assert 2 in new_index.bundles["meep"]
+
+    def test_repo_verify(self):
+        repo = self._build_test_repo()
+        results = repo.verify()
 
 class ZincIndexTestCase(TempDirTestCase):
 
