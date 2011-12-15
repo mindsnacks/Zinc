@@ -55,18 +55,40 @@ class ZincIndex(object):
 
     def __init__(self):
         self.format = ZINC_FORMAT
+        self.bundles = {}
+        self.distributions = {}
+
+    def to_json(self):
+        return vars(self)
 
     def write(self, path):
         index_file = open(path, 'w')
-        index_file.write(json.dumps(self.__dict__, indent=2, sort_keys=True))
+        dict = self.to_json()
+        index_file.write(json.dumps(dict, indent=2, sort_keys=True))
         index_file.close()
 
+    def add_version_for_bundle(self, bundle_name, version):
+        versions = self.bundles.get(bundle_name) or []
+        if version not in versions:
+            versions.append(version)
+            self.bundles[bundle_name] = versions
+
+    def versions_for_bundle(self, bundle_name):
+        return self.bundles.get(bundle_name) or []
+
+    def del_version_for_bundle(self, bundle_name, version):
+        versions = self.versions_for_bundle(bundle_name)
+        if version in versions:
+            versions.remove(version)
+        
 def load_index(path):
     index_file = open(path, 'r')
     dict = json.load(index_file)
     index_file.close()
     index = ZincIndex()
     index.format = dict['format']
+    index.bundles = dict['bundles']
+    index.distributions = dict['distributions']
     return index
 
        
@@ -82,33 +104,82 @@ class ZincConfig(object):
         config_file.write('')
         config_file.close()
 
-### Bundle ###################################################################
+### ZincManifest #############################################################
+
+def load_manifest(path):
+    manifest_file = open(path, 'r')
+    dict = json.load(manifest_file)
+    manifest_file.close()
+    bundle_name = dict['bundle']
+    version = int(dict['version'])
+    manifest = ZincManifest(bundle_name, version)
+
+class ZincManifest(object):
+
+    def __init__(self, bundle_name, version=1, repo=None):
+        self.bundle_name = bundle_name
+        self.version = int(version)
+        self.repo = repo
+        self.files = {}
+
+    def add_file(self, path, sha):
+        self.files[path] = sha
+
+    def to_json(self):
+        return {
+                'bundle' : self.bundle_name,
+                'version' : self.version,
+                'files' : self.files,
+                }
+
+    def write(self, path):
+        manifest_file = open(path, 'w')
+        dict = self.to_json()
+        manifest_file.write(json.dumps(dict, indent=2, sort_keys=True))
+        manifest_file.close()
+
+class CreateBundleVersionOperation(ZincOperation):
+
+    def __init__(self, repo, bundle_name, src_dir):
+        self.repo = repo
+        self.bundle_name = bundle_name
+        self.src_dir =  canonical_path(src_dir)
+
+    def _next_version_for_bundle(self, bundle_name):
+        versions = self.repo.versions_for_bundle(bundle_name)
+        if len(versions) == 0:
+            return 1
+        return versions[-1] + 1
+
+    def run(self):
+        version = self._next_version_for_bundle(self.bundle_name)
+        manifest = self.repo._add_manifest(self.bundle_name, version)
+        os.chdir(self.src_dir)
+        for root, dirs, files in os.walk(self.src_dir):
+            for f in files:
+                #path = pjoin(root, f)
+                path = f
+                sha = sha1_for_path(path)
+                self.repo._import_path(path)
+                manifest.add_file(path, sha)
+        self.repo.index.add_version_for_bundle(self.bundle_name, version)
+        self.repo.save()
+
+### ZincBundle ###############################################################
 
 class ZincBundle(object):
 
-    class NewVersionOperation(ZincOperation):
+    def __init__(self, manifest):
+        self.manifest = manifest 
 
-        def __init__(self, bundle):
-            self.bundle = bundle
-            self._paths = []
-
-        # TODO: make this accept a list
-        def add_path(self, path):
-            self._paths.append(canonical_path(path))
-
-    def __init__(self, name, repo=None):
-        self.name = name
-        self._versions = ()
-        self.current_version = None
-        self.repo = repo
-
-    def add_version(self):
-        if self.repo == None:
-            raise Exception("must have a repo")
-        return NewVersionOperation(self)
+# ???
+def ZincMetaBundle(object):
+    # bundle name
+    # version
+    pass
 
 
-### Repo #####################################################################
+### ZincRepo #################################################################
 
 def create_repo_at_path(path):
 
@@ -117,11 +188,11 @@ def create_repo_at_path(path):
     zinc_dir = pjoin(path, "zinc")
     os.makedirs(zinc_dir)
         
-    zinc_config_path = pjoin(zinc_dir, "config")
-    ZincConfig().write(zinc_config_path)
+    config_path = pjoin(zinc_dir, "config")
+    ZincConfig().write(config_path)
 
-    zinc_index_path = pjoin(path, "index.json")
-    ZincIndex().write(zinc_index_path)
+    index_path = pjoin(path, "index.json")
+    ZincIndex().write(index_path)
 
     # TODO: check exceptions?
 
@@ -134,6 +205,10 @@ class ZincRepo(object):
         self.index = load_index(index_path)
         if self.index.format != ZINC_FORMAT:
             raise Exception("Incompatible format %s" % (self.index.format))
+
+    def _write_index_file(self):
+        index_path = pjoin(self.path, "index.json")
+        self.index.write(index_path)
 
     def _read_manifests(self):
         self.manifests = dict()
@@ -148,6 +223,17 @@ class ZincRepo(object):
                     manifest_version_major = manifest_dict.get("version").split(".")[0]
                     self.manifests[manifest_version_major] = manifest_dict
 
+    def _write_manifest(self, manifest):
+        manifest_filename = "%s-%d.json" % (manifest.bundle_name,
+                manifest.version)
+        manifest_path = pjoin(self._manifests_dir(), manifest_filename)
+        manifest.write(manifest_path)
+
+    def _write_manifests(self):
+        for versions in self._manifests.values():
+            for manifest in versions.values():
+                self._write_manifest(manifest)
+
     def _load(self):
         self._read_index_file()
         # TODO: check format, just assume 1 for now
@@ -157,7 +243,7 @@ class ZincRepo(object):
     def __init__(self, path):
         self._loaded = False
         self.path = canonical_path(path)
-        self._bundles = {}
+        self._manifests = {}
         self._load()
 
     def format(self):
@@ -172,10 +258,16 @@ class ZincRepo(object):
             os.mkdir(objects_path)
         return objects_path
 
+    def _manifests_dir(self):
+        manifests_path = pjoin(self.path, "manifests")
+        if not os.path.exists(manifests_path):
+            os.mkdir(manifests_path)
+        return manifests_path
+
     def _path_for_object_with_sha(self, sha):
         return pjoin(self._objects_dir(), sha)
 
-    def import_path(self, src_path):
+    def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
         copyfile(src_path, self._path_for_object_with_sha(src_path_sha))
         
@@ -188,15 +280,15 @@ class ZincRepo(object):
     def clean(self):
         pass
 
-    def path_for_file(self, file, version=None):
-        if version == None:
-            version = self.latest_version()
+    #def path_for_file(self, file, version=None):
+    #    if version == None:
+    #        version = self.latest_version()
 
-        manifest = self.manifests.get(version)
-        sha = manifest.get("files").get(file)
-        (basename, ext) = os.path.splitext(file)
-        zinc_path = pjoin("objects", "%s+%s%s" % (basename, sha, ext))
-        return zinc_path
+    #    manifest = self.manifests.get(version)
+    #    sha = manifest.get("files").get(file)
+    #    (basename, ext) = os.path.splitext(file)
+    #    zinc_path = pjoin("objects", "%s+%s%s" % (basename, sha, ext))
+    #    return zinc_path
 
     def verify(self):
         if not self._loaded:
@@ -205,35 +297,56 @@ class ZincRepo(object):
             # TODO: wrap in decorator?
 
         results_by_file = dict()
-        for version, manifest in self.manifests.items():
-            files = manifest.get("files")
-            for file, sha in files.items():
-                full_path = pjoin(self.path, self.path_for_file(file, version))
-                logging.debug("verifying %s" % full_path)
-                if not os.path.exists(full_path):
-                    results_by_file[file] = ZincErrors.DOES_NOT_EXIST
-                elif sha1_for_path(full_path) != sha:
-                    results_by_file[file] = ZincErrors.INCORRECT_SHA
-                else:
-                    # everything is ok alarm
-                    results_by_file[file] = ZincErrors.OK
+        #for version, manifest in self.manifests.items():
+        #    files = manifest.get("files")
+        #    for file, sha in files.items():
+        #        full_path = pjoin(self.path, self.path_for_file(file, version))
+        #        logging.debug("verifying %s" % full_path)
+        #        if not os.path.exists(full_path):
+        #            results_by_file[file] = ZincErrors.DOES_NOT_EXIST
+        #        elif sha1_for_path(full_path) != sha:
+        #            results_by_file[file] = ZincErrors.INCORRECT_SHA
+        #        else:
+        #            # everything is ok alarm
+        #            results_by_file[file] = ZincErrors.OK
         return results_by_file
 
-    def get_bundle(self, bundle_name):
-        return self._bundles.get(bundle_name)
+    #def get_bundle(self, bundle_name):
+    #    return self._manifests.get(bundle_name)
 
-    def add_bundle(self, bundle_name):
-        bundle = self.get_bundle(bundle_name)
-        if bundle is not None:
+    def _add_manifest(self, bundle_name, version=1):
+        manifest = self.get_bundle(bundle_name, version)
+        if manifest is not None:
             raise ValueError("Bundle already exists")
             return None
-        bundle = ZincBundle(bundle_name, self)
-        self._bundles[bundle_name] = bundle
-        return bundle
+        manifest = ZincManifest(bundle_name, version, self)
+        if self._manifests.get(bundle_name) is None:
+            self._manifests[bundle_name] = {} # create version dict
+        self._manifests[bundle_name][int(version)] = manifest
+        return manifest
+
+    def versions_for_bundle(self, bundle_name):
+        manifests_by_version = self._manifests.get(bundle_name)
+        if manifests_by_version is None:
+            return []
+        return sorted(manifests_by_version.keys())
+
+    def get_bundle(self, name, version):
+        versions = self._manifests.get(name)
+        if versions is None:
+            return None
+        return versions.get(int(version))
 
     def bundle_names(self):
-        return self._bundles.keys()
+        return self._manifests.keys()
 
+    def create_bundle_version(self, bundle_name, src_dir):
+        op = CreateBundleVersionOperation(self, bundle_name, src_dir)
+        op.run()
+
+    def save(self):
+        self._write_manifests()
+        self._write_index_file()
 
 
 ### Commands #################################################################
