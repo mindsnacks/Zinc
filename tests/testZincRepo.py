@@ -77,6 +77,11 @@ class ZincRepoTestCase(TempDirTestCase):
         repo = self._build_test_repo()
         assert "meep" in repo.bundle_names()
         assert 1 in repo.versions_for_bundle("meep")
+        manifest = repo.manifest_for_bundle("meep", 1)
+        assert manifest is not None
+        for (file, sha) in manifest.files.items():
+            object_path = repo._path_for_object_with_sha(sha)
+            assert os.path.exists(object_path)
 
     def test_create_bundle_with_subdirs(self):
         f1 = create_random_file(self.scratch_dir)
@@ -95,6 +100,11 @@ class ZincRepoTestCase(TempDirTestCase):
         new_index = load_index(os.path.join(repo.path, "index.json"))
         assert 1 in new_index.bundles["meep"]
         assert 2 in new_index.bundles["meep"]
+
+    def test_create_identical_bundle_version(self):
+        repo = self._build_test_repo()
+        repo.create_bundle_version("meep", self.scratch_dir)
+        assert len(repo.versions_for_bundle("meep"))==1
 
     def test_repo_verify(self):
         repo = self._build_test_repo()
@@ -143,8 +153,27 @@ class ZincIndexTestCase(TempDirTestCase):
         index.add_version_for_bundle("meep", 1)
         index.del_version_for_bundle("meep", 2)
 
-   
+    def test_update_distro_bad_bundle(self):
+        index = ZincIndex()
+        self.assertRaises(ValueError, index.update_distribution, "live", "beep", 1)
 
+    def test_update_distro_bad_bundle_version(self):
+        index = ZincIndex()
+        index.add_version_for_bundle("beep", 1)
+        self.assertRaises(ValueError, index.update_distribution, "live", "beep", 2)
 
-   
+    def test_update_distro_ok(self):
+        index = ZincIndex()
+        index.add_version_for_bundle("meep", 1)
+        index.update_distribution("live", "meep", 1)
+
+class ZincManifestTestCase(TempDirTestCase):
+
+    def test_save_and_load(self):
+        manifest1 = ZincManifest("meep", 1)
+        manifest1.files = {'a': 'ea502a7bbd407872e50b9328956277d0228272d4'}
+        path = os.path.join(self.dir, "manifest.json")
+        manifest1.write(path)
+        manifest2 = load_manifest(path)
+        assert manifest1.equals(manifest2)
 

@@ -9,6 +9,7 @@ from shutil import copyfile
 from os.path import join as pjoin
 
 ZINC_FORMAT = "1"
+
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
 
@@ -100,6 +101,14 @@ class ZincIndex(object):
         versions = self.versions_for_bundle(bundle_name)
         if version in versions:
             versions.remove(version)
+
+    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+        if bundle_version not in self.versions_for_bundle(bundle_name):
+            raise ValueError("Invalid bundle version")
+        distribution = self.distributions.get(distribution_name)
+        if distribution is None: distribution = {}
+        distribution[bundle_name] = bundle_version
+        self.distributions[distribution_name] = distribution
         
 def load_index(path):
     index_file = open(path, 'r')
@@ -150,11 +159,22 @@ class ZincManifest(object):
         manifest_file.close()
 
     def files_are_equivalent(self, other):
+        # check that the keys are all the same
+        if len(set(self.files.keys()) - set(other.files.keys())) != 0:
+            return False
+        if len(set(other.files.keys()) - set(self.files.keys())) != 0:
+            return False
+        # if the keys are all the same, check the values
         for (file, sha) in self.files.items():
             other_sha = other.files.get(file)
             if other_sha is None or sha != other_sha:
                 return False
         return True
+
+    def equals(self, other):
+        return self.version == other.version \
+                and self.bundle_name == other.bundle_name \
+                and self.files_are_equivalent(other)
 
 def load_manifest(path):
     manifest_file = open(path, 'r')
@@ -163,6 +183,7 @@ def load_manifest(path):
     bundle_name = dict['bundle']
     version = int(dict['version'])
     manifest = ZincManifest(bundle_name, version)
+    manifest.files = dict['files']
     return manifest
 
 ##############################################################################
@@ -182,25 +203,29 @@ class CreateBundleVersionOperation(ZincOperation):
 
     def run(self):
         version = self._next_version_for_bundle(self.bundle_name)
+
         # Create a new manifest outside of the repo
         new_manifest = ZincManifest(self.bundle_name, version)
+
         # Process all the paths and add them to the manifest
         for root, dirs, files in os.walk(self.src_dir):
             for f in files:
                 full_path = pjoin(root, f)
                 rel_dir = root[len(self.src_dir)+1:]
                 rel_path = pjoin(rel_dir, f)
-                #self.repo._import_path(full_path)
                 sha = sha1_for_path(full_path)
                 new_manifest.add_file(rel_path, sha)
-        # TODO: compare the newly constructed manifest to the existing manifest
+       
         existing_manifest = self.repo.manifest_for_bundle(self.bundle_name)
-        if existing_manifest.files != new_manifest.files:
+        if existing_manifest is None or not new_manifest.files_are_equivalent(existing_manifest):
+            for file in new_manifest.files.keys():
+                full_path = pjoin(self.src_dir, file)
+                self.repo._import_path(full_path)
             self.repo.index.add_version_for_bundle(self.bundle_name, version)
             self.repo._write_manifest(new_manifest)
             self.repo.save()
             return new_manifest
-        return None
+        return existing_manifest
 
 ### ZincBundle ###############################################################
 
@@ -302,7 +327,10 @@ class ZincRepo(object):
 
     def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
-        copyfile(src_path, self._path_for_object_with_sha(src_path_sha))
+        dst_path = self._path_for_object_with_sha(src_path_sha)
+        if not os.path.exists(dst_path):
+            logging.info("Importing: %s" % src_path)
+            copyfile(src_path, dst_path)
         
     def lock(self):
         pass
@@ -325,8 +353,8 @@ class ZincRepo(object):
                 if manifest is None:
                     raise Exception("manifest not found: %s-%d" % (bundle_name,
                         version))
-                for (file, sha) in manifest.files.iteritems():
-                    print file, sha
+                #for (file, sha) in manifest.files.iteritems():
+                #    print file, sha
 
         results_by_file = dict()
         #for version, manifest in self.manifests.items():
@@ -365,6 +393,10 @@ class ZincRepo(object):
         op = CreateBundleVersionOperation(self, bundle_name, src_dir)
         return op.run()
 
+    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+        self.index.update_distribution(distribution_name, bundle_name, bundle_version)
+        self.save()
+
     def save(self):
         #self._write_manifests()
         self._write_index_file()
@@ -394,6 +426,7 @@ def main():
     commands = ("repo:create",
             "repo:verify",
             "bundle:update",
+            "distro:update",
             )
 
     usage = "usage: %prog <command> [options]"
@@ -446,7 +479,7 @@ def main():
         create_repo_at_path(path)
         exit(0)
     elif command == "bundle:update": 
-        if len(args) < 2:
+        if len(args) < 3:
             #parser.print_usage()
             print "bundle:update <bundle name> <path>"
             exit(1)
@@ -454,12 +487,20 @@ def main():
         bundle_name = args[1]
         path = args[2]
         manifest = repo.create_bundle_version(bundle_name, path)
-        print "Created %s v%d" % (manifest.bundle_name, manifest.version)
+        print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+        exit(0)
+    elif command == "distro:update": 
+        if len(args) < 4:
+            #parser.print_usage()
+            print "distro:update <distro name> <bundle name> <bundle version>"
+            exit(1)
+        repo = ZincRepo(".")
+        distro_name = args[1]
+        bundle_name = args[2]
+        bundle_version = int(args[3])
+        repo.update_distribution(distro_name, bundle_name, bundle_version)
         exit(0)
 
-    if len(args) != 2:
-        parser.print_usage()
-        exit(1)
 
 if __name__ == "__main__":
     main()
