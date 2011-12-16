@@ -56,11 +56,30 @@ class ZincIndex(object):
 
     def __init__(self):
         self.format = ZINC_FORMAT
-        self.bundles = {}
+        self._bundles = {}
         self.distributions = {}
 
+    def get_bundles(self):
+        return self._bundles
+
+    def set_bundles(self, bundles):
+        """This ensures that the version of the bundle are always sorted"""
+        sorted_bundles = {}
+        for (k,v) in bundles.items():
+            sorted_bundles[k] = sorted(v)
+        self._bundles = sorted_bundles
+
+    def del_bundles(self):
+        del self._bundles
+
+    bundles = property(get_bundles, set_bundles, del_bundles, "Bundles property")
+
     def to_json(self):
-        return vars(self)
+        return {
+                'bundles' : self.bundles,
+                'distributions' : self.distributions,
+                'format' : self.format,
+                }
 
     def write(self, path):
         index_file = open(path, 'w')
@@ -69,13 +88,13 @@ class ZincIndex(object):
         index_file.close()
 
     def add_version_for_bundle(self, bundle_name, version):
-        versions = self.bundles.get(bundle_name) or []
+        versions = self._bundles.get(bundle_name) or []
         if version not in versions:
             versions.append(version)
-            self.bundles[bundle_name] = versions
+            self._bundles[bundle_name] = sorted(versions)
 
     def versions_for_bundle(self, bundle_name):
-        return self.bundles.get(bundle_name) or []
+        return self._bundles.get(bundle_name) or []
 
     def del_version_for_bundle(self, bundle_name, version):
         versions = self.versions_for_bundle(bundle_name)
@@ -137,7 +156,6 @@ def load_manifest(path):
     bundle_name = dict['bundle']
     version = int(dict['version'])
     manifest = ZincManifest(bundle_name, version)
-    manifest.files = dict['files']
     return manifest
 
 ##############################################################################
@@ -157,17 +175,25 @@ class CreateBundleVersionOperation(ZincOperation):
 
     def run(self):
         version = self._next_version_for_bundle(self.bundle_name)
-        manifest = self.repo._add_manifest(self.bundle_name, version)
-        os.chdir(self.src_dir)
+        # Create a new manifest outside of the repo
+        new_manifest = ZincManifest(self.bundle_name, version)
+        # Process all the paths and add them to the manifest
         for root, dirs, files in os.walk(self.src_dir):
             for f in files:
-                path = f
-                sha = sha1_for_path(path)
-                self.repo._import_path(path)
-                manifest.add_file(path, sha)
-        self.repo.index.add_version_for_bundle(self.bundle_name, version)
-        self.repo._write_manifest(manifest)
-        self.repo.save()
+                full_path = pjoin(root, f)
+                rel_dir = root[len(self.src_dir)+1:]
+                rel_path = pjoin(rel_dir, f)
+                #self.repo._import_path(full_path)
+                sha = sha1_for_path(full_path)
+                new_manifest.add_file(rel_path, sha)
+        # TODO: compare the newly constructed manifest to the existing manifest
+        existing_manifest = self.repo.manifest_for_bundle(self.bundle_name)
+        if existing_manifest != new_manifest or True:
+            self.repo.index.add_version_for_bundle(self.bundle_name, version)
+            self.repo._write_manifest(new_manifest)
+            self.repo.save()
+            return new_manifest
+        return None
 
 ### ZincBundle ###############################################################
 
@@ -265,14 +291,23 @@ class ZincRepo(object):
         return self._path_for_manifest_for_bundle_version(manifest.bundle_name,
                 manifest.version)
 
-    def _manifest_for_bundle_version(self, bundle_name, version):
-        if version not in self.index.versions_for_bundle(bundle_name):
+    def manifest_for_bundle(self, bundle_name, version=None):
+        all_versions = self.index.versions_for_bundle(bundle_name)
+        if version is None and len(all_versions) > 0:
+            version = all_versions[-1]
+        elif version not in all_versions:
             return None # throw exception?
         manifest_path = self._path_for_manifest_for_bundle_version(bundle_name, version)
         return load_manifest(manifest_path)
 
     def _write_manifest(self, manifest):
         manifest.write(self._path_for_manifest(manifest))
+
+    #def manifest_for_bundle(self, bundle_name, version=None):
+    #    if version is not None:
+    #        version = None # get the latest version
+    #    return self._manifest_for_bundle_
+
 
     #def _write_manifests(self):
     #    for versions in self._manifests.values():
@@ -313,13 +348,12 @@ class ZincRepo(object):
 
         for (bundle_name, versions) in self.index.bundles.iteritems():
             for version in versions:
-                manifest = self._manifest_for_bundle_version(bundle_name, version)
+                manifest = self.manifest_for_bundle(bundle_name, version)
                 if manifest is None:
                     raise Exception("manifest not found: %s-%d" % (bundle_name,
                         version))
-                for (key, sha) in manifest.files.iteritems():
-                    if sha1_for_path(pjoin(self._objects_dir(), sha)) != sha:
-                        raise Exception("Wrong SHA")
+                for (file, sha) in manifest.files.iteritems():
+                    print file, sha
 
         results_by_file = dict()
         #for version, manifest in self.manifests.items():
@@ -336,38 +370,27 @@ class ZincRepo(object):
         #            results_by_file[file] = ZincErrors.OK
         return results_by_file
 
-    #def get_bundle(self, bundle_name):
-    #    return self._manifests.get(bundle_name)
-
     def _add_manifest(self, bundle_name, version=1):
-        manifest = self.get_bundle(bundle_name, version)
-        if manifest is not None:
+        if version in self.versions_for_bundle(bundle_name):
             raise ValueError("Bundle already exists")
             return None
         manifest = ZincManifest(bundle_name, version, self)
-        if self._manifests.get(bundle_name) is None:
-            self._manifests[bundle_name] = {} # create version dict
-        self._manifests[bundle_name][int(version)] = manifest
+        self._write_manifest(manifest)
+        self.index.add_version_for_bundle(bundle_name, version)
+        #if self._manifests.get(bundle_name) is None:
+        #    self._manifests[bundle_name] = {} # create version dict
+        #self._manifests[bundle_name][int(version)] = manifest
         return manifest
 
     def versions_for_bundle(self, bundle_name):
-        manifests_by_version = self._manifests.get(bundle_name)
-        if manifests_by_version is None:
-            return []
-        return sorted(manifests_by_version.keys())
-
-    def get_bundle(self, name, version):
-        versions = self._manifests.get(name)
-        if versions is None:
-            return None
-        return versions.get(int(version))
+        return self.index.versions_for_bundle(bundle_name)
 
     def bundle_names(self):
-        return self._manifests.keys()
+        return self.index.bundles.keys()
 
     def create_bundle_version(self, bundle_name, src_dir):
         op = CreateBundleVersionOperation(self, bundle_name, src_dir)
-        op.run()
+        return op.run()
 
     def save(self):
         #self._write_manifests()
@@ -390,10 +413,15 @@ def _cmd_verify(path):
 
 def main():
 
-    commands = {
-            "repo" : ("create", "verify"),
-            "bundle": ("create", "commit"),
-            }
+    #commands = {
+    #        "repo" : ("create", "verify"),
+    #        #"bundle": ("create", "commit"),
+    #        }
+
+    commands = ("repo:create",
+            "repo:verify",
+            "bundle:update",
+            )
 
     usage = "usage: %prog <command> [options]"
     parser = optparse.OptionParser(usage)
@@ -428,6 +456,7 @@ def main():
         parser.print_usage()
         exit(1)
 
+    # TODO: better command parsing
     command = args[0]
     if command == "repo:verify":
         if len(args) < 2:
@@ -436,12 +465,23 @@ def main():
         path = args[1]
         _cmd_verify(path)
         exit(0)
-    elif command == "repo:create": # TODO: better command parsing
+    elif command == "repo:create": 
         if len(args) < 2:
             parser.print_usage()
             exit(1)
         path = args[1]
-        init_repo_at_path(path)
+        create_repo_at_path(path)
+        exit(0)
+    elif command == "bundle:update": 
+        if len(args) < 2:
+            #parser.print_usage()
+            print "bundle:update <bundle name> <path>"
+            exit(1)
+        repo = ZincRepo(".")
+        bundle_name = args[1]
+        path = args[2]
+        manifest = repo.create_bundle_version(bundle_name, path)
+        print "Created %s v%d" % (manifest.bundle_name, manifest.version)
         exit(0)
 
     if len(args) != 2:
@@ -450,6 +490,34 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def old_crap():
     src = os.path.realpath(args[0])
