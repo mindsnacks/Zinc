@@ -149,6 +149,13 @@ class ZincManifest(object):
         manifest_file.write(json.dumps(dict, indent=2, sort_keys=True))
         manifest_file.close()
 
+    def files_are_equivalent(self, other):
+        for (file, sha) in self.files.items():
+            other_sha = other.files.get(file)
+            if other_sha is None or sha != other_sha:
+                return False
+        return True
+
 def load_manifest(path):
     manifest_file = open(path, 'r')
     dict = json.load(manifest_file)
@@ -188,7 +195,7 @@ class CreateBundleVersionOperation(ZincOperation):
                 new_manifest.add_file(rel_path, sha)
         # TODO: compare the newly constructed manifest to the existing manifest
         existing_manifest = self.repo.manifest_for_bundle(self.bundle_name)
-        if existing_manifest != new_manifest or True:
+        if existing_manifest.files != new_manifest.files:
             self.repo.index.add_version_for_bundle(self.bundle_name, version)
             self.repo._write_manifest(new_manifest)
             self.repo.save()
@@ -269,19 +276,6 @@ class ZincRepo(object):
         index_path = pjoin(self.path, "index.json")
         self.index.write(index_path)
 
-#    def _read_manifests(self):
-#        self.manifests = dict()
-#        versions_path = pjoin(self.path, "versions")
-#        for root, dirs, files in os.walk(versions_path):
-#            for f in files:
-#                if f == "manifest.json":
-#                    manifest_path = pjoin(root, f)
-#                    manifest_file = open(manifest_path, "r")
-#                    manifest_dict = json.load(manifest_file)
-#                    manifest_file.close()
-#                    manifest_version_major = manifest_dict.get("version").split(".")[0]
-#                    self.manifests[manifest_version_major] = manifest_dict
-
     def _path_for_manifest_for_bundle_version(self, bundle_name, version):
         manifest_filename = "%s-%d.json" % (bundle_name, version)
         manifest_path = pjoin(self._manifests_dir(), manifest_filename)
@@ -303,17 +297,6 @@ class ZincRepo(object):
     def _write_manifest(self, manifest):
         manifest.write(self._path_for_manifest(manifest))
 
-    #def manifest_for_bundle(self, bundle_name, version=None):
-    #    if version is not None:
-    #        version = None # get the latest version
-    #    return self._manifest_for_bundle_
-
-
-    #def _write_manifests(self):
-    #    for versions in self._manifests.values():
-    #        for manifest in versions.values():
-    #            self._write_manifest(manifest)
-
     def _path_for_object_with_sha(self, sha):
         return pjoin(self._objects_dir(), sha)
 
@@ -329,16 +312,6 @@ class ZincRepo(object):
 
     def clean(self):
         pass
-
-    #def path_for_file(self, file, version=None):
-    #    if version == None:
-    #        version = self.latest_version()
-
-    #    manifest = self.manifests.get(version)
-    #    sha = manifest.get("files").get(file)
-    #    (basename, ext) = os.path.splitext(file)
-    #    zinc_path = pjoin("objects", "%s+%s%s" % (basename, sha, ext))
-    #    return zinc_path
 
     def verify(self):
         if not self._loaded:
