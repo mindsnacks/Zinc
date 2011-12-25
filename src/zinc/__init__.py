@@ -279,11 +279,11 @@ class ZincRepo(object):
     def is_loaded(self):
         return self._loaded
 
-    def _objects_dir(self):
-        objects_path = pjoin(self.path, "objects")
-        if not os.path.exists(objects_path):
-            os.mkdir(objects_path)
-        return objects_path
+    def _files_dir(self):
+        files_path = pjoin(self.path, "files")
+        if not os.path.exists(files_path):
+            os.mkdir(files_path)
+        return files_path
 
     def _manifests_dir(self):
         manifests_path = pjoin(self.path, "manifests")
@@ -323,7 +323,7 @@ class ZincRepo(object):
         manifest.write(self._path_for_manifest(manifest))
 
     def _path_for_object_with_sha(self, sha):
-        return pjoin(self._objects_dir(), sha)
+        return pjoin(self._files_dir(), sha)
 
     def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
@@ -556,7 +556,7 @@ def old_crap():
     version_minor = '2'
 
     for root, dirs, files in os.walk("."):
-        cur_dst_dir = pjoin(dst, "objects", root)
+        cur_dst_dir = pjoin(dst, "files", root)
         create_dir_if_needed(cur_dst_dir)
         for f in files:
             root = string.lstrip(root, "./")
