@@ -322,12 +322,12 @@ class ZincRepo(object):
     def _write_manifest(self, manifest):
         manifest.write(self._path_for_manifest(manifest))
 
-    def _path_for_object_with_sha(self, sha):
+    def _path_for_file_with_sha(self, sha):
         return pjoin(self._files_dir(), sha)
 
     def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
-        dst_path = self._path_for_object_with_sha(src_path_sha)
+        dst_path = self._path_for_file_with_sha(src_path_sha)
         if not os.path.exists(dst_path):
             logging.info("Importing: %s" % src_path)
             copyfile(src_path, dst_path)

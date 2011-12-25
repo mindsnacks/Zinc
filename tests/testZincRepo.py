@@ -80,7 +80,7 @@ class ZincRepoTestCase(TempDirTestCase):
         manifest = repo.manifest_for_bundle("meep", 1)
         assert manifest is not None
         for (file, sha) in manifest.files.items():
-            object_path = repo._path_for_object_with_sha(sha)
+            object_path = repo._path_for_file_with_sha(sha)
             assert os.path.exists(object_path)
 
     def test_create_bundle_with_subdirs(self):
