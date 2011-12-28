@@ -104,7 +104,7 @@ class ZincIndex(object):
     def write(self, path):
         index_file = open(path, 'w')
         dict = self.to_json()
-        index_file.write(json.dumps(dict, indent=2, sort_keys=True))
+        index_file.write(json.dumps(dict))
         index_file.close()
 
     def add_version_for_bundle(self, bundle_name, version):
@@ -174,7 +174,7 @@ class ZincManifest(object):
     def write(self, path):
         manifest_file = open(path, 'w')
         dict = self.to_json()
-        manifest_file.write(json.dumps(dict, indent=2, sort_keys=True))
+        manifest_file.write(json.dumps(dict))
         manifest_file.close()
 
     def files_are_equivalent(self, other):
