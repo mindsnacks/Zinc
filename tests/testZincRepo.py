@@ -33,7 +33,7 @@ class ZincRepoTestCase(TempDirTestCase):
 
     def test_repo_read_invalid_format(self):
         create_repo_at_path(self.repo_dir)
-        index_path = os.path.join(self.repo_dir, "index.json")
+        index_path = os.path.join(self.repo_dir, ZINC_REPO_INDEX)
         index = load_index(index_path)
         index.format = 2
         index.write(index_path)
@@ -80,7 +80,7 @@ class ZincRepoTestCase(TempDirTestCase):
         manifest = repo.manifest_for_bundle("meep", 1)
         assert manifest is not None
         for (file, sha) in manifest.files.items():
-            object_path = repo._path_for_file_with_sha(sha)
+            object_path = repo._path_for_file_with_sha(file, sha)
             assert os.path.exists(object_path)
 
     def test_create_bundle_with_subdirs(self):
@@ -97,7 +97,7 @@ class ZincRepoTestCase(TempDirTestCase):
         f3 = create_random_file(self.scratch_dir)
         repo.create_bundle_version("meep", self.scratch_dir)
         assert 2 in repo.versions_for_bundle("meep")
-        new_index = load_index(os.path.join(repo.path, "index.json"))
+        new_index = load_index(os.path.join(repo.path, ZINC_REPO_INDEX))
         assert 1 in new_index.bundles["meep"]
         assert 2 in new_index.bundles["meep"]
 

@@ -7,8 +7,10 @@ import string
 import json
 from shutil import copyfile
 from os.path import join as pjoin
+import gzip
 
 ZINC_FORMAT = "1"
+ZINC_REPO_INDEX = "repo.json"
 
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
@@ -30,6 +32,23 @@ def canonical_path(path):
     path = os.path.normpath(path)
     path = os.path.realpath(path)
     return path
+
+def makedirs(path):
+    try:
+        os.makedirs(path)
+    except OSError, e:
+        if e.errno == 17:
+            pass # directory already exists
+        else:
+            raise e
+
+def mygzip(src_path, dst_path):
+    f_in = open(src_path, 'rb')
+    f_out = gzip.open(dst_path, 'wb')
+    f_out.writelines(f_in)
+    f_out.close()
+    f_in.close()
+
 
 ### Errors ###################################################################
 
@@ -245,14 +264,18 @@ def ZincMetaBundle(object):
 def create_repo_at_path(path):
 
     path = canonical_path(path)
+    try:
+        makedirs(path)
+    except OSError, e:
+        if e.errno == 17:
+            pass # directory already exists
+        else:
+            raise e
 
-    zinc_dir = pjoin(path, "zinc")
-    os.makedirs(zinc_dir)
-        
-    config_path = pjoin(zinc_dir, "config")
+    config_path = pjoin(path, "config.json")
     ZincConfig().write(config_path)
 
-    index_path = pjoin(path, "index.json")
+    index_path = pjoin(path, ZINC_REPO_INDEX)
     ZincIndex().write(index_path)
 
     # TODO: check exceptions?
@@ -282,23 +305,23 @@ class ZincRepo(object):
     def _files_dir(self):
         files_path = pjoin(self.path, "files")
         if not os.path.exists(files_path):
-            os.mkdir(files_path)
+            makedirs(files_path)
         return files_path
 
     def _manifests_dir(self):
         manifests_path = pjoin(self.path, "manifests")
         if not os.path.exists(manifests_path):
-            os.mkdir(manifests_path)
+            makedirs(manifests_path)
         return manifests_path
 
     def _read_index_file(self):
-        index_path = pjoin(self.path, "index.json")
+        index_path = pjoin(self.path, ZINC_REPO_INDEX)
         self.index = load_index(index_path)
         if self.index.format != ZINC_FORMAT:
             raise Exception("Incompatible format %s" % (self.index.format))
 
     def _write_index_file(self):
-        index_path = pjoin(self.path, "index.json")
+        index_path = pjoin(self.path, ZINC_REPO_INDEX)
         self.index.write(index_path)
 
     def _path_for_manifest_for_bundle_version(self, bundle_name, version):
@@ -322,15 +345,20 @@ class ZincRepo(object):
     def _write_manifest(self, manifest):
         manifest.write(self._path_for_manifest(manifest))
 
-    def _path_for_file_with_sha(self, sha):
-        return pjoin(self._files_dir(), sha)
+    def _path_for_file_with_sha(self, src_file, sha):
+        subdir = pjoin(self._files_dir(), sha[0:2], sha[2:4])
+        ext = os.path.splitext(src_file)[1]
+        #return pjoin(subdir, sha+ext)
+        return pjoin(subdir, sha)
 
     def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
-        dst_path = self._path_for_file_with_sha(src_path_sha)
+        dst_path = self._path_for_file_with_sha(src_path, src_path_sha)
+        makedirs(os.path.dirname(dst_path))
         if not os.path.exists(dst_path):
             logging.info("Importing: %s" % src_path)
             copyfile(src_path, dst_path)
+            mygzip(dst_path, dst_path+'.gz')
         
     def lock(self):
         pass
@@ -595,7 +623,7 @@ def old_crap():
     index = {
             'zinc_fileormat' :  ZINC_FORMAT,
             }
-    index_path = pjoin(dst, "index.json")
+    index_path = pjoin(dst, ZINC_REPO_INDEX)
     index_file = open(index_path, "w")
     index_file.write(json.dumps(index, indent=2, sort_keys=True))
     index_file.close()
