@@ -74,10 +74,11 @@ class ZincOperation(object):
 
 class ZincIndex(object):
 
-    def __init__(self):
+    def __init__(self, id=None):
         self.format = ZINC_FORMAT
         self._bundles = {}
         self.distributions = {}
+        self.id = id
 
     def get_bundles(self):
         return self._bundles
@@ -96,12 +97,15 @@ class ZincIndex(object):
 
     def to_json(self):
         return {
+                'id' : self.id,
                 'bundles' : self.bundles,
                 'distributions' : self.distributions,
                 'format' : self.format,
                 }
 
     def write(self, path):
+        if self.id is None:
+            raise ValueError("repo id is None") # TODO: better exception?
         index_file = open(path, 'w')
         dict = self.to_json()
         index_file.write(json.dumps(dict))
@@ -134,6 +138,7 @@ def load_index(path):
     dict = json.load(index_file)
     index_file.close()
     index = ZincIndex()
+    index.id = dict['id']
     index.format = dict['format']
     index.bundles = dict['bundles']
     index.distributions = dict['distributions']
@@ -261,7 +266,7 @@ def ZincMetaBundle(object):
 
 ### ZincRepo #################################################################
 
-def create_repo_at_path(path):
+def create_repo_at_path(path, id):
 
     path = canonical_path(path)
     try:
@@ -276,7 +281,7 @@ def create_repo_at_path(path):
     ZincConfig().write(config_path)
 
     index_path = pjoin(path, ZINC_REPO_INDEX)
-    ZincIndex().write(index_path)
+    ZincIndex(id).write(index_path)
 
     # TODO: check exceptions?
 
@@ -500,11 +505,12 @@ def main():
         _cmd_verify(path)
         exit(0)
     elif command == "repo:create": 
-        if len(args) < 2:
+        if len(args) < 3:
             parser.print_usage()
             exit(1)
-        path = args[1]
-        create_repo_at_path(path)
+        id = args[1]
+        path = args[2]
+        create_repo_at_path(path, id)
         exit(0)
     elif command == "bundle:update": 
         if len(args) < 3:

@@ -13,7 +13,7 @@ class ZincRepoTestCase(TempDirTestCase):
         os.mkdir(self.scratch_dir)
 
     def test_repo_create(self):
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         assert repo is not None
         assert repo.is_loaded() == True
         assert len(repo.verify()) == 0
@@ -21,18 +21,18 @@ class ZincRepoTestCase(TempDirTestCase):
         assert repo.format() == ZINC_FORMAT
 
     def test_repo_create_manifest(self):
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         manifest = repo._add_manifest("beep")
         assert manifest is not None
  
     def test_repo_create_duplicate_manifest(self):
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         manifest1 = repo._add_manifest("beep")
         assert manifest1 is not None
         self.assertRaises(ValueError, repo._add_manifest, "beep")
 
     def test_repo_read_invalid_format(self):
-        create_repo_at_path(self.repo_dir)
+        create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         index_path = os.path.join(self.repo_dir, ZINC_REPO_INDEX)
         index = load_index(index_path)
         index.format = 2
@@ -40,7 +40,7 @@ class ZincRepoTestCase(TempDirTestCase):
         self.assertRaises(Exception, ZincRepo, (self.repo_dir))
 
     def test_repo_import_file(self):
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         f1 = create_random_file(self.scratch_dir)
         repo._import_path(f1)
 
@@ -51,23 +51,23 @@ class ZincRepoTestCase(TempDirTestCase):
     #    self.assertRaises(Exception, bundle.add_version)
 
     def test_bundle_names_with_no_bundles(self):
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         assert len(repo.bundle_names()) == 0
 
     def test_version_for_bundle(self):
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         repo._add_manifest("meep", 1)
         versions = repo.versions_for_bundle("meep")
         assert 1 in versions
         assert len(versions) == 1
 
     def test_versions_for_nonexistant_bundle(self):
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         versions = repo.versions_for_bundle("meep")
         assert len(versions) == 0
 
     def _build_test_repo(self):
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         f1 = create_random_file(self.scratch_dir)
         f2 = create_random_file(self.scratch_dir)
         repo.create_bundle_version("meep", self.scratch_dir)
@@ -87,7 +87,7 @@ class ZincRepoTestCase(TempDirTestCase):
         f1 = create_random_file(self.scratch_dir)
         one_dir = os.mkdir(os.path.join(self.scratch_dir, "one"))
         f2 = create_random_file(one_dir)
-        repo = create_repo_at_path(self.repo_dir)
+        repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')
         repo.create_bundle_version("meep", self.scratch_dir)
         results = repo.verify()
         
