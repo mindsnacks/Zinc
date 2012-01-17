@@ -10,7 +10,10 @@ from os.path import join as pjoin
 import gzip
 
 ZINC_FORMAT = "1"
-ZINC_REPO_INDEX = "repo.json"
+ZINC_REPO_INDEX = "index.json"
+ZINC_REPO_CONFIG = "config.json"
+
+IGNORE = ['.DS_Store']
 
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
@@ -103,13 +106,16 @@ class ZincIndex(object):
                 'format' : self.format,
                 }
 
-    def write(self, path):
+    def write(self, path, gzip=False):
         if self.id is None:
             raise ValueError("repo id is None") # TODO: better exception?
         index_file = open(path, 'w')
         dict = self.to_json()
         index_file.write(json.dumps(dict))
         index_file.close()
+        if gzip:
+            gzpath = path + '.gz'
+            mygzip(path, gzpath)
 
     def add_version_for_bundle(self, bundle_name, version):
         versions = self._bundles.get(bundle_name) or []
@@ -126,7 +132,9 @@ class ZincIndex(object):
             versions.remove(version)
 
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
-        if bundle_version not in self.versions_for_bundle(bundle_name):
+        if bundle_version == 'latest':
+            bundle_version = self.versions_for_bundle(bundle_name)[-1]
+        elif int(bundle_version) not in self.versions_for_bundle(bundle_name):
             raise ValueError("Invalid bundle version")
         distribution = self.distributions.get(distribution_name)
         if distribution is None: distribution = {}
@@ -149,12 +157,28 @@ def load_index(path):
 class ZincConfig(object):
 
     def __init__(self):
-        pass
+        self.gzip_threshhold = 0.85
 
+    def to_json(self):
+        d = {}
+        if self.gzip_threshhold is not None:
+            d['gzip_threshhold'] = self.gzip_threshhold
+        return d
+   
     def write(self, path):
         config_file = open(path, 'w')
-        config_file.write('')
+        dict = self.to_json()
+        config_file.write(json.dumps(dict))
         config_file.close()
+
+def load_config(path):
+    config_file = open(path, 'r')
+    dict = json.load(config_file)
+    config_file.close()
+    config = ZincConfig()
+    if dict.get('gzip_threshhold'):
+        config.gzip_threshhold = dict.get('gzip_threshhold')
+    return config 
 
 ### ZincManifest #############################################################
 
@@ -167,7 +191,13 @@ class ZincManifest(object):
         self.files = {}
 
     def add_file(self, path, sha):
-        self.files[path] = sha
+        self.files[path] = {'sha' : sha}
+
+    def add_format_for_file(self, path, format, size):
+        props = self.files[path]
+        formats = props.get('formats') or {}
+        formats[format] = {'size' : size}
+        props['formats'] = formats
 
     def to_json(self):
         return {
@@ -176,11 +206,14 @@ class ZincManifest(object):
                 'files' : self.files,
                 }
 
-    def write(self, path):
+    def write(self, path, gzip=False):
         manifest_file = open(path, 'w')
         dict = self.to_json()
         manifest_file.write(json.dumps(dict))
         manifest_file.close()
+        if gzip:
+            gzpath = path + '.gz'
+            mygzip(path, gzpath)
 
     def files_are_equivalent(self, other):
         # check that the keys are all the same
@@ -189,8 +222,9 @@ class ZincManifest(object):
         if len(set(other.files.keys()) - set(self.files.keys())) != 0:
             return False
         # if the keys are all the same, check the values
-        for (file, sha) in self.files.items():
-            other_sha = other.files.get(file)
+        for (file, props) in self.files.items():
+            sha = props.get('sha')
+            other_sha = other.files.get(file).get('sha')
             if other_sha is None or sha != other_sha:
                 return False
         return True
@@ -234,6 +268,7 @@ class CreateBundleVersionOperation(ZincOperation):
         # Process all the paths and add them to the manifest
         for root, dirs, files in os.walk(self.src_dir):
             for f in files:
+                if f in IGNORE: continue # TODO: real ignore
                 full_path = pjoin(root, f)
                 rel_dir = root[len(self.src_dir)+1:]
                 rel_path = pjoin(rel_dir, f)
@@ -243,26 +278,33 @@ class CreateBundleVersionOperation(ZincOperation):
         existing_manifest = self.repo.manifest_for_bundle(self.bundle_name)
         if existing_manifest is None or not new_manifest.files_are_equivalent(existing_manifest):
             for file in new_manifest.files.keys():
+                print file
                 full_path = pjoin(self.src_dir, file)
-                self.repo._import_path(full_path)
+                print full_path
+                (repo_path, size) = self.repo._import_path(full_path)
+                if repo_path[-3:] == '.gz':
+                    format = 'gz'
+                else:
+                    format = 'raw'
+                new_manifest.add_format_for_file(file, format, size)
             self.repo.index.add_version_for_bundle(self.bundle_name, version)
             self.repo._write_manifest(new_manifest)
             self.repo.save()
             return new_manifest
         return existing_manifest
 
-### ZincBundle ###############################################################
-
-class ZincBundle(object):
-
-    def __init__(self, manifest):
-        self.manifest = manifest 
-
-# ???
-def ZincMetaBundle(object):
-    # bundle name
-    # version
-    pass
+#### ZincBundle ###############################################################
+#
+##class ZincBundle(object):
+##
+##    def __init__(self, manifest):
+##        self.manifest = manifest 
+#
+### ???
+##def ZincMetaBundle(object):
+##    # bundle name
+##    # version
+##    pass
 
 ### ZincRepo #################################################################
 
@@ -277,11 +319,11 @@ def create_repo_at_path(path, id):
         else:
             raise e
 
-    config_path = pjoin(path, "config.json")
+    config_path = pjoin(path, ZINC_REPO_CONFIG)
     ZincConfig().write(config_path)
 
     index_path = pjoin(path, ZINC_REPO_INDEX)
-    ZincIndex(id).write(index_path)
+    ZincIndex(id).write(index_path, True)
 
     # TODO: check exceptions?
 
@@ -292,7 +334,7 @@ class ZincRepo(object):
     def _load(self):
         self._read_index_file()
         # TODO: check format, just assume 1 for now
-        #self._read_manifests()
+        self._read_config_file()
         self._loaded = True
 
     def __init__(self, path):
@@ -308,7 +350,7 @@ class ZincRepo(object):
         return self._loaded
 
     def _files_dir(self):
-        files_path = pjoin(self.path, "files")
+        files_path = pjoin(self.path, "objects")
         if not os.path.exists(files_path):
             makedirs(files_path)
         return files_path
@@ -325,9 +367,13 @@ class ZincRepo(object):
         if self.index.format != ZINC_FORMAT:
             raise Exception("Incompatible format %s" % (self.index.format))
 
+    def _read_config_file(self):
+        config_path = pjoin(self.path, ZINC_REPO_CONFIG)
+        self.config = load_config(config_path)
+
     def _write_index_file(self):
         index_path = pjoin(self.path, ZINC_REPO_INDEX)
-        self.index.write(index_path)
+        self.index.write(index_path, True)
 
     def _path_for_manifest_for_bundle_version(self, bundle_name, version):
         manifest_filename = "%s-%d.json" % (bundle_name, version)
@@ -348,22 +394,46 @@ class ZincRepo(object):
         return load_manifest(manifest_path)
 
     def _write_manifest(self, manifest):
-        manifest.write(self._path_for_manifest(manifest))
+        manifest.write(self._path_for_manifest(manifest), True)
 
-    def _path_for_file_with_sha(self, src_file, sha):
+    def _path_for_file_with_sha(self, src_file, sha, ext=None):
         subdir = pjoin(self._files_dir(), sha[0:2], sha[2:4])
-        ext = os.path.splitext(src_file)[1]
+        #ext = os.path.splitext(src_file)[1]
         #return pjoin(subdir, sha+ext)
-        return pjoin(subdir, sha)
+        file = sha
+        if ext is not None:
+            file = file + ext
+        return pjoin(subdir, file)
 
     def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
         dst_path = self._path_for_file_with_sha(src_path, src_path_sha)
+        dst_path_gz = dst_path+'.gz'
+
+        # TODO: this is lame
+        if os.path.exists(dst_path):
+            return (dst_path, os.path.getsize(dst_path))
+        elif os.path.exists(dst_path_gz):
+            return (dst_path_gz, os.path.getsize(dst_path_gz))
+
+        # gzip the file first, and see if it passes the compression
+        # threshhold
+
         makedirs(os.path.dirname(dst_path))
-        if not os.path.exists(dst_path):
-            logging.info("Importing: %s" % src_path)
+        mygzip(src_path, dst_path_gz)
+        src_size = os.path.getsize(src_path)
+        dst_gz_size = os.path.getsize(dst_path_gz)
+        if float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
+            final_dst_path = dst_path_gz
+            final_dst_size = dst_gz_size
+        else:
+            final_dst_path = dst_path
+            final_dst_size = src_size
             copyfile(src_path, dst_path)
-            mygzip(dst_path, dst_path+'.gz')
+            os.remove(dst_path_gz)
+
+        logging.info("Imported %s --> %s" % (src_path, final_dst_path))
+        return (final_dst_path, final_dst_size)
         
     def lock(self):
         pass
@@ -531,7 +601,7 @@ def main():
         repo = ZincRepo(".")
         distro_name = args[1]
         bundle_name = args[2]
-        bundle_version = int(args[3])
+        bundle_version = args[3]
         repo.update_distribution(distro_name, bundle_name, bundle_version)
         exit(0)
 

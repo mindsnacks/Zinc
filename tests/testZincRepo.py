@@ -79,9 +79,15 @@ class ZincRepoTestCase(TempDirTestCase):
         assert 1 in repo.versions_for_bundle("meep")
         manifest = repo.manifest_for_bundle("meep", 1)
         assert manifest is not None
-        for (file, sha) in manifest.files.items():
-            object_path = repo._path_for_file_with_sha(file, sha)
-            assert os.path.exists(object_path)
+        for (file, props) in manifest.files.items():
+            sha = props['sha']
+            formats = props['formats']
+            for format in formats.keys():
+                ext = None
+                if format == 'gz':
+                    ext = '.gz'
+                object_path = repo._path_for_file_with_sha(file, sha, ext)
+                assert os.path.exists(object_path)
 
     def test_create_bundle_with_subdirs(self):
         f1 = create_random_file(self.scratch_dir)
@@ -171,7 +177,16 @@ class ZincManifestTestCase(TempDirTestCase):
 
     def test_save_and_load(self):
         manifest1 = ZincManifest("meep", 1)
-        manifest1.files = {'a': 'ea502a7bbd407872e50b9328956277d0228272d4'}
+        manifest1.files = {
+                'a': {
+                    'sha': 'ea502a7bbd407872e50b9328956277d0228272d4',
+                    'formats': { 
+                        'raw' : {
+                            'size': 123
+                            }
+                        }
+                    }
+                }
         path = os.path.join(self.dir, "manifest.json")
         manifest1.write(path)
         manifest2 = load_manifest(path)

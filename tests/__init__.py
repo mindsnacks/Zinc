@@ -9,10 +9,11 @@ class TempDirTestCase(unittest.TestCase):
 
     def setUp(self):
         self.dir = tempfile.mkdtemp()
-        #print self.dir
+        print self.dir
     
     def tearDown(self):
-        shutil.rmtree(self.dir)
+        #shutil.rmtree(self.dir)
+        pass
 
 def create_random_file(dir, size=1024):
     path = tempfile.mkstemp(dir=dir)[1]

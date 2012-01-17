@@ -1,3 +1,88 @@
+
+# Zinc - Draft 5
+
+#### Design Goals
+
+ - Verifiable & consistent file distributions
+ - Transparent and human friendly
+ - Versioned
+ - S3/CloudFront compatible
+
+
+#### Terminology
+
+ - Bundle - group of related files. Bundles should have an unique id.
+ - Catalog - A server-side listing of bundles that can be downloaded
+ - Repo - Client side copies of bundles pulled from remote Catalogs
+ - Manifest - describes all files in a bundle
+ - Distribution - named version. Sort of like a branch but not really.
+
+
+## Workflow
+
+
+#### Set up some assets
+
+     catburp-assets/
+      |- images/
+      |  |- cat1.jpg
+      |  |- cat2.jpg
+      |- sounds/
+         |- burp.wav
+
+#### Create a Zinc catalog
+
+    $ zinc catalog:create /path/to/catalog
+    Created new Zinc catalog 'default' at /path/to/catalog
+
+    $ zinc list /path/to/repo
+    0 bundles
+
+     <catalog>/
+     |- index.json
+
+
+#### Create a Zinc bundle in the catalog
+
+	$ cd /path/to/catalog
+	$ zinc bundle:update catburp-assets ~/catburp-assets
+
+
+#### index.json
+
+	{
+    	'format' : '1',
+    	'bundles' : {
+        	'catburp' : [1],
+       },
+    	'distributions' : {
+		}
+    }
+
+##### manifest.json
+
+	{
+    	"bundle": "fr-Nightlife", 
+	    "files": {
+	        "Nightlife.js": {
+				"sha": "764c6fc121871082e0f0a71c79f1df687b8b741a", 
+				"formats": {
+					"gzip": {
+						"size" : 123123123
+					},
+				"formats": {
+					"gzip": 123123123
+					}
+				}
+			}
+	        "audio/acommanderaboire.caf": "0b4aeb04c7c064c034dcbbbd2f8d436095f0342a", 
+	        "audio/derencontrerquelquun.caf": "8e0b302f66b17ee6c5ecfc43dc3734b832c42323", 
+	        "zincfile": "ae0975988a976bb5ad437585adc5b97d6543499b"
+    	}, 
+	    "version": 1
+	}
+
+
 # Zinc - Draft 4
 
 #### Set up some assets
