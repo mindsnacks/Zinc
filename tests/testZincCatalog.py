@@ -1,9 +1,9 @@
 from tests import *
-#from zinc import ZincRepo, create_repo_at_path, ZINC_FORMAT
+#from zinc import ZincCatalog, create_repo_at_path, ZINC_FORMAT
 from zinc import *
 import os.path
 
-class ZincRepoTestCase(TempDirTestCase):
+class ZincCatalogTestCase(TempDirTestCase):
 
     def setUp(self):
         self.dir = tempfile.mkdtemp()
@@ -37,7 +37,7 @@ class ZincRepoTestCase(TempDirTestCase):
         index = load_index(index_path)
         index.format = 2
         index.write(index_path)
-        self.assertRaises(Exception, ZincRepo, (self.repo_dir))
+        self.assertRaises(Exception, ZincCatalog, (self.repo_dir))
 
     def test_repo_import_file(self):
         repo = create_repo_at_path(self.repo_dir, 'com.mindsnacks.test')

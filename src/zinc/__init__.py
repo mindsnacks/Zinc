@@ -280,7 +280,7 @@ class CreateBundleVersionOperation(ZincOperation):
 ##    # version
 ##    pass
 
-### ZincRepo #################################################################
+### ZincCatalog #################################################################
 
 def create_repo_at_path(path, id):
 
@@ -301,9 +301,9 @@ def create_repo_at_path(path, id):
 
     # TODO: check exceptions?
 
-    return ZincRepo(path)
+    return ZincCatalog(path)
 
-class ZincRepo(object):
+class ZincCatalog(object):
 
     def _load(self):
         self._read_index_file()
@@ -492,7 +492,7 @@ class ZincRepo(object):
 ### Commands #################################################################
 
 def _cmd_verify(path):
-    repo = ZincRepo(path)
+    repo = ZincCatalog(path)
     results = repo.verify()
     error_count = total_count = 0
     for (file, error) in results.items():
@@ -572,7 +572,7 @@ def main():
             #parser.print_usage()
             print "bundle:update <bundle name> <path>"
             exit(1)
-        repo = ZincRepo(".")
+        repo = ZincCatalog(".")
         bundle_name = args[1]
         path = args[2]
         manifest = repo.create_bundle_version(bundle_name, path)
@@ -583,7 +583,7 @@ def main():
             #parser.print_usage()
             print "distro:update <distro name> <bundle name> <bundle version>"
             exit(1)
-        repo = ZincRepo(".")
+        repo = ZincCatalog(".")
         distro_name = args[1]
         bundle_name = args[2]
         bundle_version = args[3]
