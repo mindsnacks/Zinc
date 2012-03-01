@@ -74,7 +74,7 @@ class ZincIndex(object):
 
     def write(self, path, gzip=False):
         if self.id is None:
-            raise ValueError("repo id is None") # TODO: better exception?
+            raise ValueError("catalog id is None") # TODO: better exception?
         index_file = open(path, 'w')
         dict = self.to_json()
         index_file.write(json.dumps(dict))
@@ -150,10 +150,10 @@ def load_config(path):
 
 class ZincManifest(object):
 
-    def __init__(self, bundle_name, version=1, repo=None):
+    def __init__(self, bundle_name, version=1, catalog=None):
         self.bundle_name = bundle_name
         self.version = int(version)
-        self.repo = repo
+        self.catalog = catalog
         self.files = {}
 
     def add_file(self, path, sha):
@@ -214,13 +214,13 @@ def load_manifest(path):
 
 class CreateBundleVersionOperation(ZincOperation):
 
-    def __init__(self, repo, bundle_name, src_dir):
-        self.repo = repo
+    def __init__(self, catalog, bundle_name, src_dir):
+        self.catalog = catalog
         self.bundle_name = bundle_name
         self.src_dir =  canonical_path(src_dir)
 
     def _next_version_for_bundle(self, bundle_name):
-        versions = self.repo.versions_for_bundle(bundle_name)
+        versions = self.catalog.versions_for_bundle(bundle_name)
         if len(versions) == 0:
             return 1
         return versions[-1] + 1
@@ -228,7 +228,7 @@ class CreateBundleVersionOperation(ZincOperation):
     def run(self):
         version = self._next_version_for_bundle(self.bundle_name)
 
-        # Create a new manifest outside of the repo
+        # Create a new manifest outside of the catalog
         new_manifest = ZincManifest(self.bundle_name, version)
 
         # Process all the paths and add them to the manifest
@@ -241,28 +241,28 @@ class CreateBundleVersionOperation(ZincOperation):
                 sha = sha1_for_path(full_path)
                 new_manifest.add_file(rel_path, sha)
        
-        existing_manifest = self.repo.manifest_for_bundle(self.bundle_name)
+        existing_manifest = self.catalog.manifest_for_bundle(self.bundle_name)
         if existing_manifest is None or not new_manifest.files_are_equivalent(existing_manifest):
 
-            tar_file_name = self.repo._path_for_archive_for_bundle_version(self.bundle_name, version)
+            tar_file_name = self.catalog._path_for_archive_for_bundle_version(self.bundle_name, version)
             tar = tarfile.open(tar_file_name, 'w')
             print tar_file_name
 
             for file in new_manifest.files.keys():
                 full_path = pjoin(self.src_dir, file)
-                (repo_path, size) = self.repo._import_path(full_path)
-                if repo_path[-3:] == '.gz':
+                (catalog_path, size) = self.catalog._import_path(full_path)
+                if catalog_path[-3:] == '.gz':
                     format = 'gz'
                 else:
                     format = 'raw'
                 new_manifest.add_format_for_file(file, format, size)
-                tar.add(repo_path, os.path.basename(repo_path))
+                tar.add(catalog_path, os.path.basename(catalog_path))
 
             tar.close()
 
-            self.repo.index.add_version_for_bundle(self.bundle_name, version)
-            self.repo._write_manifest(new_manifest)
-            self.repo.save()
+            self.catalog.index.add_version_for_bundle(self.bundle_name, version)
+            self.catalog._write_manifest(new_manifest)
+            self.catalog.save()
             return new_manifest
 
         return existing_manifest
@@ -282,7 +282,7 @@ class CreateBundleVersionOperation(ZincOperation):
 
 ### ZincCatalog #################################################################
 
-def create_repo_at_path(path, id):
+def create_catalog_at_path(path, id):
 
     path = canonical_path(path)
     try:
@@ -492,8 +492,8 @@ class ZincCatalog(object):
 ### Commands #################################################################
 
 def _cmd_verify(path):
-    repo = ZincCatalog(path)
-    results = repo.verify()
+    catalog = ZincCatalog(path)
+    results = catalog.verify()
     error_count = total_count = 0
     for (file, error) in results.items():
         if error.code != ZincErrors.OK.code:
@@ -507,12 +507,12 @@ def _cmd_verify(path):
 def main():
 
     #commands = {
-    #        "repo" : ("create", "verify"),
+    #        "catalog" : ("create", "verify"),
     #        #"bundle": ("create", "commit"),
     #        }
 
-    commands = ("repo:create",
-            "repo:verify",
+    commands = ("catalog:create",
+            "catalog:verify",
             "bundle:update",
             "distro:update",
             )
@@ -552,30 +552,30 @@ def main():
 
     # TODO: better command parsing
     command = args[0]
-    if command == "repo:verify":
+    if command == "catalog:verify":
         if len(args) < 2:
             parser.print_usage()
             exit(1)
         path = args[1]
         _cmd_verify(path)
         exit(0)
-    elif command == "repo:create": 
+    elif command == "catalog:create": 
         if len(args) < 3:
             parser.print_usage()
             exit(1)
         id = args[1]
         path = args[2]
-        create_repo_at_path(path, id)
+        create_catalog_at_path(path, id)
         exit(0)
     elif command == "bundle:update": 
         if len(args) < 3:
             #parser.print_usage()
             print "bundle:update <bundle name> <path>"
             exit(1)
-        repo = ZincCatalog(".")
+        catalog = ZincCatalog(".")
         bundle_name = args[1]
         path = args[2]
-        manifest = repo.create_bundle_version(bundle_name, path)
+        manifest = catalog.create_bundle_version(bundle_name, path)
         print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
         exit(0)
     elif command == "distro:update": 
@@ -583,11 +583,11 @@ def main():
             #parser.print_usage()
             print "distro:update <distro name> <bundle name> <bundle version>"
             exit(1)
-        repo = ZincCatalog(".")
+        catalog = ZincCatalog(".")
         distro_name = args[1]
         bundle_name = args[2]
         bundle_version = args[3]
-        repo.update_distribution(distro_name, bundle_name, bundle_version)
+        catalog.update_distribution(distro_name, bundle_name, bundle_version)
         exit(0)
 
 
