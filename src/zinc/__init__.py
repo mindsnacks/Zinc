@@ -8,6 +8,7 @@ import json
 from shutil import copyfile
 from os.path import join as pjoin
 import gzip
+import tarfile
 
 ZINC_FORMAT = "1"
 ZINC_REPO_INDEX = "index.json"
@@ -277,20 +278,28 @@ class CreateBundleVersionOperation(ZincOperation):
        
         existing_manifest = self.repo.manifest_for_bundle(self.bundle_name)
         if existing_manifest is None or not new_manifest.files_are_equivalent(existing_manifest):
+
+            tar_file_name = self.repo._path_for_archive_for_bundle_version(self.bundle_name, version)
+            tar = tarfile.open(tar_file_name, 'w')
+            print tar_file_name
+
             for file in new_manifest.files.keys():
-                print file
                 full_path = pjoin(self.src_dir, file)
-                print full_path
                 (repo_path, size) = self.repo._import_path(full_path)
                 if repo_path[-3:] == '.gz':
                     format = 'gz'
                 else:
                     format = 'raw'
                 new_manifest.add_format_for_file(file, format, size)
+                tar.add(repo_path, os.path.basename(repo_path))
+
+            tar.close()
+
             self.repo.index.add_version_for_bundle(self.bundle_name, version)
             self.repo._write_manifest(new_manifest)
             self.repo.save()
             return new_manifest
+
         return existing_manifest
 
 #### ZincBundle ###############################################################
@@ -361,6 +370,12 @@ class ZincRepo(object):
             makedirs(manifests_path)
         return manifests_path
 
+    def _archives_dir(self):
+        archives_path = pjoin(self.path, "archives")
+        if not os.path.exists(archives_path):
+            makedirs(archives_path)
+        return archives_path
+
     def _read_index_file(self):
         index_path = pjoin(self.path, ZINC_REPO_INDEX)
         self.index = load_index(index_path)
@@ -379,6 +394,11 @@ class ZincRepo(object):
         manifest_filename = "%s-%d.json" % (bundle_name, version)
         manifest_path = pjoin(self._manifests_dir(), manifest_filename)
         return manifest_path
+
+    def _path_for_archive_for_bundle_version(self, bundle_name, version):
+        archive_filename = "%s-%d.tar" % (bundle_name, version)
+        archive_path = pjoin(self._archives_dir(), archive_filename)
+        return archive_path
 
     def _path_for_manifest(self, manifest):
         return self._path_for_manifest_for_bundle_version(manifest.bundle_name,
