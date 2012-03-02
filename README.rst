@@ -3,6 +3,12 @@ Zinc
 
 Asset distribution system for mobile apps.
 
+Status
+------
+
+Zinc is in the early development stage should be consider 'alpha' at
+best.
+
 Clients
 -------
 
