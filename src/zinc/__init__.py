@@ -580,7 +580,7 @@ def main():
         bundle_name = args[1]
         path = args[2]
         manifest = catalog.create_bundle_version(bundle_name, path)
-        print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+        print "Updated %s v%d" % (manifest.bundle_id, manifest.version)
         exit(0)
     elif command == "distro:update": 
         if len(args) < 4:
