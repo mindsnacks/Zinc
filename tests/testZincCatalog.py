@@ -89,6 +89,12 @@ class ZincCatalogTestCase(TempDirTestCase):
                 object_path = catalog._path_for_file_with_sha(file, sha, ext)
                 assert os.path.exists(object_path)
 
+    def test_bundle_id_in_manifest(self):
+        catalog = self._build_test_catalog()
+        bundle_id = catalog.bundle_id_for_name("meep")
+        manifest = catalog.manifest_for_bundle("meep", 1)
+        assert manifest.bundle_id == bundle_id
+
     def test_create_bundle_with_subdirs(self):
         f1 = create_random_file(self.scratch_dir)
         one_dir = os.mkdir(os.path.join(self.scratch_dir, "one"))
