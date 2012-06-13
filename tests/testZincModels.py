@@ -1,5 +1,4 @@
 from tests import *
-#from zinc import ZincCatalog, create_catalog_at_path, ZINC_FORMAT
 from zinc import *
 import os.path
 
@@ -18,7 +17,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         assert catalog.is_loaded() == True
         assert len(catalog.verify()) == 0
         assert len(catalog.bundle_names()) == 0
-        assert catalog.format() == ZINC_FORMAT
+        assert catalog.format() == defaults['zinc_format']
 
     def test_catalog_create_manifest(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
@@ -33,7 +32,7 @@ class ZincCatalogTestCase(TempDirTestCase):
 
     def test_catalog_read_invalid_format(self):
         create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        index_path = os.path.join(self.catalog_dir, ZINC_REPO_INDEX)
+        index_path = os.path.join(self.catalog_dir, defaults['catalog_index_name'])
         index = load_index(index_path)
         index.format = 2
         index.write(index_path)
@@ -109,7 +108,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         f3 = create_random_file(self.scratch_dir)
         catalog.create_bundle_version("meep", self.scratch_dir)
         assert 2 in catalog.versions_for_bundle("meep")
-        new_index = load_index(os.path.join(catalog.path, ZINC_REPO_INDEX))
+        new_index = load_index(os.path.join(catalog.path, defaults['catalog_index_name']))
         assert 1 in new_index.bundles["meep"]
         assert 2 in new_index.bundles["meep"]
 

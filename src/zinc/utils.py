@@ -1,4 +1,12 @@
-### Utils ####################################################################
+# -*- coding: utf-8 -*-
+
+"""
+zinc.utils
+~~~~~~~~~~
+
+This module provides utility functions that are used within Zinc.
+
+"""
 
 import hashlib
 import gzip
