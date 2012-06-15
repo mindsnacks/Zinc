@@ -35,40 +35,21 @@ class ZincOperation(object):
 
 class ZincIndex(object):
 
-    def __init__(self):
+    def __init__(self, id=None):
         self.format = defaults['zinc_format']
-        #self._bundles = {}
-        #self.distributions = {}
+        self.id = id
         self.bundle_info_by_id = dict()
 
-    #def get_bundles(self):
-    #    return self._bundles
-
-    #def set_bundles(self, bundles):
-    #    """This ensures that the version of the bundle are always sorted"""
-    #    sorted_bundles = {}
-    #    for (k,v) in bundles.items():
-    #        sorted_bundles[k] = sorted(v)
-    #    self._bundles = sorted_bundles
-
-    #def del_bundles(self):
-    #    del self._bundles
-
-    #bundles = property(get_bundles, set_bundles, del_bundles, "Bundles property")
-
     def to_json(self):
-        #return {
-        #        'bundles' : self.bundles,
-        #        'distributions' : self.distributions,
-        #        'format' : self.format,
-        #        }
-
        return {
+				'id' : self.id,
                 'bundles' : self.bundle_info_by_id,
                 'format' : self.format,
                 }
 
     def write(self, path, gzip=False):
+        if self.id is None:
+            raise ValueError("catalog id is None") # TODO: better exception?
         index_file = open(path, 'w')
         dict = self.to_json()
         index_file.write(json.dumps(dict))
@@ -114,6 +95,7 @@ def load_index(path):
     dict = json.load(index_file)
     index_file.close()
     index = ZincIndex()
+    index.id = dict['id']
     index.format = dict['format']
     index.bundle_info_by_id = dict['bundles']
     return index
@@ -272,7 +254,7 @@ class CreateBundleVersionOperation(ZincOperation):
 
 ### ZincCatalog #################################################################
 
-def create_catalog_at_path(path):
+def create_catalog_at_path(path, id):
 
     path = canonical_path(path)
     try:
@@ -287,7 +269,7 @@ def create_catalog_at_path(path):
     ZincConfig().write(config_path)
 
     index_path = pjoin(path, defaults['catalog_index_name'])
-    ZincIndex().write(index_path, True)
+    ZincIndex(id).write(index_path, True)
 
     # TODO: check exceptions?
 

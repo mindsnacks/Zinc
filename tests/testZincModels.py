@@ -12,7 +12,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         os.mkdir(self.scratch_dir)
 
     def test_catalog_create(self):
-        catalog = create_catalog_at_path(self.catalog_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         assert catalog is not None
         assert catalog.is_loaded() == True
         assert len(catalog.verify()) == 0
@@ -20,18 +20,18 @@ class ZincCatalogTestCase(TempDirTestCase):
         assert catalog.format() == defaults['zinc_format']
 
     def test_catalog_create_manifest(self):
-        catalog = create_catalog_at_path(self.catalog_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         manifest = catalog._add_manifest("beep")
         assert manifest is not None
  
     def test_catalog_create_duplicate_manifest(self):
-        catalog = create_catalog_at_path(self.catalog_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         manifest1 = catalog._add_manifest("beep")
         assert manifest1 is not None
         self.assertRaises(ValueError, catalog._add_manifest, "beep")
 
     def test_catalog_read_invalid_format(self):
-        create_catalog_at_path(self.catalog_dir)
+        create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         index_path = os.path.join(self.catalog_dir, defaults['catalog_index_name'])
         index = load_index(index_path)
         index.format = 2
@@ -39,7 +39,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         self.assertRaises(Exception, ZincCatalog, (self.catalog_dir))
 
     def test_catalog_import_file(self):
-        catalog = create_catalog_at_path(self.catalog_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         f1 = create_random_file(self.scratch_dir)
         catalog._import_path(f1)
 
@@ -49,24 +49,24 @@ class ZincCatalogTestCase(TempDirTestCase):
     #    assert bundle is not None
     #    self.assertRaises(Exception, bundle.add_version)
 
-    def test_bundle_ids_with_no_bundles(self):
-        catalog = create_catalog_at_path(self.catalog_dir)
+    def test_bundle_names_with_no_bundles(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         assert len(catalog.bundle_ids()) == 0
 
     def test_version_for_bundle(self):
-        catalog = create_catalog_at_path(self.catalog_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         catalog._add_manifest("meep", 1)
         versions = catalog.versions_for_bundle("meep")
         assert 1 in versions
         assert len(versions) == 1
 
     def test_versions_for_nonexistant_bundle(self):
-        catalog = create_catalog_at_path(self.catalog_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         versions = catalog.versions_for_bundle("meep")
         assert len(versions) == 0
 
     def _build_test_catalog(self):
-        catalog = create_catalog_at_path(self.catalog_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         f1 = create_random_file(self.scratch_dir)
         f2 = create_random_file(self.scratch_dir)
         catalog.create_bundle_version("meep", self.scratch_dir)
@@ -98,7 +98,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         f1 = create_random_file(self.scratch_dir)
         one_dir = os.mkdir(os.path.join(self.scratch_dir, "one"))
         f2 = create_random_file(one_dir)
-        catalog = create_catalog_at_path(self.catalog_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         catalog.create_bundle_version("meep", self.scratch_dir)
         results = catalog.verify()
         

@@ -90,11 +90,12 @@ def main():
         _cmd_verify(path)
         exit(0)
     elif command == "catalog:create": 
-        if len(args) < 2:
+        if len(args) < 3:
             parser.print_usage()
             exit(1)
-        path = args[1]
-        create_catalog_at_path(path)
+        id = args[1]
+        path = args[2]
+        create_catalog_at_path(path, id)
         exit(0)
     elif command == "bundle:update": 
         if len(args) < 3:
