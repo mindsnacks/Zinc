@@ -37,28 +37,34 @@ class ZincIndex(object):
 
     def __init__(self):
         self.format = defaults['zinc_format']
-        self._bundles = {}
-        self.distributions = {}
+        #self._bundles = {}
+        #self.distributions = {}
+        self.bundle_info_by_id = dict()
 
-    def get_bundles(self):
-        return self._bundles
+    #def get_bundles(self):
+    #    return self._bundles
 
-    def set_bundles(self, bundles):
-        """This ensures that the version of the bundle are always sorted"""
-        sorted_bundles = {}
-        for (k,v) in bundles.items():
-            sorted_bundles[k] = sorted(v)
-        self._bundles = sorted_bundles
+    #def set_bundles(self, bundles):
+    #    """This ensures that the version of the bundle are always sorted"""
+    #    sorted_bundles = {}
+    #    for (k,v) in bundles.items():
+    #        sorted_bundles[k] = sorted(v)
+    #    self._bundles = sorted_bundles
 
-    def del_bundles(self):
-        del self._bundles
+    #def del_bundles(self):
+    #    del self._bundles
 
-    bundles = property(get_bundles, set_bundles, del_bundles, "Bundles property")
+    #bundles = property(get_bundles, set_bundles, del_bundles, "Bundles property")
 
     def to_json(self):
-        return {
-                'bundles' : self.bundles,
-                'distributions' : self.distributions,
+        #return {
+        #        'bundles' : self.bundles,
+        #        'distributions' : self.distributions,
+        #        'format' : self.format,
+        #        }
+
+       return {
+                'bundles' : self.bundle_info_by_id,
                 'format' : self.format,
                 }
 
@@ -71,38 +77,45 @@ class ZincIndex(object):
             gzpath = path + '.gz'
             mygzip(path, gzpath)
 
+    def _get_or_create_bundle_info(self, bundle_id):
+        if self.bundle_info_by_id.get(bundle_id) is None:
+            self.bundle_info_by_id[bundle_id] = {
+                    'versions':[],
+                    'distributions':{},
+                    }
+        return self.bundle_info_by_id.get(bundle_id)
+
     def add_version_for_bundle(self, bundle_id, version):
-        versions = self._bundles.get(bundle_id) or []
-        if version not in versions:
-            versions.append(version)
-            self._bundles[bundle_id] = sorted(versions)
+        bundle_info = self._get_or_create_bundle_info(bundle_id)
+        if version not in bundle_info['versions']:
+            bundle_info['versions'].append(version)
+            bundle_info['versions'] = sorted(bundle_info['versions'])
 
     def versions_for_bundle(self, bundle_id):
-        return self._bundles.get(bundle_id) or []
+        return self._get_or_create_bundle_info(bundle_id).get('versions')
+        #return self._bundles.get(bundle_id) or []
 
     def del_version_for_bundle(self, bundle_id, version):
         versions = self.versions_for_bundle(bundle_id)
         if version in versions:
             versions.remove(version)
+        self._get_or_create_bundle_info(bundle_id)['versions'] = versions
 
     def update_distribution(self, distribution_name, bundle_id, bundle_version):
         if bundle_version == 'latest':
             bundle_version = self.versions_for_bundle(bundle_id)[-1]
         elif int(bundle_version) not in self.versions_for_bundle(bundle_id):
             raise ValueError("Invalid bundle version")
-        distribution = self.distributions.get(distribution_name)
-        if distribution is None: distribution = {}
-        distribution[bundle_id] = bundle_version
-        self.distributions[distribution_name] = distribution
-        
+        bundle_info = self._get_or_create_bundle_info(bundle_id)
+        bundle_info['distributions'][distribution_name] = bundle_version
+
 def load_index(path):
     index_file = open(path, 'r')
     dict = json.load(index_file)
     index_file.close()
     index = ZincIndex()
     index.format = dict['format']
-    index.bundles = dict['bundles']
-    index.distributions = dict['distributions']
+    index.bundle_info_by_id = dict['bundles']
     return index
 
 
@@ -413,8 +426,8 @@ class ZincCatalog(object):
             # TODO: better exception
             # TODO: wrap in decorator?
 
-        for (bundle_id, versions) in self.index.bundles.iteritems():
-            for version in versions:
+        for (bundle_id, bundle_info) in self.index.bundle_info_by_id.iteritems():
+            for version in bundle_info['versions']:
                 manifest = self.manifest_for_bundle(bundle_id, version)
                 if manifest is None:
                     raise Exception("manifest not found: %s-%d" % (bundle_id,
@@ -451,7 +464,7 @@ class ZincCatalog(object):
         return self.index.versions_for_bundle(bundle_id)
 
     def bundle_ids(self):
-        return self.index.bundles.keys()
+        return self.index.bundle_info_by_id.keys()
 
     def create_bundle_version(self, bundle_id, src_dir):
         op = CreateBundleVersionOperation(self, bundle_id, src_dir)

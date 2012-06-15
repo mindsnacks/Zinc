@@ -109,8 +109,8 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog.create_bundle_version("meep", self.scratch_dir)
         assert 2 in catalog.versions_for_bundle("meep")
         new_index = load_index(os.path.join(catalog.path, defaults['catalog_index_name']))
-        assert 1 in new_index.bundles["meep"]
-        assert 2 in new_index.bundles["meep"]
+        assert 1 in new_index.versions_for_bundle("meep")
+        assert 2 in new_index.versions_for_bundle("meep")
 
     def test_create_identical_bundle_version(self):
         catalog = self._build_test_catalog()
@@ -130,14 +130,14 @@ class ZincIndexTestCase(TempDirTestCase):
     def test_add_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
-        assert 1 in index.bundles["meep"]
+        assert 1 in index.versions_for_bundle("meep")
 
     def test_add_duplicate_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.add_version_for_bundle("meep", 1)
-        assert 1 in index.bundles["meep"]
-        assert len(index.bundles["meep"]) == 1
+        assert 1 in index.versions_for_bundle("meep")
+        assert len(index.versions_for_bundle("meep")) == 1
 
     def test_del_version_for_nonexistant_bundle(self):
         index = ZincIndex()
