@@ -16,7 +16,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         assert catalog is not None
         assert catalog.is_loaded() == True
         assert len(catalog.verify()) == 0
-        assert len(catalog.bundle_names()) == 0
+        assert len(catalog.bundle_ids()) == 0
         assert catalog.format() == defaults['zinc_format']
 
     def test_catalog_create_manifest(self):
@@ -49,9 +49,9 @@ class ZincCatalogTestCase(TempDirTestCase):
     #    assert bundle is not None
     #    self.assertRaises(Exception, bundle.add_version)
 
-    def test_bundle_names_with_no_bundles(self):
+    def test_bundle_ids_with_no_bundles(self):
         catalog = create_catalog_at_path(self.catalog_dir)
-        assert len(catalog.bundle_names()) == 0
+        assert len(catalog.bundle_ids()) == 0
 
     def test_version_for_bundle(self):
         catalog = create_catalog_at_path(self.catalog_dir)
@@ -74,7 +74,7 @@ class ZincCatalogTestCase(TempDirTestCase):
 
     def test_create_bundle_version(self):
         catalog = self._build_test_catalog()
-        assert "meep" in catalog.bundle_names()
+        assert "meep" in catalog.bundle_ids()
         assert 1 in catalog.versions_for_bundle("meep")
         manifest = catalog.manifest_for_bundle("meep", 1)
         assert manifest is not None
