@@ -35,11 +35,10 @@ class ZincOperation(object):
 
 class ZincIndex(object):
 
-    def __init__(self, id=None):
+    def __init__(self):
         self.format = defaults['zinc_format']
         self._bundles = {}
         self.distributions = {}
-        self.id = id
 
     def get_bundles(self):
         return self._bundles
@@ -58,15 +57,12 @@ class ZincIndex(object):
 
     def to_json(self):
         return {
-                'id' : self.id,
                 'bundles' : self.bundles,
                 'distributions' : self.distributions,
                 'format' : self.format,
                 }
 
     def write(self, path, gzip=False):
-        if self.id is None:
-            raise ValueError("catalog id is None") # TODO: better exception?
         index_file = open(path, 'w')
         dict = self.to_json()
         index_file.write(json.dumps(dict))
@@ -104,7 +100,6 @@ def load_index(path):
     dict = json.load(index_file)
     index_file.close()
     index = ZincIndex()
-    index.id = dict['id']
     index.format = dict['format']
     index.bundles = dict['bundles']
     index.distributions = dict['distributions']
@@ -208,23 +203,22 @@ def load_manifest(path):
 
 class CreateBundleVersionOperation(ZincOperation):
 
-    def __init__(self, catalog, bundle_name, src_dir):
+    def __init__(self, catalog, bundle_id, src_dir):
         self.catalog = catalog
-        self.bundle_name = bundle_name
+        self.bundle_id = bundle_id
         self.src_dir =  canonical_path(src_dir)
 
-    def _next_version_for_bundle(self, bundle_name):
-        versions = self.catalog.versions_for_bundle(bundle_name)
+    def _next_version_for_bundle(self, bundle_id):
+        versions = self.catalog.versions_for_bundle(bundle_id)
         if len(versions) == 0:
             return 1
         return versions[-1] + 1
 
     def run(self):
-        version = self._next_version_for_bundle(self.bundle_name)
+        version = self._next_version_for_bundle(self.bundle_id)
 
         # Create a new manifest outside of the catalog
-        bundle_id = self.catalog.bundle_id_for_name(self.bundle_name)
-        new_manifest = ZincManifest(bundle_id, version)
+        new_manifest = ZincManifest(self.bundle_id, version)
 
         # Process all the paths and add them to the manifest
         for root, dirs, files in os.walk(self.src_dir):
@@ -236,10 +230,10 @@ class CreateBundleVersionOperation(ZincOperation):
                 sha = sha1_for_path(full_path)
                 new_manifest.add_file(rel_path, sha)
        
-        existing_manifest = self.catalog.manifest_for_bundle(self.bundle_name)
+        existing_manifest = self.catalog.manifest_for_bundle(self.bundle_id)
         if existing_manifest is None or not new_manifest.files_are_equivalent(existing_manifest):
 
-            tar_file_name = self.catalog._path_for_archive_for_bundle_version(self.bundle_name, version)
+            tar_file_name = self.catalog._path_for_archive_for_bundle_version(self.bundle_id, version)
             tar = tarfile.open(tar_file_name, 'w')
             print tar_file_name
 
@@ -255,7 +249,7 @@ class CreateBundleVersionOperation(ZincOperation):
 
             tar.close()
 
-            self.catalog.index.add_version_for_bundle(self.bundle_name, version)
+            self.catalog.index.add_version_for_bundle(self.bundle_id, version)
             self.catalog._write_manifest(new_manifest)
             self.catalog.save()
             return new_manifest
@@ -265,7 +259,7 @@ class CreateBundleVersionOperation(ZincOperation):
 
 ### ZincCatalog #################################################################
 
-def create_catalog_at_path(path, id):
+def create_catalog_at_path(path):
 
     path = canonical_path(path)
     try:
@@ -280,7 +274,7 @@ def create_catalog_at_path(path, id):
     ZincConfig().write(config_path)
 
     index_path = pjoin(path, defaults['catalog_index_name'])
-    ZincIndex(id).write(index_path, True)
+    ZincIndex().write(index_path, True)
 
     # TODO: check exceptions?
 
@@ -443,19 +437,15 @@ class ZincCatalog(object):
         #            results_by_file[file] = ZincErrors.OK
         return results_by_file
 
-    def _add_manifest(self, bundle_name, version=1):
-        if version in self.versions_for_bundle(bundle_name):
+    def _add_manifest(self, bundle_id, version=1):
+        if version in self.versions_for_bundle(bundle_id):
             raise ValueError("Bundle already exists")
             return None
 
-        bundle_id = self.bundle_id_for_name(bundle_name)
         manifest = ZincManifest(bundle_id, version, self)
         self._write_manifest(manifest)
-        self.index.add_version_for_bundle(bundle_name, version)
+        self.index.add_version_for_bundle(bundle_id, version)
         return manifest
-
-    def bundle_id_for_name(self, bundle_name):
-        return self.index.id + "." + bundle_name
 
     def versions_for_bundle(self, bundle_name):
         return self.index.versions_for_bundle(bundle_name)
