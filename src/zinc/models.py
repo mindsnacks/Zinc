@@ -3,6 +3,7 @@ from os.path import join as pjoin
 import tarfile
 import json
 import logging
+from shutil import copyfile
 
 from .utils import sha1_for_path, canonical_path, makedirs, mygzip
 from .defaults import defaults

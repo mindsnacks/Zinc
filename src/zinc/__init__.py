@@ -2,7 +2,6 @@ import logging
 import optparse
 import os
 import json
-from shutil import copyfile
 from os.path import join as pjoin
 import tarfile
 
