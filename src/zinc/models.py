@@ -339,8 +339,8 @@ class ZincCatalog(object):
         return archive_path
 
     def _path_for_manifest(self, manifest):
-        bundle_id = manifest.bundle_id.split('.')[-1]
-        return self._path_for_manifest_for_bundle_version(bundle_id,
+        return self._path_for_manifest_for_bundle_version(
+                manifest.bundle_id,
                 manifest.version)
 
     def manifest_for_bundle(self, bundle_id, version=None):
