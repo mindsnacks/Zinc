@@ -16,7 +16,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         assert catalog is not None
         assert catalog.is_loaded() == True
         assert len(catalog.verify()) == 0
-        assert len(catalog.bundle_ids()) == 0
+        assert len(catalog.bundle_names()) == 0
         assert catalog.format() == defaults['zinc_format']
 
     def test_catalog_create_manifest(self):
@@ -51,7 +51,7 @@ class ZincCatalogTestCase(TempDirTestCase):
 
     def test_bundle_names_with_no_bundles(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        assert len(catalog.bundle_ids()) == 0
+        assert len(catalog.bundle_names()) == 0
 
     def test_version_for_bundle(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
@@ -74,7 +74,7 @@ class ZincCatalogTestCase(TempDirTestCase):
 
     def test_create_bundle_version(self):
         catalog = self._build_test_catalog()
-        assert "meep" in catalog.bundle_ids()
+        assert "meep" in catalog.bundle_names()
         assert 1 in catalog.versions_for_bundle("meep")
         manifest = catalog.manifest_for_bundle("meep", 1)
         assert manifest is not None
@@ -88,11 +88,11 @@ class ZincCatalogTestCase(TempDirTestCase):
                 object_path = catalog._path_for_file_with_sha(file, sha, ext)
                 assert os.path.exists(object_path)
 
-    def test_bundle_id_in_manifest(self):
+    def test_bundle_name_in_manifest(self):
         catalog = self._build_test_catalog()
-        bundle_id = "meep"
+        bundle_name = "meep"
         manifest = catalog.manifest_for_bundle("meep", 1)
-        assert manifest.bundle_id == bundle_id
+        assert manifest.bundle_name == bundle_name
 
     def test_create_bundle_with_subdirs(self):
         f1 = create_random_file(self.scratch_dir)
@@ -181,7 +181,7 @@ class ZincIndexTestCase(TempDirTestCase):
 class ZincManifestTestCase(TempDirTestCase):
 
     def test_save_and_load(self):
-        manifest1 = ZincManifest("meep", 1)
+        manifest1 = ZincManifest('com.mindsnacks.test', 'meep', 1)
         manifest1.files = {
                 'a': {
                     'sha': 'ea502a7bbd407872e50b9328956277d0228272d4',

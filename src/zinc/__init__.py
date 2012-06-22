@@ -84,7 +84,7 @@ def main():
     if command == "catalog:verify":
         if len(args) < 2:
             parser.print_usage()
-            exit(1)
+            exit(2)
         path = args[1]
         _cmd_verify(path)
         exit(0)
@@ -99,13 +99,13 @@ def main():
     elif command == "bundle:update": 
         if len(args) < 3:
             #parser.print_usage()
-            print "bundle:update <bundle id> <path>"
+            print "bundle:update <bundle name> <path>"
             exit(1)
         catalog = ZincCatalog(".")
-        bundle_id = args[1]
+        bundle_name = args[1]
         path = args[2]
-        manifest = catalog.create_bundle_version(bundle_id, path)
-        print "Updated %s v%d" % (manifest.bundle_id, manifest.version)
+        manifest = catalog.create_bundle_version(bundle_name, path)
+        print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
         exit(0)
     elif command == "distro:update": 
         if len(args) < 4:
@@ -114,9 +114,9 @@ def main():
             exit(1)
         catalog = ZincCatalog(".")
         distro_name = args[1]
-        bundle_id = args[2]
+        bundle_name = args[2]
         bundle_version = args[3]
-        catalog.update_distribution(distro_name, bundle_id, bundle_version)
+        catalog.update_distribution(distro_name, bundle_name, bundle_version)
         exit(0)
 
 

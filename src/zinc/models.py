@@ -67,28 +67,27 @@ class ZincIndex(object):
                     }
         return self.bundle_info_by_id.get(bundle_id)
 
-    def add_version_for_bundle(self, bundle_id, version):
-        bundle_info = self._get_or_create_bundle_info(bundle_id)
+    def add_version_for_bundle(self, bundle_name, version):
+        bundle_info = self._get_or_create_bundle_info(bundle_name)
         if version not in bundle_info['versions']:
             bundle_info['versions'].append(version)
             bundle_info['versions'] = sorted(bundle_info['versions'])
 
-    def versions_for_bundle(self, bundle_id):
-        return self._get_or_create_bundle_info(bundle_id).get('versions')
-        #return self._bundles.get(bundle_id) or []
+    def versions_for_bundle(self, bundle_name):
+        return self._get_or_create_bundle_info(bundle_name).get('versions')
 
-    def del_version_for_bundle(self, bundle_id, version):
-        versions = self.versions_for_bundle(bundle_id)
+    def del_version_for_bundle(self, bundle_name, version):
+        versions = self.versions_for_bundle(bundle_name)
         if version in versions:
             versions.remove(version)
-        self._get_or_create_bundle_info(bundle_id)['versions'] = versions
+        self._get_or_create_bundle_info(bundle_name)['versions'] = versions
 
-    def update_distribution(self, distribution_name, bundle_id, bundle_version):
+    def update_distribution(self, distribution_name, bundle_name, bundle_version):
         if bundle_version == 'latest':
-            bundle_version = self.versions_for_bundle(bundle_id)[-1]
-        elif int(bundle_version) not in self.versions_for_bundle(bundle_id):
+            bundle_version = self.versions_for_bundle(bundle_name)[-1]
+        elif int(bundle_version) not in self.versions_for_bundle(bundle_name):
             raise ValueError("Invalid bundle version")
-        bundle_info = self._get_or_create_bundle_info(bundle_id)
+        bundle_info = self._get_or_create_bundle_info(bundle_name)
         bundle_info['distributions'][distribution_name] = bundle_version
 
 def load_index(path):
@@ -134,11 +133,10 @@ def load_config(path):
 
 class ZincManifest(object):
 
-    def __init__(self, catalog_id, bundle_id, version=1, catalog=None):
+    def __init__(self, catalog_id, bundle_name, version=1):
         self.catalog_id = catalog_id
-        self.bundle_id = bundle_id
+        self.bundle_name = bundle_name
         self.version = int(version)
-        self.catalog = catalog
         self.files = {}
 
     def add_file(self, path, sha):
@@ -153,7 +151,7 @@ class ZincManifest(object):
     def to_json(self):
         return {
                 'catalog' : self.catalog_id,
-                'bundle' : self.bundle_id,
+                'bundle' : self.bundle_name,
                 'version' : self.version,
                 'files' : self.files,
                 }
@@ -184,17 +182,17 @@ class ZincManifest(object):
     def equals(self, other):
         return self.version == other.version \
                 and self.catalog_id == other.catalog_id \
-                and self.bundle_id == other.bundle_id \
+                and self.bundle_name == other.bundle_name \
                 and self.files_are_equivalent(other)
 
 def load_manifest(path):
     manifest_file = open(path, 'r')
     dict = json.load(manifest_file)
     manifest_file.close()
-    bundle_id = dict['bundle']
     catalog_id = dict['catalog']
+    bundle_name = dict['bundle']
     version = int(dict['version'])
-    manifest = ZincManifest(catalog_id, bundle_id, version)
+    manifest = ZincManifest(catalog_id, bundle_name, version)
     manifest.files = dict['files']
     return manifest
 
@@ -332,28 +330,27 @@ class ZincCatalog(object):
         index_path = pjoin(self.path, defaults['catalog_index_name'])
         self.index.write(index_path, True)
 
-    def _path_for_manifest_for_bundle_version(self, bundle_id, version):
-        manifest_filename = "%s-%d.json" % (bundle_id, version)
+    def _path_for_manifest_for_bundle_version(self, bundle_name, version):
+        manifest_filename = "%s-%d.json" % (bundle_name, version)
         manifest_path = pjoin(self._manifests_dir(), manifest_filename)
         return manifest_path
 
-    def _path_for_archive_for_bundle_version(self, bundle_id, version):
-        archive_filename = "%s-%d.tar" % (bundle_id, version)
+    def _path_for_archive_for_bundle_version(self, bundle_name, version):
+        archive_filename = "%s-%d.tar" % (bundle_name, version)
         archive_path = pjoin(self._archives_dir(), archive_filename)
         return archive_path
 
     def _path_for_manifest(self, manifest):
         return self._path_for_manifest_for_bundle_version(
-                manifest.bundle_id,
-                manifest.version)
+                manifest.bundle_name, manifest.version)
 
-    def manifest_for_bundle(self, bundle_id, version=None):
-        all_versions = self.index.versions_for_bundle(bundle_id)
+    def manifest_for_bundle(self, bundle_name, version=None):
+        all_versions = self.index.versions_for_bundle(bundle_name)
         if version is None and len(all_versions) > 0:
             version = all_versions[-1]
         elif version not in all_versions:
             return None # throw exception?
-        manifest_path = self._path_for_manifest_for_bundle_version(bundle_id, version)
+        manifest_path = self._path_for_manifest_for_bundle_version(bundle_name, version)
         return load_manifest(manifest_path)
 
     def _write_manifest(self, manifest):
@@ -413,11 +410,11 @@ class ZincCatalog(object):
             # TODO: better exception
             # TODO: wrap in decorator?
 
-        for (bundle_id, bundle_info) in self.index.bundle_info_by_id.iteritems():
+        for (bundle_name, bundle_info) in self.index.bundle_info_by_id.iteritems():
             for version in bundle_info['versions']:
-                manifest = self.manifest_for_bundle(bundle_id, version)
+                manifest = self.manifest_for_bundle(bundle_name, version)
                 if manifest is None:
-                    raise Exception("manifest not found: %s-%d" % (bundle_id,
+                    raise Exception("manifest not found: %s-%d" % (bundle_name,
                         version))
                 #for (file, sha) in manifest.files.iteritems():
                 #    print file, sha
@@ -437,28 +434,28 @@ class ZincCatalog(object):
         #            results_by_file[file] = ZincErrors.OK
         return results_by_file
 
-    def _add_manifest(self, bundle_id, version=1):
-        if version in self.versions_for_bundle(bundle_id):
+    def _add_manifest(self, bundle_name, version=1):
+        if version in self.versions_for_bundle(bundle_name):
             raise ValueError("Bundle already exists")
             return None
 
-        manifest = ZincManifest(self.index.id, bundle_id, version, self)
+        manifest = ZincManifest(self.index.id, bundle_name, version)
         self._write_manifest(manifest)
-        self.index.add_version_for_bundle(bundle_id, version)
+        self.index.add_version_for_bundle(bundle_name, version)
         return manifest
 
-    def versions_for_bundle(self, bundle_id):
-        return self.index.versions_for_bundle(bundle_id)
+    def versions_for_bundle(self, bundle_name):
+        return self.index.versions_for_bundle(bundle_name)
 
-    def bundle_ids(self):
+    def bundle_names(self):
         return self.index.bundle_info_by_id.keys()
 
-    def create_bundle_version(self, bundle_id, src_dir):
-        op = CreateBundleVersionOperation(self, bundle_id, src_dir)
+    def create_bundle_version(self, bundle_name, src_dir):
+        op = CreateBundleVersionOperation(self, bundle_name, src_dir)
         return op.run()
 
-    def update_distribution(self, distribution_name, bundle_id, bundle_version):
-        self.index.update_distribution(distribution_name, bundle_id, bundle_version)
+    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+        self.index.update_distribution(distribution_name, bundle_name, bundle_version)
         self.save()
 
     def save(self):
