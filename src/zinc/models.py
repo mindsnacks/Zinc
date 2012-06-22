@@ -134,7 +134,8 @@ def load_config(path):
 
 class ZincManifest(object):
 
-    def __init__(self, bundle_id, version=1, catalog=None):
+    def __init__(self, catalog_id, bundle_id, version=1, catalog=None):
+        self.catalog_id = catalog_id
         self.bundle_id = bundle_id
         self.version = int(version)
         self.catalog = catalog
@@ -151,6 +152,7 @@ class ZincManifest(object):
 
     def to_json(self):
         return {
+                'catalog' : self.catalog_id,
                 'bundle' : self.bundle_id,
                 'version' : self.version,
                 'files' : self.files,
@@ -181,6 +183,7 @@ class ZincManifest(object):
 
     def equals(self, other):
         return self.version == other.version \
+                and self.catalog_id == other.catalog_id \
                 and self.bundle_id == other.bundle_id \
                 and self.files_are_equivalent(other)
 
@@ -189,8 +192,9 @@ def load_manifest(path):
     dict = json.load(manifest_file)
     manifest_file.close()
     bundle_id = dict['bundle']
+    catalog_id = dict['catalog']
     version = int(dict['version'])
-    manifest = ZincManifest(bundle_id, version)
+    manifest = ZincManifest(catalog_id, bundle_id, version)
     manifest.files = dict['files']
     return manifest
 
@@ -214,7 +218,7 @@ class CreateBundleVersionOperation(ZincOperation):
         version = self._next_version_for_bundle(self.bundle_id)
 
         # Create a new manifest outside of the catalog
-        new_manifest = ZincManifest(self.bundle_id, version)
+        new_manifest = ZincManifest(self.catalog.index.id, self.bundle_id, version)
 
         # Process all the paths and add them to the manifest
         for root, dirs, files in os.walk(self.src_dir):
@@ -438,7 +442,7 @@ class ZincCatalog(object):
             raise ValueError("Bundle already exists")
             return None
 
-        manifest = ZincManifest(bundle_id, version, self)
+        manifest = ZincManifest(self.index.id, bundle_id, version, self)
         self._write_manifest(manifest)
         self.index.add_version_for_bundle(bundle_id, version)
         return manifest
