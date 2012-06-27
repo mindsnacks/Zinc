@@ -43,6 +43,7 @@ def main():
     commands = ("catalog:create",
             "catalog:verify",
             "bundle:update",
+            "bundle:list",
             "distro:update",
             )
 
@@ -107,6 +108,12 @@ def main():
         manifest = catalog.create_bundle_version(bundle_name, path)
         print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
         exit(0)
+    elif command == "bundle:list": 
+        catalog = ZincCatalog(".")
+        for bundle_name in catalog.bundle_names():
+            versions = catalog.versions_for_bundle(bundle_name)
+            print bundle_name, versions
+            exit(0)
     elif command == "distro:update": 
         if len(args) < 4:
             #parser.print_usage()
