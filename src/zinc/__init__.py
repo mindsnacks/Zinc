@@ -113,7 +113,7 @@ def main():
         for bundle_name in catalog.bundle_names():
             versions = catalog.versions_for_bundle(bundle_name)
             print bundle_name, versions
-            exit(0)
+        exit(0)
     elif command == "distro:update": 
         if len(args) < 4:
             #parser.print_usage()
