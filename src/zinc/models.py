@@ -458,7 +458,7 @@ class ZincCatalog(object):
                         remove = True
                 if remove:
                     logging.info("Removing %s" % (pjoin(root, f)))
-                    if not dry_run: os.remove(f)
+                    if not dry_run: os.remove(pjoin(root, f))
 
         ### 2. scan archives for ones that aren't in index
         for root, dirs, files in os.walk(self._archives_dir()):
@@ -473,7 +473,7 @@ class ZincCatalog(object):
                         remove = True
                 if remove:
                     logging.info("Removing %s" % (pjoin(root, f)))
-                    if not dry_run: os.remove(f)
+                    if not dry_run: os.remove(pjoin(root, f))
 
         ### 3. clean objects
         all_objects = set()
@@ -486,7 +486,7 @@ class ZincCatalog(object):
                 basename = os.path.splitext(f)[0]
                 if basename not in all_objects:
                     logging.info("Removing %s" % (pjoin(root, f)))
-                    if not dry_run: os.remove(f)
+                    if not dry_run: os.remove(pjoin(root, f))
 
     def verify(self):
         if not self._loaded:
