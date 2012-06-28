@@ -76,12 +76,19 @@ class ZincIndex(object):
     def versions_for_bundle(self, bundle_name):
         return self._get_or_create_bundle_info(bundle_name).get('versions')
 
-    def delete_bundle_version(self, bundle_name, version):
-        versions = self.versions_for_bundle(bundle_name)
-        if version in versions:
-            versions.remove(version)
-        self._get_or_create_bundle_info(bundle_name)['versions'] = versions
-
+    def delete_bundle_version(self, bundle_name, bundle_version):
+        bundle_info = self._get_or_create_bundle_info(bundle_name)
+        if bundle_name is None:
+            raise ValueError("Unknown bundle %s" % (bundle_name))
+        for distro_name, distro_version in bundle_info['distributions'].iteritems():
+            if distro_version == bundle_version:
+                raise Exception("bundle '%s' v%d is referenced by the distribution '%s'" 
+                        % (bundle_name, bundle_version, distro_name))
+        versions = bundle_info['versions']
+        if bundle_version in versions:
+            versions.remove(bundle_version)
+        bundle_info['versions'] = versions
+        
     def distributions_for_bundle(self, bundle_name):
         bundle_info = self.bundle_info_by_name.get(bundle_name)
         if bundle_name is None:

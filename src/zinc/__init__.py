@@ -91,6 +91,7 @@ def main():
         path = args[1]
         _cmd_verify(path)
         exit(0)
+
     elif command == "catalog:create": 
         if len(args) < 3:
             parser.print_usage()
@@ -99,6 +100,7 @@ def main():
         path = args[2]
         create_catalog_at_path(path, id)
         exit(0)
+
     elif command == "bundle:update": 
         if len(args) < 3:
             #parser.print_usage()
@@ -110,22 +112,29 @@ def main():
         manifest = catalog.create_bundle_version(bundle_name, path)
         print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
         exit(0)
+
     elif command == "bundle:list": 
         catalog = ZincCatalog(".")
         for bundle_name in catalog.bundle_names():
             versions = catalog.versions_for_bundle(bundle_name)
             print bundle_name, versions
         exit(0)
+
     elif command == "bundle:delete":
-        if len(args) < 2:
-            print "bundle:delete <bundle name>"
+        if len(args) < 3:
+            print "bundle:delete <bundle name> <version or 'all'>"
             exit(1)
         bundle_name = args[1]
+        version = args[2]
         catalog = ZincCatalog(".")
-        versions = catalog.versions_for_bundle(bundle_name)
-        for v in versions:
+        if version == 'all':
+            versions_to_delete = catalog.versions_for_bundle(bundle_name)
+        else:
+            versions_to_delete = [version]
+        for v in versions_to_delete:
             catalog.delete_bundle_version(bundle_name, v)
         exit(0)
+
     elif command == "distro:update": 
         if len(args) < 4:
             #parser.print_usage()
@@ -137,6 +146,7 @@ def main():
         bundle_version = args[3]
         catalog.update_distribution(distro_name, bundle_name, bundle_version)
         exit(0)
+
     elif command == "distro:delete": 
         if len(args) < 3:
             #parser.print_usage()
@@ -147,7 +157,6 @@ def main():
         bundle_name = args[2]
         catalog.delete_distribution(distro_name, bundle_name)
         exit(0)
-
 
 if __name__ == "__main__":
     main()

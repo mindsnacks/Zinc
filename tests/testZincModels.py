@@ -164,6 +164,12 @@ class ZincIndexTestCase(TempDirTestCase):
         index.add_version_for_bundle("meep", 1)
         index.delete_bundle_version("meep", 2)
 
+    def test_del_version_for_bundle_in_active_distro_raises(self):
+        index = ZincIndex()
+        index.add_version_for_bundle("meep", 1)
+        index.update_distribution("live", "meep", 1)
+        self.assertRaises(Exception, index.delete_bundle_version, "meep", 1)
+
     def test_update_distro_bad_bundle(self):
         index = ZincIndex()
         self.assertRaises(ValueError, index.update_distribution, "live", "beep", 1)
