@@ -88,7 +88,7 @@ class ZincIndex(object):
         if bundle_version in versions:
             versions.remove(bundle_version)
         if len(versions) == 0: # remove info if no more versions
-            del self.bundle_info_by_name['bundle_name']
+            del self.bundle_info_by_name[bundle_name]
         else:
             bundle_info['versions'] = versions
         
