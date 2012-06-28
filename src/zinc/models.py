@@ -39,12 +39,12 @@ class ZincIndex(object):
     def __init__(self, id=None):
         self.format = defaults['zinc_format']
         self.id = id
-        self.bundle_info_by_id = dict()
+        self.bundle_info_by_name = dict()
 
     def to_json(self):
        return {
 				'id' : self.id,
-                'bundles' : self.bundle_info_by_id,
+                'bundles' : self.bundle_info_by_name,
                 'format' : self.format,
                 }
 
@@ -59,13 +59,13 @@ class ZincIndex(object):
             gzpath = path + '.gz'
             mygzip(path, gzpath)
 
-    def _get_or_create_bundle_info(self, bundle_id):
-        if self.bundle_info_by_id.get(bundle_id) is None:
-            self.bundle_info_by_id[bundle_id] = {
+    def _get_or_create_bundle_info(self, bundle_name):
+        if self.bundle_info_by_name.get(bundle_name) is None:
+            self.bundle_info_by_name[bundle_name] = {
                     'versions':[],
                     'distributions':{},
                     }
-        return self.bundle_info_by_id.get(bundle_id)
+        return self.bundle_info_by_name.get(bundle_name)
 
     def add_version_for_bundle(self, bundle_name, version):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
@@ -76,11 +76,17 @@ class ZincIndex(object):
     def versions_for_bundle(self, bundle_name):
         return self._get_or_create_bundle_info(bundle_name).get('versions')
 
-    def del_version_for_bundle(self, bundle_name, version):
+    def delete_bundle_version(self, bundle_name, version):
         versions = self.versions_for_bundle(bundle_name)
         if version in versions:
             versions.remove(version)
         self._get_or_create_bundle_info(bundle_name)['versions'] = versions
+
+    def distributions_for_bundle(self, bundle_name):
+        bundle_info = self.bundle_info_by_name.get(bundle_name)
+        if bundle_name is None:
+            raise ValueError("Unknown bundle %s" % (bundle_name))
+        return bundle_info['distributions']
 
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
         if bundle_version == 'latest':
@@ -90,6 +96,12 @@ class ZincIndex(object):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
         bundle_info['distributions'][distribution_name] = bundle_version
 
+    def delete_distribution(self, distribution_name, bundle_name):
+        bundle_info = self.bundle_info_by_name.get(bundle_name)
+        if bundle_name is None:
+            raise ValueError("Unknown bundle %s" % (bundle_name))
+        del bundle_info['distributions'][distribution_name]
+
 def load_index(path):
     index_file = open(path, 'r')
     dict = json.load(index_file)
@@ -97,7 +109,7 @@ def load_index(path):
     index = ZincIndex()
     index.id = dict['id']
     index.format = dict['format']
-    index.bundle_info_by_id = dict['bundles']
+    index.bundle_info_by_name = dict['bundles']
     return index
 
 
@@ -410,7 +422,7 @@ class ZincCatalog(object):
             # TODO: better exception
             # TODO: wrap in decorator?
 
-        for (bundle_name, bundle_info) in self.index.bundle_info_by_id.iteritems():
+        for (bundle_name, bundle_info) in self.index.bundle_info_by_name.iteritems():
             for version in bundle_info['versions']:
                 manifest = self.manifest_for_bundle(bundle_name, version)
                 if manifest is None:
@@ -448,14 +460,22 @@ class ZincCatalog(object):
         return self.index.versions_for_bundle(bundle_name)
 
     def bundle_names(self):
-        return self.index.bundle_info_by_id.keys()
+        return self.index.bundle_info_by_name.keys()
 
     def create_bundle_version(self, bundle_name, src_dir):
         op = CreateBundleVersionOperation(self, bundle_name, src_dir)
         return op.run()
 
+    def delete_bundle_version(self, bundle_name, version):
+        self.index.delete_bundle_version(bundle_name, version)
+        self.save()
+
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
+        self.save()
+
+    def delete_distribution(self, distribution_name, bundle_name):
+        self.index.delete_distribution(distribution_name, bundle_name)
         self.save()
 
     def save(self):

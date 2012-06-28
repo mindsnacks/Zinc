@@ -141,28 +141,28 @@ class ZincIndexTestCase(TempDirTestCase):
 
     def test_del_version_for_nonexistant_bundle(self):
         index = ZincIndex()
-        index.del_version_for_bundle("meep", 1)
+        index.delete_bundle_version("meep", 1)
         assert len(index.versions_for_bundle("meep")) == 0
 
     def test_del_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.add_version_for_bundle("meep", 2)
-        index.del_version_for_bundle("meep", 1)
+        index.delete_bundle_version("meep", 1)
         assert len(index.versions_for_bundle("meep")) == 1
         assert 2 in index.versions_for_bundle("meep")
 
     def test_del_nonexistant_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
-        index.del_version_for_bundle("meep", 2)
+        index.delete_bundle_version("meep", 2)
         assert len(index.versions_for_bundle("meep")) == 1
         assert 1 in index.versions_for_bundle("meep")
 
     def test_del_nonexistant_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
-        index.del_version_for_bundle("meep", 2)
+        index.delete_bundle_version("meep", 2)
 
     def test_update_distro_bad_bundle(self):
         index = ZincIndex()
@@ -177,6 +177,14 @@ class ZincIndexTestCase(TempDirTestCase):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.update_distribution("live", "meep", 1)
+
+    def test_delete_distro_ok(self):
+        index = ZincIndex()
+        index.add_version_for_bundle("meep", 1)
+        index.update_distribution("live", "meep", 1)
+        assert len(index.distributions_for_bundle("meep")) == 1
+        index.delete_distribution("live", "meep")
+        assert len(index.distributions_for_bundle("meep")) == 0
 
 class ZincManifestTestCase(TempDirTestCase):
 

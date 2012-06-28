@@ -43,8 +43,10 @@ def main():
     commands = ("catalog:create",
             "catalog:verify",
             "bundle:update",
+            "bundle:delete",
             "bundle:list",
             "distro:update",
+            "distro:delete",
             )
 
     usage = "usage: %prog <command> [options]"
@@ -114,6 +116,16 @@ def main():
             versions = catalog.versions_for_bundle(bundle_name)
             print bundle_name, versions
         exit(0)
+    elif command == "bundle:delete":
+        if len(args) < 2:
+            print "bundle:delete <bundle name>"
+            exit(1)
+        bundle_name = args[1]
+        catalog = ZincCatalog(".")
+        versions = catalog.versions_for_bundle(bundle_name)
+        for v in versions:
+            catalog.delete_bundle_version(bundle_name, v)
+        exit(0)
     elif command == "distro:update": 
         if len(args) < 4:
             #parser.print_usage()
@@ -124,6 +136,16 @@ def main():
         bundle_name = args[2]
         bundle_version = args[3]
         catalog.update_distribution(distro_name, bundle_name, bundle_version)
+        exit(0)
+    elif command == "distro:delete": 
+        if len(args) < 3:
+            #parser.print_usage()
+            print "distro:delete <distro name> <bundle id>"
+            exit(1)
+        catalog = ZincCatalog(".")
+        distro_name = args[1]
+        bundle_name = args[2]
+        catalog.delete_distribution(distro_name, bundle_name)
         exit(0)
 
 
