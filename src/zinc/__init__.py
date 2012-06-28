@@ -161,7 +161,7 @@ def main():
 
     elif command == "catalog:clean":
         catalog = ZincCatalog(".")
-        catalog.clean(dry_run=True)
+        catalog.clean(dry_run=False)
         exit(0)
 
 if __name__ == "__main__":
