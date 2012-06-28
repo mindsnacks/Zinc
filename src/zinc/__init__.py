@@ -42,6 +42,7 @@ def main():
 
     commands = ("catalog:create",
             "catalog:verify",
+            "catalog:clean",
             "bundle:update",
             "bundle:delete",
             "bundle:list",
@@ -156,6 +157,11 @@ def main():
         distro_name = args[1]
         bundle_name = args[2]
         catalog.delete_distribution(distro_name, bundle_name)
+        exit(0)
+
+    elif command == "catalog:clean":
+        catalog = ZincCatalog(".")
+        catalog.clean(dry_run=True)
         exit(0)
 
 if __name__ == "__main__":

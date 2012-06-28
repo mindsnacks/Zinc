@@ -24,6 +24,13 @@ class ZincErrors(object):
     INCORRECT_SHA = ZincError(1, "SHA did not match")
     DOES_NOT_EXIST = ZincError(2, "Does not exist")
 
+### Utils
+
+def bundle_name_from_bundle_descriptor(bundle_descriptor):
+    return bundle_descriptor[:bundle_descriptor.rfind('-')]
+
+def bundle_version_from_bundle_descritor(bundle_descriptor):
+    return int(bundle_descriptor[bundle_descriptor.rfind('-') + 1:])
 
 ### ZincOperation ############################################################
 
@@ -375,6 +382,11 @@ class ZincCatalog(object):
         manifest_path = self._path_for_manifest_for_bundle_version(bundle_name, version)
         return load_manifest(manifest_path)
 
+    def manifest_for_bundle_descriptor(self, bundle_descriptor):
+        return self.manifest_for_bundle(
+            bundle_name_from_bundle_descriptor(bundle_descriptor),
+            bundle_version_from_bundle_descritor(bundle_descriptor))
+            
     def _write_manifest(self, manifest):
         manifest.write(self._path_for_manifest(manifest), True)
 
@@ -423,8 +435,58 @@ class ZincCatalog(object):
     def unlock(self):
         pass
 
-    def clean(self):
-        pass
+    def bundle_descriptors(self):
+        bundle_descriptors = []
+        for bundle_name in self.bundle_names():
+            for version in self.versions_for_bundle(bundle_name):
+                bundle_descriptors.append("%s-%d" % (bundle_name, version))
+        return bundle_descriptors
+
+    def clean(self, dry_run=False):
+        bundle_descriptors = self.bundle_descriptors()
+
+        ### 1. scan manifests for ones that aren't in index
+        for root, dirs, files in os.walk(self._manifests_dir()):
+            for f in files:
+                remove = False
+                if not (f.endswith(".json") or f.endswith(".json.gz")):
+                    # remove stray files
+                    remove = True
+                else:
+                    bundle_descr = f.split(".")[0]
+                    if bundle_descr not in bundle_descriptors:
+                        remove = True
+                if remove:
+                    logging.info("Removing %s" % (pjoin(root, f)))
+                    if not dry_run: os.remove(f)
+
+        ### 2. scan archives for ones that aren't in index
+        for root, dirs, files in os.walk(self._archives_dir()):
+            for f in files:
+                remove = False
+                if not (f.endswith(".tar")):
+                    # remove stray files
+                    remove = True
+                else:
+                    bundle_descr = f.split(".")[0]
+                    if bundle_descr not in bundle_descriptors:
+                        remove = True
+                if remove:
+                    logging.info("Removing %s" % (pjoin(root, f)))
+                    if not dry_run: os.remove(f)
+
+        ### 3. clean objects
+        all_objects = set()
+        for bundle_desc in bundle_descriptors:
+            manifest = self.manifest_for_bundle_descriptor(bundle_desc)
+            for f, meta in manifest.files.iteritems():
+                all_objects.add(meta['sha'])
+        for root, dirs, files in os.walk(self._files_dir()):
+            for f in files:
+                basename = os.path.splitext(f)[0]
+                if basename not in all_objects:
+                    logging.info("Removing %s" % (pjoin(root, f)))
+                    if not dry_run: os.remove(f)
 
     def verify(self):
         if not self._loaded:
