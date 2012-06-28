@@ -141,7 +141,7 @@ class ZincIndexTestCase(TempDirTestCase):
 
     def test_del_version_for_nonexistant_bundle(self):
         index = ZincIndex()
-        index.delete_bundle_version("meep", 1)
+        self.assertRaises(Exception, index.delete_bundle_version, "meep", 1)
         assert len(index.versions_for_bundle("meep")) == 0
 
     def test_del_version_for_bundle(self):
