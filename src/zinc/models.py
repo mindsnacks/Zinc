@@ -105,6 +105,9 @@ class ZincIndex(object):
             raise ValueError("Unknown bundle %s" % (bundle_name))
         return bundle_info['distributions']
 
+    def version_for_bundle(self, bundle_name, distro):
+        return self.distributions_for_bundle(bundle_name)[distro]
+
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
         if bundle_version == 'latest':
             bundle_version = self.versions_for_bundle(bundle_name)[-1]
