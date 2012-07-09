@@ -55,6 +55,14 @@ class ZincIndex(object):
                 'format' : self.format,
                 }
 
+    @classmethod
+    def from_dict(cls, json_dict):
+        index = cls()
+        index.id = json_dict['id']
+        index.format = json_dict['format']
+        index.bundle_info_by_name = json_dict['bundles']
+        return index
+
     def write(self, path, gzip=False):
         if self.id is None:
             raise ValueError("catalog id is None") # TODO: better exception?
@@ -123,14 +131,9 @@ class ZincIndex(object):
         del bundle_info['distributions'][distribution_name]
 
 def load_index(path):
-    index_file = open(path, 'r')
-    dict = json.load(index_file)
-    index_file.close()
-    index = ZincIndex()
-    index.id = dict['id']
-    index.format = dict['format']
-    index.bundle_info_by_name = dict['bundles']
-    return index
+    with open(path, 'r') as index_file:
+        json_dict = json.load(index_file)
+    return ZincIndex.from_dict(json_dict)
 
 
 ### ZincConfig ###############################################################
