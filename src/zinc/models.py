@@ -109,7 +109,7 @@ class ZincIndex(object):
         
     def distributions_for_bundle(self, bundle_name):
         bundle_info = self.bundle_info_by_name.get(bundle_name)
-        if bundle_name is None:
+        if bundle_info is None:
             raise ValueError("Unknown bundle %s" % (bundle_name))
         return bundle_info['distributions']
 
