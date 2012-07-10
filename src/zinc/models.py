@@ -114,7 +114,7 @@ class ZincIndex(object):
         return bundle_info['distributions']
 
     def version_for_bundle(self, bundle_name, distro):
-        return self.distributions_for_bundle(bundle_name)[distro]
+        return self.distributions_for_bundle(bundle_name).get(distro)
 
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
         if bundle_version == 'latest':
