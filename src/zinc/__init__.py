@@ -1,5 +1,5 @@
 import logging
-import optparse
+import argparse
 import os
 import json
 from os.path import join as pjoin
@@ -18,7 +18,6 @@ from .pathfilter import PathFilter
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
 
-
 ### Commands #################################################################
 
 def _cmd_verify(path):
@@ -32,138 +31,141 @@ def _cmd_verify(path):
         total_count = total_count + 1
     print "Verified %d files, %d errors" % (total_count, error_count)
 
+def catalog_create(args):
+    dest = args.dest
+    if dest is None:
+        dest = './%s' % (args.catalog_id)
+    create_catalog_at_path(dest, args.catalog_id)
+
+def catalog_clean(args):
+    catalog = ZincCatalog(args.catalog_path)
+    catalog.clean(dry_run=not args.force)
+
+def bundle_list(args):
+    catalog = ZincCatalog(args.catalog_path)
+    for bundle_name in catalog.bundle_names():
+        versions = catalog.versions_for_bundle(bundle_name)
+        print bundle_name, versions
+
+def bundle_update(args):
+    catalog = ZincCatalog(args.catalog_path)
+    bundle_name = args.bundle_name
+    path = args.path
+    manifest = catalog.create_bundle_version(bundle_name, path)
+    print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+
+def bundle_delete(args):
+    bundle_name = args.bundle_name
+    version = args.version
+    catalog = ZincCatalog(args.catalog_path)
+    if version == 'all':
+        versions_to_delete = catalog.versions_for_bundle(bundle_name)
+    else:
+        versions_to_delete = [version]
+        for v in versions_to_delete:
+            catalog.delete_bundle_version(bundle_name, int(v))
+
+def distro_update(args):
+    catalog = ZincCatalog(args.catalog_path)
+    bundle_name = args.bundle_name
+    distro_name = args.distro_name
+    bundle_version = args.version
+    if bundle_version != "latest":
+        bundle_version = int(bundle_version)
+    catalog.update_distribution(
+            distro_name, bundle_name, bundle_version)
+
+def distro_delete(args):
+    catalog = ZincCatalog(args.catalog_path)
+    bundle_name = args.bundle_name
+    distro_name = args.distro_name
+    catalog.delete_distribution(distro_name, bundle_name)
+
+
 ### Main #####################################################################
 
 def main():
+    parser = argparse.ArgumentParser(description='')
 
-    #commands = {
-    #        "catalog" : ("create", "verify"),
-    #        #"bundle": ("create", "commit"),
-    #        }
+    subparsers = parser.add_subparsers(title='subcommands',
+            description='valid subcommands',
+            help='additional help')
 
-    commands = ("catalog:create",
-            "catalog:verify",
-            "catalog:clean",
-            "bundle:update",
-            "bundle:delete",
-            "bundle:list",
-            "distro:update",
-            "distro:delete",
-            )
+    # catalog:create
+    parser_catalog_create = subparsers.add_parser('catalog:create', help='catalog:create help')
+    parser_catalog_create.add_argument('catalog_id')
+    parser_catalog_create.add_argument('-c', '--catalog_path',
+            help='Destination path. Defaults to "./<catalog_id"')
+    parser_catalog_create.set_defaults(func=catalog_create)
 
-    usage = "usage: %prog <command> [options]"
-    parser = optparse.OptionParser(usage)
-    parser.add_option("-i", "--input", dest="input_path",
-                    action="store",
-                    help="Input (source) path")
-    parser.add_option("-o", "--output", dest="output_path",
-                    action="store",
-                    help="Output (destination) path")
-    parser.add_option("-u", "--url", dest="url_root",
-                    action="store",
-                    help="Root deployment URL")
+    # catalog:clean
+    parser_catalog_clean = subparsers.add_parser('catalog:clean',
+            help='catalog:clean help')
+    parser_catalog_clean.add_argument('-c', '--catalog_path', default='.',
+            help='Destination path. Defaults to "."')
+    parser_catalog_clean.add_argument('-f', '--force', default=False, action='store_true', 
+            help='This command does a dry run by default. Specifying this flag '
+            'will cause files to actually be removed.')
+    parser_catalog_clean.set_defaults(func=catalog_clean)
 
-#    parser.add_option("-c", "--config", dest="config",
-#                    action="store",
-#                    default=default_config,
-#                    help="Config file")
-#    parser.add_option("-d", "--deploy-config", dest="deploy_config",
-#                    action="store",
-#                    default="live",
-#                    type="choice",
-#                    choices=("dev", "live"),
-#                    help="Choose 'dev' or 'live' deployment. Default: 'live'")
-#    parser.add_option("-D", "--delete", dest="delete",
-#                    action="store_true",
-#                    default=False,
-#                    help="Delete existing local files first.")
-#
-    options, args = parser.parse_args()
+    # bundle:list
+    parser_bundle_list = subparsers.add_parser('bundle:list', help='bundle:list help')
+    parser_bundle_list.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_bundle_list.set_defaults(func=bundle_list)
 
-    if len(args) == 0 or args[0] not in commands:
-        parser.print_usage()
-        exit(1)
+    # bundle:update
+    parser_bundle_update = subparsers.add_parser('bundle:update', help='bundle:update help')
+    parser_bundle_update.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_bundle_update.add_argument('bundle_name',
+            help='Name of the bundle. Must not contain a period (.).')
+    parser_bundle_update.add_argument('path',
+            help='Path to files for this bundle.')
+    parser_bundle_update.set_defaults(func=bundle_update)
 
-    # TODO: better command parsing
-    command = args[0]
-    if command == "catalog:verify":
-        if len(args) < 2:
-            parser.print_usage()
-            exit(2)
-        path = args[1]
-        _cmd_verify(path)
-        exit(0)
+    # bundle:delete
+    parser_bundle_delete = subparsers.add_parser('bundle:delete', help='bundle:delete help')
+    parser_bundle_delete.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_bundle_delete.add_argument('bundle_name',
+            help='Name of the bundle. Must exist in catalog.')
+    parser_bundle_delete.add_argument('version',
+            help='Version number to delete or "all".')
+    parser_bundle_delete.set_defaults(func=bundle_delete)
 
-    elif command == "catalog:create": 
-        if len(args) < 3:
-            parser.print_usage()
-            exit(1)
-        id = args[1]
-        path = args[2]
-        create_catalog_at_path(path, id)
-        exit(0)
+    # distro:update
+    parser_distro_update = subparsers.add_parser('distro:update', help='distro:update help')
+    parser_distro_update.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_distro_update.add_argument('bundle_name',
+            help='Name of the bundle. Must exist in the catalog.')
+    parser_distro_update.add_argument('distro_name',
+            help='Name of the distro.')
+    parser_distro_update.add_argument('version',
+            help='Version number or "latest".')
+    parser_distro_update.set_defaults(func=distro_update)
 
-    elif command == "bundle:update": 
-        if len(args) < 3:
-            #parser.print_usage()
-            print "bundle:update <bundle name> <path>"
-            exit(1)
-        catalog = ZincCatalog(".")
-        bundle_name = args[1]
-        path = args[2]
-        manifest = catalog.create_bundle_version(bundle_name, path)
-        print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
-        exit(0)
+    # distro:delete
+    parser_distro_delete = subparsers.add_parser('distro:delete', help='distro:delete help')
+    parser_distro_delete.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_distro_delete.add_argument('bundle_name',
+            help='Name of the bundle. Must exist in the catalog.')
+    parser_distro_delete.add_argument('distro_name',
+            help='Name of the distro.')
+    parser_distro_delete.set_defaults(func=distro_delete)
 
-    elif command == "bundle:list": 
-        catalog = ZincCatalog(".")
-        for bundle_name in catalog.bundle_names():
-            versions = catalog.versions_for_bundle(bundle_name)
-            print bundle_name, versions
-        exit(0)
+    args = parser.parse_args()
+    args.func(args)
 
-    elif command == "bundle:delete":
-        if len(args) < 3:
-            print "bundle:delete <bundle name> <version or 'all'>"
-            exit(1)
-        bundle_name = args[1]
-        version = args[2]
-        catalog = ZincCatalog(".")
-        if version == 'all':
-            versions_to_delete = catalog.versions_for_bundle(bundle_name)
-        else:
-            versions_to_delete = [version]
-        for v in versions_to_delete:
-            catalog.delete_bundle_version(bundle_name, v)
-        exit(0)
-
-    elif command == "distro:update": 
-        if len(args) < 4:
-            #parser.print_usage()
-            print "distro:update <distro name> <bundle id> <bundle version>"
-            exit(1)
-        catalog = ZincCatalog(".")
-        distro_name = args[1]
-        bundle_name = args[2]
-        bundle_version = args[3]
-        catalog.update_distribution(distro_name, bundle_name, bundle_version)
-        exit(0)
-
-    elif command == "distro:delete": 
-        if len(args) < 3:
-            #parser.print_usage()
-            print "distro:delete <distro name> <bundle id>"
-            exit(1)
-        catalog = ZincCatalog(".")
-        distro_name = args[1]
-        bundle_name = args[2]
-        catalog.delete_distribution(distro_name, bundle_name)
-        exit(0)
-
-    elif command == "catalog:clean":
-        catalog = ZincCatalog(".")
-        catalog.clean(dry_run=False)
-        exit(0)
+#    if command == "catalog:verify":
+#        if len(args) < 2:
+#            parser.print_usage()
+#            exit(2)
+#        path = args[1]
+#        _cmd_verify(path)
+#        exit(0)
 
 if __name__ == "__main__":
     main()

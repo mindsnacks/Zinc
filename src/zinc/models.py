@@ -92,6 +92,7 @@ class ZincIndex(object):
         return self._get_or_create_bundle_info(bundle_name).get('versions')
 
     def delete_bundle_version(self, bundle_name, bundle_version):
+        assert bundle_version == int(bundle_version)
         bundle_info = self.bundle_info_by_name.get(bundle_name)
         if bundle_info is None:
             raise Exception("Unknown bundle %s" % (bundle_name))
@@ -106,6 +107,7 @@ class ZincIndex(object):
             del self.bundle_info_by_name[bundle_name]
         else:
             bundle_info['versions'] = versions
+
         
     def distributions_for_bundle(self, bundle_name):
         bundle_info = self.bundle_info_by_name.get(bundle_name)
@@ -450,6 +452,7 @@ class ZincCatalog(object):
 
     def clean(self, dry_run=False):
         bundle_descriptors = self.bundle_descriptors()
+        verb = 'Would remove' if dry_run else 'Removing'
 
         ### 1. scan manifests for ones that aren't in index
         for root, dirs, files in os.walk(self._manifests_dir()):
@@ -463,7 +466,7 @@ class ZincCatalog(object):
                     if bundle_descr not in bundle_descriptors:
                         remove = True
                 if remove:
-                    logging.info("Removing %s" % (pjoin(root, f)))
+                    logging.info("%s %s" % (verb, pjoin(root, f)))
                     if not dry_run: os.remove(pjoin(root, f))
 
         ### 2. scan archives for ones that aren't in index
@@ -478,7 +481,7 @@ class ZincCatalog(object):
                     if bundle_descr not in bundle_descriptors:
                         remove = True
                 if remove:
-                    logging.info("Removing %s" % (pjoin(root, f)))
+                    logging.info("%s %s" % (verb, pjoin(root, f)))
                     if not dry_run: os.remove(pjoin(root, f))
 
         ### 3. clean objects
@@ -491,7 +494,7 @@ class ZincCatalog(object):
             for f in files:
                 basename = os.path.splitext(f)[0]
                 if basename not in all_objects:
-                    logging.info("Removing %s" % (pjoin(root, f)))
+                    logging.info("%s %s" % (verb, pjoin(root, f)))
                     if not dry_run: os.remove(pjoin(root, f))
 
     def verify(self):
