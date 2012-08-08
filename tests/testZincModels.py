@@ -129,13 +129,6 @@ class ZincCatalogTestCase(TempDirTestCase):
         filename = os.path.split(path)[-1]
         self.assertEquals(filename, 'zoo-1.json')
 
-    #def test_path_for_manifest_with_name_version_flavor(self):
-    #    catalog = self._build_test_catalog()
-    #    manifest = ZincManifest(catalog.index.id, 'zoo', 1, 'vanilla')
-    #    path = catalog._path_for_manifest(manifest)
-    #    filename = os.path.split(path)[-1]
-    #    self.assertEquals(filename, 'zoo-1~vanilla.json')
-
 class ZincIndexTestCase(TempDirTestCase):
 
     def test_versions_for_nonexistant_bundle(self):
