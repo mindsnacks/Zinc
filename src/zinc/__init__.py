@@ -10,7 +10,8 @@ from utils import sha1_for_path, canonical_path, makedirs, mygzip
 
 from .models import (ZincIndex, load_index, ZincError, ZincErrors,
         ZincOperation, ZincConfig, load_config, ZincManifest, load_manifest,
-        CreateBundleVersionOperation, ZincCatalog, create_catalog_at_path)
+        CreateBundleVersionOperation, ZincCatalog, create_catalog_at_path,
+        ZincFlavorSpec)
 from .defaults import defaults
 from .pathfilter import PathFilter
 
@@ -48,10 +49,17 @@ def bundle_list(args):
         print bundle_name, versions
 
 def bundle_update(args):
+    flavor_spec = None
+    if args.flavor_spec is not None:
+        with open(args.flavor_spec) as f:
+            flavor_spec_dict = json.load(f)
+            flavor_spec = ZincFlavorSpec.from_dict(flavor_spec_dict)
+
     catalog = ZincCatalog(args.catalog_path)
     bundle_name = args.bundle_name
     path = args.path
-    manifest = catalog.create_bundle_version(bundle_name, path)
+    manifest = catalog.create_bundle_version(
+            bundle_name, path, flavor_spec=flavor_spec)
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 def bundle_delete(args):
@@ -118,6 +126,8 @@ def main():
     parser_bundle_update = subparsers.add_parser('bundle:update', help='bundle:update help')
     parser_bundle_update.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
+    parser_bundle_update.add_argument('-f', '--flavor_spec', 
+            help='Flavor spec path. Should be JSON.')
     parser_bundle_update.add_argument('bundle_name',
             help='Name of the bundle. Must not contain a period (.).')
     parser_bundle_update.add_argument('path',

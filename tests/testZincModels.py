@@ -1,5 +1,6 @@
 from tests import *
 from zinc import *
+from zinc.models import bundle_id_from_bundle_descriptor, bundle_version_from_bundle_descriptor
 import os.path
 
 class ZincCatalogTestCase(TempDirTestCase):
@@ -107,7 +108,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         # add a file
         f3 = create_random_file(self.scratch_dir)
         catalog.create_bundle_version("meep", self.scratch_dir)
-        assert 2 in catalog.versions_for_bundle("meep")
+        self.assertTrue(2 in catalog.versions_for_bundle("meep"))
         new_index = load_index(os.path.join(catalog.path, defaults['catalog_index_name']))
         assert 1 in new_index.versions_for_bundle("meep")
         assert 2 in new_index.versions_for_bundle("meep")
@@ -115,11 +116,25 @@ class ZincCatalogTestCase(TempDirTestCase):
     def test_create_identical_bundle_version(self):
         catalog = self._build_test_catalog()
         catalog.create_bundle_version("meep", self.scratch_dir)
-        assert len(catalog.versions_for_bundle("meep"))==1
+        self.assertEquals(len(catalog.versions_for_bundle("meep")), 1)
 
     def test_catalog_verify(self):
         catalog = self._build_test_catalog()
         results = catalog.verify()
+
+    def test_path_for_manifest_with_name_version(self):
+        catalog = self._build_test_catalog()
+        manifest = ZincManifest(catalog.index.id, 'zoo', 1)
+        path = catalog._path_for_manifest(manifest)
+        filename = os.path.split(path)[-1]
+        self.assertEquals(filename, 'zoo-1.json')
+
+    #def test_path_for_manifest_with_name_version_flavor(self):
+    #    catalog = self._build_test_catalog()
+    #    manifest = ZincManifest(catalog.index.id, 'zoo', 1, 'vanilla')
+    #    path = catalog._path_for_manifest(manifest)
+    #    filename = os.path.split(path)[-1]
+    #    self.assertEquals(filename, 'zoo-1~vanilla.json')
 
 class ZincIndexTestCase(TempDirTestCase):
 
@@ -200,7 +215,7 @@ class ZincIndexTestCase(TempDirTestCase):
 
 class ZincManifestTestCase(TempDirTestCase):
 
-    def test_save_and_load(self):
+    def test_save_and_load_with_files(self):
         manifest1 = ZincManifest('com.mindsnacks.test', 'meep', 1)
         manifest1.files = {
                 'a': {
@@ -216,4 +231,53 @@ class ZincManifestTestCase(TempDirTestCase):
         manifest1.write(path)
         manifest2 = load_manifest(path)
         assert manifest1.equals(manifest2)
+
+    def test_save_and_load_with_flavors(self):
+        manifest1 = ZincManifest('com.mindsnacks.test', 'meep', 1)
+        manifest1._flavors = ['green']
+        path = os.path.join(self.dir, "manifest.json")
+        manifest1.write(path)
+        manifest2 = load_manifest(path)
+        assert manifest1.equals(manifest2)
+
+    def test_add_flavor(self):
+        manifest = ZincManifest('com.mindsnacks.test', 'meep', 1)
+        manifest.add_file('foo', 'ea502a7bbd407872e50b9328956277d0228272d4')
+        manifest.add_flavor_for_file('foo', 'green')
+        flavors = manifest.flavors_for_file('foo')
+        self.assertEquals(len(flavors), 1)
+        self.assertTrue('green' in flavors)
+        self.assertTrue('green' in manifest.flavors())
+
+class ZincFlavorSpecTestCase(unittest.TestCase):
+
+    def test_load_from_dict_1(self):
+        d = {'small' : ['+ 50x50'], 'large' : ['+ 100x100']}
+        spec = ZincFlavorSpec.from_dict(d)
+        self.assertTrue(spec is not None)
+        self.assertEquals(len(spec.flavors()), 2)
+
+class BundleDescriptorTestCase(unittest.TestCase):
+
+    def test_bundle_id_from_descriptor_without_flavor(self):
+        descriptor = 'com.foo.bar-1'
+        bundle_id = 'com.foo.bar'
+        self.assertEquals(bundle_id, bundle_id_from_bundle_descriptor(descriptor))
+        
+    def test_bundle_id_from_descriptor_with_flavor(self):
+        descriptor = 'com.foo.bar-1~green'
+        bundle_id = 'com.foo.bar'
+        self.assertEquals(bundle_id, bundle_id_from_bundle_descriptor(descriptor))
+
+    def test_bundle_version_from_descriptor_without_flavor(self):
+        descriptor = 'com.foo.bar-1'
+        bundle_version = 1
+        self.assertEquals(bundle_version, bundle_version_from_bundle_descriptor(descriptor))
+
+    def test_bundle_version_from_descriptor_with_flavor(self):
+        descriptor = 'com.foo.bar-1~green'
+        bundle_version = 1
+        self.assertEquals(bundle_version, bundle_version_from_bundle_descriptor(descriptor))
+
+
 
