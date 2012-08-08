@@ -1,9 +1,29 @@
 import fnmatch
+import string
 
 class Match:
     ACCEPT=1
     REJECT=2
     UNKNOWN=3
+
+
+def path_filter_from_rule_list(rule_list):
+    """Read from a dict. `version` is ignored"""
+    rules = []
+    for rule_string in rule_list:
+        rule_string = rule_string.strip()
+        rule_comps = rule_string.split()
+        match_action_string = rule_comps[0]
+        if match_action_string == '+':
+            match_action = Match.ACCEPT
+        elif match_action_string == '-': 
+            match_action = Match.REJECT
+        else:
+            raise ValueError("unknown match type")
+        pattern = string.join(rule_comps[1:], ' ')
+        rules.append(PathFilter.Rule(pattern, match_action))
+    return PathFilter(rules)
+
 
 class PathFilter(object):
 

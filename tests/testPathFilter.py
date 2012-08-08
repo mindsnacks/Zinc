@@ -1,7 +1,7 @@
 from tests import *
 from zinc import *
 import os.path
-from zinc.pathfilter import Match
+from zinc.pathfilter import Match, path_filter_from_rule_list
 
 class TestPathFilterRuleMatching(unittest.TestCase):
 
@@ -58,5 +58,14 @@ class TestPathFilterMatching(unittest.TestCase):
         self.assertFalse(pf.match('/this/is/valid/100/file.png'))
         self.assertFalse(pf.match('/this/is/valid/100/file.jpg'))
         self.assertTrue(pf.match('/this/is/not/valid/20/file.png'))
+
+    def test_read_json(self):
+        pf = path_filter_from_rule_list(['+ a'])
+        self.assertTrue(pf is not None)
+
+    def test_read_json_invalid(self):
+        self.assertRaises(Exception, path_filter_from_rule_list, ['? a'])
+
+
 
 
