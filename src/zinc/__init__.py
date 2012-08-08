@@ -12,6 +12,7 @@ from .models import (ZincIndex, load_index, ZincError, ZincErrors,
         ZincOperation, ZincConfig, load_config, ZincManifest, load_manifest,
         CreateBundleVersionOperation, ZincCatalog, create_catalog_at_path)
 from .defaults import defaults
+from .pathfilter import PathFilter
 
 
 logging.basicConfig(level=logging.DEBUG,
