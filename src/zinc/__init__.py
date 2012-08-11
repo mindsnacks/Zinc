@@ -49,18 +49,18 @@ def bundle_list(args):
         print bundle_name, versions
 
 def bundle_update(args):
-    flavor_spec = None
-    if args.flavor_spec is not None:
-        with open(args.flavor_spec) as f:
-            flavor_spec_dict = json.load(f)
-            flavor_spec = ZincFlavorSpec.from_dict(flavor_spec_dict)
+    flavors = None
+    if args.flavors is not None:
+        with open(args.flavors) as f:
+            flavors_dict = json.load(f)
+            flavors = ZincFlavorSpec.from_dict(flavors_dict)
 
     catalog = ZincCatalog(args.catalog_path)
     bundle_name = args.bundle_name
     path = args.path
     force = args.force
     manifest = catalog.create_bundle_version(
-            bundle_name, path, flavor_spec=flavor_spec, force=force)
+            bundle_name, path, flavor_spec=flavors, force=force)
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 def bundle_delete(args):
@@ -127,7 +127,7 @@ def main():
     parser_bundle_update = subparsers.add_parser('bundle:update', help='bundle:update help')
     parser_bundle_update.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
-    parser_bundle_update.add_argument('--flavor_spec', 
+    parser_bundle_update.add_argument('--flavors', 
             help='Flavor spec path. Should be JSON.')
     parser_bundle_update.add_argument('-f', '--force', default=False, action='store_true', 
             help='Update bundle even if no files changed.')
