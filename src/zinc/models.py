@@ -259,11 +259,13 @@ def load_manifest(path):
 
 class CreateBundleVersionOperation(ZincOperation):
 
-    def __init__(self, catalog, bundle_id, src_dir, flavor_spec=None):
+    def __init__(self, catalog, bundle_id, src_dir,
+            flavor_spec=None, force=False):
         self.catalog = catalog
         self.bundle_id = bundle_id
         self.src_dir =  canonical_path(src_dir)
         self.flavor_spec = flavor_spec
+        self.force = force
 
     def _next_version_for_bundle(self, bundle_id):
         versions = self.catalog.versions_for_bundle(bundle_id)
@@ -332,6 +334,7 @@ class CreateBundleVersionOperation(ZincOperation):
         new_manifest = self._generate_manifest(version)
 
         should_create_new_version = \
+                self.force or \
                 manifest is None \
                 or not new_manifest.files_are_equivalent(manifest)
 
@@ -631,9 +634,10 @@ class ZincCatalog(object):
     def bundle_names(self):
         return self.index.bundle_info_by_name.keys()
 
-    def create_bundle_version(self, bundle_name, src_dir, flavor_spec=None):
+    def create_bundle_version(self, bundle_name, src_dir, 
+            flavor_spec=None, force=False):
         op = CreateBundleVersionOperation(
-                self, bundle_name, src_dir, flavor_spec)
+                self, bundle_name, src_dir, flavor_spec, force)
         return op.run()
 
     def delete_bundle_version(self, bundle_name, version):
