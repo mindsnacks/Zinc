@@ -33,7 +33,7 @@ def _cmd_verify(path):
     print "Verified %d files, %d errors" % (total_count, error_count)
 
 def catalog_create(args):
-    dest = args.dest
+    dest = args.catalog_path
     if dest is None:
         dest = './%s' % (args.catalog_id)
     create_catalog_at_path(dest, args.catalog_id)
@@ -104,7 +104,7 @@ def main():
     parser_catalog_create = subparsers.add_parser('catalog:create', help='catalog:create help')
     parser_catalog_create.add_argument('catalog_id')
     parser_catalog_create.add_argument('-c', '--catalog_path',
-            help='Destination path. Defaults to "./<catalog_id"')
+            help='Destination path. Defaults to "./<catalog_id>"')
     parser_catalog_create.set_defaults(func=catalog_create)
 
     # catalog:clean
