@@ -197,6 +197,14 @@ class ZincManifest(object):
         if flavor not in self._flavors:
             self._flavors.append(flavor)
 
+    #TODO: naming could be better
+    def get_all_files(self, flavor=None):
+        all_files = self.files.keys()
+        if flavor is None:
+            return all_files
+        else:
+            return [f for f in all_files if flavor in self.flavors_for_file(f)]
+
     def flavors(self):
         return self._flavors
 

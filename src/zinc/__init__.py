@@ -14,6 +14,7 @@ from .models import (ZincIndex, load_index, ZincError, ZincErrors,
         ZincFlavorSpec)
 from .defaults import defaults
 from .pathfilter import PathFilter
+from .tasks.bundle_clone import ZincBundleCloneTask
 
 
 logging.basicConfig(level=logging.DEBUG,
@@ -64,7 +65,14 @@ def bundle_update(args):
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 def bundle_clone(args):
-    print args
+    catalog = ZincCatalog(args.catalog_path)
+
+    task = ZincBundleCloneTask()
+    task.catalog = catalog
+    task.bundle_name = args.bundle_name
+    task.version = args.version
+
+    task.run()
 
 def bundle_delete(args):
     bundle_name = args.bundle_name
@@ -145,6 +153,7 @@ def main():
             help='Clones a bundle to a local directory.')
     parser_bundle_clone.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
+    parser_bundle_clone.add_argument('--flavor', help='Name of flavor.')
     parser_bundle_clone.add_argument('bundle_name',
             help='Name of the bundle. Must not contain a period (.).')
     parser_bundle_clone.add_argument('version',
