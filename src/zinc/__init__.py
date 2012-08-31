@@ -63,6 +63,9 @@ def bundle_update(args):
             bundle_name, path, flavor_spec=flavors, force=force)
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
+def bundle_clone(args):
+    print args
+
 def bundle_delete(args):
     bundle_name = args.bundle_name
     version = args.version
@@ -136,6 +139,19 @@ def main():
     parser_bundle_update.add_argument('path',
             help='Path to files for this bundle.')
     parser_bundle_update.set_defaults(func=bundle_update)
+
+    # bundle:clone
+    parser_bundle_clone = subparsers.add_parser('bundle:clone',
+            help='Clones a bundle to a local directory.')
+    parser_bundle_clone.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_bundle_clone.add_argument('bundle_name',
+            help='Name of the bundle. Must not contain a period (.).')
+    parser_bundle_clone.add_argument('version',
+            help='Version number or "latest".')
+    parser_bundle_clone.add_argument('path',
+            help='Destination path for bundle clone.')
+    parser_bundle_clone.set_defaults(func=bundle_clone)
 
     # bundle:delete
     parser_bundle_delete = subparsers.add_parser('bundle:delete', help='bundle:delete help')
