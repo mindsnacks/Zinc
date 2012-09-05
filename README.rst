@@ -1,7 +1,30 @@
 Zinc
 ====
 
-Asset distribution system for mobile apps.
+Zinc is asset distribution system for designed mobile apps. Common use cases
+are for downloading content purchased through an in-app-purchase mechanism, or 
+to avoid packaging large files inside your app package if they may not be
+needed.
+
+The central concept in Zinc is a "bundle", which is just a group of assets. For
+example, a bundle could be a level for a game, which includes spritesheets,
+background music, and metadata.
+
+Zinc bundles are also versioned, which means they can be updated. For example,
+if you wanted to change the background music in a game, you can do that by
+pushing a new version of that bundle.
+
+Finally, Zinc also has a notion of "distributions" for a bundles, which are
+basically just tags. This allows clients to track a tag such as `master`
+instead of the version directly. Then whenever the `master` distribution is
+updated, clients will automatically download the changes.
+
+Feature Highlights
+------------------
+
+ - Files are tracked by content. If the same file exists in multiple bundles or
+   versions, it is only stored once.  
+ - "CDN Compatible" meaning that a Zinc catalog can be hosted on a dumb file server.
 
 Status
 ------
