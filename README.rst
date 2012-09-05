@@ -22,9 +22,9 @@ updated, clients will automatically download the changes.
 Feature Highlights
 ------------------
 
- - Files are tracked by content. If the same file exists in multiple bundles or
+- Files are tracked by content. If the same file exists in multiple bundles or
    versions, it is only stored once.  
- - "CDN Compatible" meaning that a Zinc catalog can be hosted on a dumb file server.
+- "CDN Compatible" meaning that a Zinc catalog can be hosted on a dumb file server.
 
 Status
 ------
