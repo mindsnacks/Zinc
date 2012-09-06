@@ -4,11 +4,15 @@ import tornado.gen
 import tornado.httpclient
 import os, urlparse, json
 
+import zinc
+
 r_url = urlparse.urlparse(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
 def redisClient():
     return tornadoredis.Client(host=r_url.hostname, port=r_url.port, password=r_url.password)
 redis = redisClient()
 redis.connect()
+
+ZINC_CONFIG = JSON.loads(open('config.json').read())
 
 def bundle_key(catalog, bundle):
     return "%s:%s" % (catalog, bundle)
@@ -36,9 +40,10 @@ class BundleHandler(tornado.web.RequestHandler):
             callback(self.manifests[catalog])
         else:
             http_client = tornado.httpclient.AsyncHTTPClient()
-            resp =  http_client.fetch(ZINC_CONFIG.url + '/catalog/index.json', process)
-        def process(response):
-            self.manifests[catalog] = ZincIndex(JSON.loads(response))
+            resp =  http_client.fetch(ZINC_CONFIG.url + '/catalog/index.json', handle_index
+
+        def handle_index(response):
+            self.manifests[catalog] = zinc.ZincIndex(JSON.loads(response))
 
     @async_with_gen
     def get(self, catalog, bundle):
