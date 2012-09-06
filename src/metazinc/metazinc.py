@@ -1,12 +1,13 @@
 import tornadoredis
 import tornado.web
 import tornado.gen
-import json
+import os, urlparse, json
 
 #from zinc import *
 #from zinc.models import bundle_id_from_bundle_descriptor, bundle_version_from_bundle_descriptor
 
-redis = tornadoredis.Client()
+r_url = urlparse.urlparse(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
+redis = tornadoredis.Client(host=r_url.hostname, port=r_url.port, password=r_url.password)
 redis.connect()
 
 def bundle_key(catalog, bundle):
@@ -120,5 +121,5 @@ application = tornado.web.Application([
 ])
 
 if __name__ == "__main__":
-    application.listen(8888)
+    application.listen(os.environ.get('PORT', 8888))
     tornado.ioloop.IOLoop.instance().start()
