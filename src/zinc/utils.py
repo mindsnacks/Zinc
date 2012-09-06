@@ -44,4 +44,11 @@ def mygzip(src_path, dst_path):
     f_out.close()
     f_in.close()
 
+def gunzip(src_path, dst_path):
+    f_in = gzip.open(src_path, 'rb')
+    f_out = open(dst_path, 'wb')
+    f_out.writelines(f_in)
+    f_out.close()
+    f_in.close()
+
 

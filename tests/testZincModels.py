@@ -85,8 +85,8 @@ class ZincCatalogTestCase(TempDirTestCase):
             for format in formats.keys():
                 ext = None
                 if format == 'gz':
-                    ext = '.gz'
-                object_path = catalog._path_for_file_with_sha(file, sha, ext)
+                    ext = 'gz'
+                object_path = catalog._path_for_file_with_sha(sha, ext)
                 assert os.path.exists(object_path)
 
     def test_bundle_name_in_manifest(self):
@@ -240,7 +240,7 @@ class ZincManifestTestCase(TempDirTestCase):
         flavors = manifest.flavors_for_file('foo')
         self.assertEquals(len(flavors), 1)
         self.assertTrue('green' in flavors)
-        self.assertTrue('green' in manifest.flavors())
+        self.assertTrue('green' in manifest.flavors)
 
 class ZincFlavorSpecTestCase(unittest.TestCase):
 
@@ -248,7 +248,7 @@ class ZincFlavorSpecTestCase(unittest.TestCase):
         d = {'small' : ['+ 50x50'], 'large' : ['+ 100x100']}
         spec = ZincFlavorSpec.from_dict(d)
         self.assertTrue(spec is not None)
-        self.assertEquals(len(spec.flavors()), 2)
+        self.assertEquals(len(spec.flavors), 2)
 
 class BundleDescriptorTestCase(unittest.TestCase):
 
