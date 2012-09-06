@@ -70,7 +70,9 @@ def bundle_clone(args):
     task = ZincBundleCloneTask()
     task.catalog = catalog
     task.bundle_name = args.bundle_name
-    task.version = args.version
+    task.version = int(args.version)
+    task.flavor = args.flavor
+    task.output_path = args.path
 
     task.run()
 
