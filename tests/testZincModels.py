@@ -206,6 +206,39 @@ class ZincIndexTestCase(TempDirTestCase):
         index.update_distribution("live", "meep", 1)
         assert index.version_for_bundle("meep", "live") == 1
 
+    def test_distributions_for_bundle_by_version_unknown_bundle(self):
+        """Tests that an exception is raised if called with an unknown bundle name"""
+        index = ZincIndex()
+        self.assertRaises(Exception, index.distributions_for_bundle_by_version, "meep")
+
+    def test_distributions_for_bundle_by_version_no_distros(self):
+        """Tests that the result is empty if no distros exist"""
+        index = ZincIndex()
+        index.add_version_for_bundle("meep", 1)
+        distros = index.distributions_for_bundle_by_version("meep")
+        self.assertEquals(len(distros), 0)
+
+    def test_distributions_for_bundle_by_version_single_distro(self):
+        """Tests that the result is correct if there is one distro associated
+        with the version."""
+        index = ZincIndex()
+        index.add_version_for_bundle("meep", 1)
+        index.update_distribution("master", "meep", 1)
+        distros = index.distributions_for_bundle_by_version("meep")
+        self.assertEquals(distros[1], ["master",])
+
+    def test_distributions_for_bundle_by_version_multiple_distros(self):
+        """Tests that the result is correct if there is one distro associated
+        with the version."""
+        index = ZincIndex()
+        index.add_version_for_bundle("meep", 1)
+        index.update_distribution("master", "meep", 1)
+        index.update_distribution("test", "meep", 1)
+        distros = index.distributions_for_bundle_by_version("meep")
+        self.assertTrue("master" in distros[1])
+        self.assertTrue("test" in distros[1])
+
+
 class ZincManifestTestCase(TempDirTestCase):
 
     def test_save_and_load_with_files(self):

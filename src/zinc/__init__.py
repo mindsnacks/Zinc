@@ -46,8 +46,18 @@ def catalog_clean(args):
 def bundle_list(args):
     catalog = ZincCatalog(args.catalog_path)
     for bundle_name in catalog.bundle_names():
+        distros = catalog.index.distributions_for_bundle_by_version(bundle_name)
         versions = catalog.versions_for_bundle(bundle_name)
-        print bundle_name, versions
+        version_strings = list()
+        for version in versions:
+            version_string = str(version)
+            if distros.get(version) is not None:
+                distro_string = "(%s)" % (", ".join(distros.get(version)))
+                version_string += '=' + distro_string
+            version_strings.append(version_string)
+
+        final_string =  "[%s]" %(", ".join(version_strings))
+        print "%s %s" % (bundle_name, final_string)
 
 def bundle_update(args):
     flavors = None
