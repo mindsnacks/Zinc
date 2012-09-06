@@ -7,7 +7,9 @@ import os, urlparse, json
 #from zinc.models import bundle_id_from_bundle_descriptor, bundle_version_from_bundle_descriptor
 
 r_url = urlparse.urlparse(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
-redis = tornadoredis.Client(host=r_url.hostname, port=r_url.port, password=r_url.password)
+def redisClient():
+    return tornadoredis.Client(host=r_url.hostname, port=r_url.port, password=r_url.password)
+redis = redisClient()
 redis.connect()
 
 def bundle_key(catalog, bundle):
@@ -84,7 +86,7 @@ class LockHandler(tornado.web.RequestHandler):
     @async_with_gen
     def get(self, catalog, bundle):
         self.key = bundle_key(catalog, bundle)
-        self.client = tornadoredis.Client()
+        self.client = redisClient()
         self.client.connect()
         locked = yield tornado.gen.Task(redis.scard, self.key) # size of set
         if locked > 0:
