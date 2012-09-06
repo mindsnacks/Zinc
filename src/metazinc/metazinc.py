@@ -1,10 +1,8 @@
 import tornadoredis
 import tornado.web
 import tornado.gen
+import tornado.httpclient
 import os, urlparse, json
-
-#from zinc import *
-#from zinc.models import bundle_id_from_bundle_descriptor, bundle_version_from_bundle_descriptor
 
 r_url = urlparse.urlparse(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
 def redisClient():
@@ -20,19 +18,8 @@ def async_with_gen(fn):
     return tornado.web.asynchronous(tornado.gen.engine(fn))
 
 class MainHandler(tornado.web.RequestHandler):
-    @async_with_gen
     def get(self):
-        foo = yield tornado.gen.Task(redis.get, 'foo')
-        self.set_header('Content-Type', 'text/html')
-        self.write("foo is %s" % foo)
-        self.finish()
-
-    @async_with_gen
-    def post(self):
-    	foo = self.get_argument('foo')
-    	res = yield tornado.gen.Task(redis.set, 'foo', foo)
-    	self.write('foo set')
-        self.finish()
+        self.write("metazinc")
 
 class CatalogHandler(tornado.web.RequestHandler):
     def get(self, catalog):
@@ -40,8 +27,23 @@ class CatalogHandler(tornado.web.RequestHandler):
         #self.finish()
 
 class BundleHandler(tornado.web.RequestHandler):
+    def initialize(self, remote):
+        self.remote = remote
+        self.manifests = {}
+
+    def manifest(catalog, callback=None):
+        if self.manifests.has_key(catalog):
+            callback(self.manifests[catalog])
+        else:
+            http_client = tornado.httpclient.AsyncHTTPClient()
+            resp =  http_client.fetch(ZINC_CONFIG.url + '/catalog/index.json', process)
+        def process(response):
+            self.manifests[catalog] = ZincIndex(JSON.loads(response))
+
     @async_with_gen
     def get(self, catalog, bundle):
+        manifest = yield tornado.gen.Task(self.manifest, catalog)
+
         key = bundle_key(catalog, bundle)
         locked = yield tornado.gen.Task(redis.smembers, key)
         self.write(json.dumps(list(locked)))
