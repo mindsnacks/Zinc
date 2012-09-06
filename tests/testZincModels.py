@@ -272,5 +272,11 @@ class BundleDescriptorTestCase(unittest.TestCase):
         bundle_version = 1
         self.assertEquals(bundle_version, bundle_version_from_bundle_descriptor(descriptor))
 
+    def test_bundle_version_from_descriptor_with_flavor_with_dash(self):
+        descriptor = 'com.foo.bar-1~green-ish'
+        bundle_version = 1
+        self.assertEquals(bundle_version, bundle_version_from_bundle_descriptor(descriptor))
+
+
 
 
