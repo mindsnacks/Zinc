@@ -70,9 +70,9 @@ class BundleHandler(tornado.web.RequestHandler):
         key = bundle_key(repo, bundle)
         version = self.get_argument('version')
         res = yield tornado.gen.Task(redis.srem, key, version)
-        if res > 0:
-            redis.publish(key + ":lock", "unlocked")
+        if res:
             self.write('Unlocked bundle: %s' % bundle)
+            redis.publish(key + ":lock", "unlocked")
         else:
             self.write('No lock found')
         self.finish()
@@ -87,7 +87,11 @@ class LockHandler(tornado.web.RequestHandler):
         self.client.connect()
         locked = yield tornado.gen.Task(redis.scard, self.key) # size of set
         if locked > 0:
+            self.write('Waiting...\n')
+            # send buffer over network immediately so client doesn't think we're unresponsive
+            self.flush()
             yield tornado.gen.Task(self.client.subscribe, self.key + ":lock")
+
             self.client.listen(self.lock_watch)
         else:
             self.write('No locks')
@@ -99,10 +103,14 @@ class LockHandler(tornado.web.RequestHandler):
             self.finish()
             
             # cleanup
-            yield tornado.gen.Task(self.client.unsubscribe, self.key + ":lock")
-            self.client.disconnect()
+            self.on_connection_close()
         else:
             self.write('...\n')
+            self.flush()
+
+    def on_connection_close(self):
+        self.client.unsubscribe(self.key + ":lock")
+        self.client.disconnect()
 
 application = tornado.web.Application([
     (r"/", MainHandler),
