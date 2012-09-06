@@ -9,8 +9,8 @@ import json
 redis = tornadoredis.Client()
 redis.connect()
 
-def bundle_key(repo, bundle):
-    return "%s:%s" % (repo, bundle)
+def bundle_key(catalog, bundle):
+    return "%s:%s" % (catalog, bundle)
 
 # simpler decorator
 def async_with_gen(fn):
@@ -31,22 +31,22 @@ class MainHandler(tornado.web.RequestHandler):
     	self.write('foo set')
         self.finish()
 
-class RepoHandler(tornado.web.RequestHandler):
-    def get(self, repo):
-        self.write("repo: %s" % repo)
+class CatalogHandler(tornado.web.RequestHandler):
+    def get(self, catalog):
+        self.write("catalog: %s" % catalog)
         #self.finish()
 
 class BundleHandler(tornado.web.RequestHandler):
     @async_with_gen
-    def get(self, repo, bundle):
-        key = bundle_key(repo, bundle)
+    def get(self, catalog, bundle):
+        key = bundle_key(catalog, bundle)
         locked = yield tornado.gen.Task(redis.smembers, key)
         self.write(json.dumps(list(locked)))
         self.finish()
 
     @async_with_gen
-    def post(self, repo, bundle):
-        key = bundle_key(repo, bundle)
+    def post(self, catalog, bundle):
+        key = bundle_key(catalog, bundle)
 
         # TODO: this get/add should be a transaction
         locked = yield tornado.gen.Task(redis.scard, key) # size of set
@@ -66,8 +66,8 @@ class BundleHandler(tornado.web.RequestHandler):
         self.finish()
 
     @async_with_gen
-    def put(self, repo, bundle):
-        key = bundle_key(repo, bundle)
+    def put(self, catalog, bundle):
+        key = bundle_key(catalog, bundle)
         version = self.get_argument('version')
         res = yield tornado.gen.Task(redis.srem, key, version)
         if res:
@@ -81,8 +81,8 @@ class BundleHandler(tornado.web.RequestHandler):
 
 class LockHandler(tornado.web.RequestHandler):
     @async_with_gen
-    def get(self, repo, bundle):
-        self.key = bundle_key(repo, bundle)
+    def get(self, catalog, bundle):
+        self.key = bundle_key(catalog, bundle)
         self.client = tornadoredis.Client()
         self.client.connect()
         locked = yield tornado.gen.Task(redis.scard, self.key) # size of set
@@ -114,7 +114,7 @@ class LockHandler(tornado.web.RequestHandler):
 
 application = tornado.web.Application([
     (r"/", MainHandler),
-    (r"/([a-z0-9.]+)/?", RepoHandler),
+    (r"/([a-z0-9.]+)/?", CatalogHandler),
     (r"/([a-z0-9.]+)/([\w-]+)", BundleHandler),
     (r"/([a-z0-9.]+)/([\w-]+)/lock", LockHandler),
 ])
