@@ -51,9 +51,6 @@ class BundleHandler(tornado.web.RequestHandler):
 
     @async_with_gen
     def get(self, catalog, bundle):
-        manifest = yield tornado.gen.Task(self.manifest, catalog)
-        print manifest.bundle_info_by_name
-
         key = bundle_key(catalog, bundle)
         locked = yield tornado.gen.Task(redis.smembers, key)
         self.write(json.dumps(list(locked)))
@@ -61,16 +58,26 @@ class BundleHandler(tornado.web.RequestHandler):
 
     @async_with_gen
     def post(self, catalog, bundle):
+        manifest = yield tornado.gen.Task(self.manifest, catalog)
+
         key = bundle_key(catalog, bundle)
 
-        # TODO: this get/add should be a transaction
+        # TODO: this entire get/add operation should be a transaction
         locked = yield tornado.gen.Task(redis.scard, key) # size of set
+
+        # Currently, we lock all bundle versions during a client upload.
+        # If a second client tries to get a lock, they'll get a 409 and will
+        # be expected to wait on a /lock. After which, they should re-sync
+        # the bundle so that it is up to date before attempting a upload.
+        #
+        # In the future, we could allow different versions to be uploaded,
+        # simultaneously, if we keep track of what is changing in bundles.
         if locked > 0:
             self.send_error(409) # HTTP Conflict
             return
 
-        # TODO: figure out the actual latest version
-        version = 1
+        version = manifest.versions_for_bundle(bundle)[-1] + 1
+        manifest.add_version_for_bundle(bundle, version)
         res = yield tornado.gen.Task(redis.sadd, key, version)
 
         if res != version:
