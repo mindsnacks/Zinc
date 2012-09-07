@@ -12,7 +12,7 @@ def redisClient():
 redis = redisClient()
 redis.connect()
 
-ZINC_CONFIG = JSON.loads(open('config.json').read())
+ZINC_CONFIG = json.loads(open('config.json').read())
 
 def bundle_key(catalog, bundle):
     return "%s:%s" % (catalog, bundle)
@@ -35,19 +35,24 @@ class BundleHandler(tornado.web.RequestHandler):
         self.remote = remote
         self.manifests = {}
 
-    def manifest(catalog, callback=None):
+    def manifest(self, catalog, callback=None):
+        def cache_index(response):
+            self.manifests[catalog] = zinc.ZincIndex.from_dict(json.loads(response.body))
+            callback(self.manifests[catalog])
+
         if self.manifests.has_key(catalog):
             callback(self.manifests[catalog])
         else:
             http_client = tornado.httpclient.AsyncHTTPClient()
-            resp =  http_client.fetch(ZINC_CONFIG.url + '/catalog/index.json', handle_index
+            url =  '%s/%s/index.json' % (self.remote['url'], catalog)
+            print url
+            resp =  http_client.fetch(url, cache_index)
 
-        def handle_index(response):
-            self.manifests[catalog] = zinc.ZincIndex(JSON.loads(response))
 
     @async_with_gen
     def get(self, catalog, bundle):
         manifest = yield tornado.gen.Task(self.manifest, catalog)
+        print manifest.bundle_info_by_name
 
         key = bundle_key(catalog, bundle)
         locked = yield tornado.gen.Task(redis.smembers, key)
@@ -125,7 +130,7 @@ class LockHandler(tornado.web.RequestHandler):
 application = tornado.web.Application([
     (r"/", MainHandler),
     (r"/([a-z0-9.]+)/?", CatalogHandler),
-    (r"/([a-z0-9.]+)/([\w-]+)", BundleHandler),
+    (r"/([a-z0-9.]+)/([\w-]+)", BundleHandler, dict(remote=ZINC_CONFIG['remote'])),
     (r"/([a-z0-9.]+)/([\w-]+)/lock", LockHandler),
 ])
 
