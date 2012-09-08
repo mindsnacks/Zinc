@@ -64,7 +64,7 @@ def bundle_list(args):
     bundle_name = args.bundle_name
     version = int(args.version)
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
-    all_files = manifest.get_all_files()
+    all_files = sorted(manifest.get_all_files())
     for f in all_files:
         if args.sha:
             print f, 'sha=%s' % (manifest.sha_for_file(f))
