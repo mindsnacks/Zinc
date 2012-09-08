@@ -43,7 +43,7 @@ def catalog_clean(args):
     catalog = ZincCatalog(args.catalog_path)
     catalog.clean(dry_run=not args.force)
 
-def bundle_list(args):
+def catalog_list(args):
     catalog = ZincCatalog(args.catalog_path)
     for bundle_name in catalog.bundle_names():
         distros = catalog.index.distributions_for_bundle_by_version(bundle_name)
@@ -58,6 +58,19 @@ def bundle_list(args):
 
         final_string =  "[%s]" %(", ".join(version_strings))
         print "%s %s" % (bundle_name, final_string)
+
+def bundle_list(args):
+    catalog = ZincCatalog(args.catalog_path)
+    bundle_name = args.bundle_name
+    version = int(args.version)
+    manifest = catalog.manifest_for_bundle(bundle_name, version=version)
+    all_files = manifest.get_all_files()
+    for f in all_files:
+        if args.sha:
+            print f, 'sha=%s' % (manifest.sha_for_file(f))
+        else:
+            print f
+
 
 def bundle_update(args):
     flavors = None
@@ -140,10 +153,24 @@ def main():
             'will cause files to actually be removed.')
     parser_catalog_clean.set_defaults(func=catalog_clean)
 
+    # catalog:list
+    parser_catalog_list = subparsers.add_parser('catalog:list', 
+            help='List contents of catalog')
+    parser_catalog_list.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_catalog_list.set_defaults(func=catalog_list)
+
     # bundle:list
-    parser_bundle_list = subparsers.add_parser('bundle:list', help='bundle:list help')
+    parser_bundle_list = subparsers.add_parser('bundle:list', 
+            help='List contents of a bundle')
     parser_bundle_list.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
+    parser_bundle_list.add_argument('--sha', default=False, action='store_true', 
+            help='Print file SHA hash.')
+    parser_bundle_list.add_argument('bundle_name',
+            help='Name of the bundle. Must not contain a period (.).')
+    parser_bundle_list.add_argument('version',
+            help='Version number or "latest".')
     parser_bundle_list.set_defaults(func=bundle_list)
 
     # bundle:update
