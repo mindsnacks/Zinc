@@ -7,10 +7,12 @@ import os, urlparse, json
 import zinc
 
 r_url = urlparse.urlparse(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
+
 def redisClient():
-    return tornadoredis.Client(host=r_url.hostname, port=r_url.port, password=r_url.password)
+    client = tornadoredis.Client(host=r_url.hostname, port=r_url.port, password=r_url.password)
+    client.connect()
+    return client
 redis = redisClient()
-redis.connect()
 
 ZINC_CONFIG = json.loads(open('config.json').read())
 
@@ -28,26 +30,23 @@ class MainHandler(tornado.web.RequestHandler):
 class CatalogHandler(tornado.web.RequestHandler):
     def get(self, catalog):
         self.write("catalog: %s" % catalog)
-        #self.finish()
 
 class BundleHandler(tornado.web.RequestHandler):
     def initialize(self, remote):
         self.remote = remote
-        self.manifests = {}
 
-    def manifest(self, catalog, callback=None):
-        def cache_index(response):
-            self.manifests[catalog] = zinc.ZincIndex.from_dict(json.loads(response.body))
-            callback(self.manifests[catalog])
-
-        if self.manifests.has_key(catalog):
-            callback(self.manifests[catalog])
-        else:
+    @tornado.gen.engine
+    def catalog_index(self, catalog, callback=None):
+        """Retrieves index file and invokes callback with the ZincIndex"""
+        index_json = yield tornado.gen.Task(redis.get, catalog)
+        if not index_json:
             http_client = tornado.httpclient.AsyncHTTPClient()
             url =  '%s/%s/index.json' % (self.remote['url'], catalog)
             print url
-            resp =  http_client.fetch(url, cache_index)
-
+            index_json = yield tornado.gen.Task(http_client.fetch, url)
+            redis.set(catalog, index_json, callback=lambda x: x or self.send_error())
+        index = zinc.ZincIndex.from_dict(json.loads(index_json))
+        callback(index)
 
     @async_with_gen
     def get(self, catalog, bundle):
@@ -58,17 +57,18 @@ class BundleHandler(tornado.web.RequestHandler):
 
     @async_with_gen
     def post(self, catalog, bundle):
-        manifest = yield tornado.gen.Task(self.manifest, catalog)
 
         key = bundle_key(catalog, bundle)
 
-        # TODO: this entire get/add operation should be a transaction
-        locked = yield tornado.gen.Task(redis.scard, key) # size of set
+        self.client = redisClient()
+
+        yield tornado.gen.Task(self.client.watch, key)
+        locked = yield tornado.gen.Task(self.client.scard, key) # size of set
 
         # Currently, we lock all bundle versions during a client upload.
         # If a second client tries to get a lock, they'll get a 409 and will
         # be expected to wait on a /lock. After which, they should re-sync
-        # the bundle so that it is up to date before attempting a upload.
+        # the bundle so that it is up to date before attempting an upload.
         #
         # In the future, we could allow different versions to be uploaded,
         # simultaneously, if we keep track of what is changing in bundles.
@@ -76,11 +76,14 @@ class BundleHandler(tornado.web.RequestHandler):
             self.send_error(409) # HTTP Conflict
             return
 
-        version = manifest.versions_for_bundle(bundle)[-1] + 1
-        manifest.add_version_for_bundle(bundle, version)
-        res = yield tornado.gen.Task(redis.sadd, key, version)
+        index = yield tornado.gen.Task(self.catalog_index, catalog)
+        version = index.versions_for_bundle(bundle)[-1] + 1
 
-        if res != version:
+        transaction = self.client.pipeline(transactional=True)
+        transaction.sadd(key, version)
+        res = yield tornado.gen.Task(transaction.execute)
+
+        if res is None:
             self.send_error() # redis error
             return
 
@@ -93,11 +96,20 @@ class BundleHandler(tornado.web.RequestHandler):
         version = self.get_argument('version')
         res = yield tornado.gen.Task(redis.srem, key, version)
         if res:
+            index = yield tornado.gen.Task(self.catalog_index, catalog)
+            index.add_version_for_bundle(bundle, version)
+            client = redisClient()
+            yield tornado.gen.Task(client.watch, catalog)
+
             self.write('Unlocked bundle: %s' % bundle)
             redis.publish(key + ":lock", "unlocked")
         else:
             self.write('No lock found')
         self.finish()
+
+    def on_finish(self):
+        if hasattr(self, 'client'):
+            self.client.disconnect()
 
 
 
@@ -106,7 +118,6 @@ class LockHandler(tornado.web.RequestHandler):
     def get(self, catalog, bundle):
         self.key = bundle_key(catalog, bundle)
         self.client = redisClient()
-        self.client.connect()
         locked = yield tornado.gen.Task(redis.scard, self.key) # size of set
         if locked > 0:
             self.write('Waiting...\n')
@@ -123,16 +134,13 @@ class LockHandler(tornado.web.RequestHandler):
         if msg.kind == 'message' and msg.body == 'unlocked':
             self.write('Unlocked!')
             self.finish()
-            
-            # cleanup
-            self.on_connection_close()
         else:
             self.write('...\n')
             self.flush()
 
-    def on_connection_close(self):
-        self.client.unsubscribe(self.key + ":lock")
-        self.client.disconnect()
+    def on_finish(self):
+        if hasattr(self, 'client'):
+            self.client.disconnect()
 
 application = tornado.web.Application([
     (r"/", MainHandler),
