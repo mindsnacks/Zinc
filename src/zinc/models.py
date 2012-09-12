@@ -134,6 +134,15 @@ class ZincIndex(object):
             raise ValueError("Unknown bundle %s" % (bundle_name))
         return bundle_info['distributions']
 
+    def distributions_for_bundle_by_version(self, bundle_name):
+        distros = self.distributions_for_bundle(bundle_name)
+        distros_by_version = dict()
+        for distro, version in distros.iteritems():
+            if distros_by_version.get(version) == None:
+                distros_by_version[version] = list()
+            distros_by_version[version].append(distro)
+        return distros_by_version
+
     def version_for_bundle(self, bundle_name, distro):
         return self.distributions_for_bundle(bundle_name).get(distro)
 
