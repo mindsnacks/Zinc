@@ -9,14 +9,7 @@ from zinc.tasks.bundle_create import ZincBundleCreateTask
 from zinc.defaults import defaults
 import os.path
 
-class ZincCatalogTestCase(TempDirTestCase):
-
-    def setUp(self):
-        self.dir = tempfile.mkdtemp()
-        self.catalog_dir = os.path.join(self.dir, "catalog")
-        os.mkdir(self.catalog_dir)
-        self.scratch_dir = os.path.join(self.dir, "scratch")
-        os.mkdir(self.scratch_dir)
+class ZincCatalogTestCase(ZincCatalogBaseTestCase):
 
     def test_catalog_create(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
@@ -69,13 +62,6 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         versions = catalog.versions_for_bundle("meep")
         assert len(versions) == 0
-
-    def _build_test_catalog(self):
-        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        f1 = create_random_file(self.scratch_dir)
-        f2 = create_random_file(self.scratch_dir)
-        catalog.create_bundle_version("meep", self.scratch_dir)
-        return catalog
 
     def test_create_bundle_version(self):
         catalog = self._build_test_catalog()

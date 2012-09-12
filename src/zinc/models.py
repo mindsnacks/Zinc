@@ -421,6 +421,13 @@ class ZincCatalog(object):
 
         logging.info("Imported %s --> %s" % (src_path, final_dst_path))
         return (final_dst_path, final_dst_size)
+
+    def _import_archive(self, src_path, bundle_name, version, flavor=None):
+
+        dst_path = self._path_for_archive_for_bundle_version(
+                bundle_name, version, flavor=flavor)
+        self.storage_backend.write_path(src_path, dst_path)
+
         
     def lock(self):
         pass

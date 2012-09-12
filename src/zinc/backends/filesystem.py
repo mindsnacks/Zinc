@@ -1,12 +1,12 @@
-from . import IndexBackend, StorageBackend
+import os
+import json
+from shutil import copyfile
 
 from zinc import *
-
+from zinc.backends import IndexBackend, StorageBackend
 from zinc.models import ZincCatalog, ZincIndex
 from zinc.utils import makedirs, canonical_path, gzip_path
 
-import os
-import json
 
 def write_data(data, path, raw=True, gzip=False):
     if not raw and not gzip:
