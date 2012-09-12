@@ -2,20 +2,15 @@ import logging
 import argparse
 import os
 import json
-from os.path import join as pjoin
 import tarfile
 
-import errno
-from utils import sha1_for_path, canonical_path, makedirs, mygzip
-
-from .models import (ZincIndex, load_index, ZincError, ZincErrors,
-        ZincOperation, ZincConfig, load_config, ZincManifest, load_manifest,
-        CreateBundleVersionOperation, ZincCatalog, create_catalog_at_path,
-        ZincFlavorSpec)
+#from .utils import sha1_for_path, canonical_path, makedirs
+#from .models import (ZincIndex, ZincError, ZincErrors, ZincConfig, ZincManifest,
+#        ZincCatalog, ZincFlavorSpec)
 from .defaults import defaults
-from .pathfilter import PathFilter
-from .tasks.bundle_clone import ZincBundleCloneTask
+#from .pathfilter import PathFilter
 
+from .tasks.bundle_clone import ZincBundleCloneTask
 
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')

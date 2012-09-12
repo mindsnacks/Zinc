@@ -1,6 +1,12 @@
 from tests import *
-from zinc import *
-from zinc.models import bundle_id_from_bundle_descriptor, bundle_version_from_bundle_descriptor
+from zinc.models import (ZincIndex, ZincError, ZincErrors, ZincConfig,
+        ZincManifest, ZincCatalog, ZincFlavorSpec)
+from zinc.models import bundle_id_from_bundle_descriptor
+from zinc.models import bundle_version_from_bundle_descriptor
+from zinc.backends.filesystem import create_catalog_at_path
+from zinc.backends.filesystem import read_json_dict, write_json_dict
+from zinc.tasks.bundle_create import ZincBundleCreateTask
+from zinc.defaults import defaults
 import os.path
 
 class ZincCatalogTestCase(TempDirTestCase):
@@ -15,7 +21,6 @@ class ZincCatalogTestCase(TempDirTestCase):
     def test_catalog_create(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         assert catalog is not None
-        assert catalog.is_loaded() == True
         assert len(catalog.verify()) == 0
         assert len(catalog.bundle_names()) == 0
         assert catalog.format() == defaults['zinc_format']
@@ -32,11 +37,10 @@ class ZincCatalogTestCase(TempDirTestCase):
         self.assertRaises(ValueError, catalog._add_manifest, "beep")
 
     def test_catalog_read_invalid_format(self):
-        create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        index_path = os.path.join(self.catalog_dir, defaults['catalog_index_name'])
-        index = load_index(index_path)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        index = catalog.index
         index.format = 2
-        index.write(index_path)
+        index.save()
         self.assertRaises(Exception, ZincCatalog, (self.catalog_dir))
 
     def test_catalog_import_file(self):
@@ -109,9 +113,9 @@ class ZincCatalogTestCase(TempDirTestCase):
         f3 = create_random_file(self.scratch_dir)
         catalog.create_bundle_version("meep", self.scratch_dir)
         self.assertTrue(2 in catalog.versions_for_bundle("meep"))
-        new_index = load_index(os.path.join(catalog.path, defaults['catalog_index_name']))
-        assert 1 in new_index.versions_for_bundle("meep")
-        assert 2 in new_index.versions_for_bundle("meep")
+        versions = catalog.index.versions_for_bundle("meep")
+        self.assertTrue(1 in versions)
+        self.assertTrue(2 in versions)
 
     def test_create_identical_bundle_version(self):
         catalog = self._build_test_catalog()
@@ -254,16 +258,16 @@ class ZincManifestTestCase(TempDirTestCase):
                     }
                 }
         path = os.path.join(self.dir, "manifest.json")
-        manifest1.write(path)
-        manifest2 = load_manifest(path)
+        write_json_dict(manifest1.to_dict(), path)
+        manifest2 = ZincManifest.from_dict(read_json_dict(path))
         assert manifest1.equals(manifest2)
 
     def test_save_and_load_with_flavors(self):
         manifest1 = ZincManifest('com.mindsnacks.test', 'meep', 1)
         manifest1._flavors = ['green']
         path = os.path.join(self.dir, "manifest.json")
-        manifest1.write(path)
-        manifest2 = load_manifest(path)
+        write_json_dict(manifest1.to_dict(), path)
+        manifest2 = ZincManifest.from_dict(read_json_dict(path))
         assert manifest1.equals(manifest2)
 
     def test_add_flavor(self):

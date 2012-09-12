@@ -3,7 +3,8 @@ import logging
 from shutil import copyfile
 
 from zinc.utils import makedirs
-from zinc.models import bundle_id_for_catalog_id_and_bundle_name, bundle_descriptor_for_bundle_id_and_version
+from zinc.models import bundle_id_for_catalog_id_and_bundle_name
+from zinc.models import bundle_descriptor_for_bundle_id_and_version
 from zinc.utils import gunzip
 
 class ZincBundleCloneTask(object):

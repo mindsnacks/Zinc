@@ -1,16 +1,12 @@
 import os
 from os.path import join as pjoin
-import tarfile
 import json
 import logging
-from shutil import copyfile
 
-from .utils import sha1_for_path, canonical_path, makedirs, mygzip
-from .defaults import defaults
-from .pathfilter import PathFilter
+from zinc.utils import sha1_for_path, makedirs, gzip_path
+from zinc.defaults import defaults
+from zinc.pathfilter import PathFilter
 
-# TODO: real ignore system
-IGNORE = ['.DS_Store']
 
 ### Errors ###################################################################
 
@@ -52,23 +48,17 @@ def bundle_descriptor_for_bundle_id_and_version(bundle_id, version, flavor=None)
     if flavor is not None: descriptor += '~%s' % (flavor)
     return descriptor
 
-### ZincOperation ############################################################
-
-class ZincOperation(object):
-
-    def commit():
-        pass
-
 ### ZincIndex ################################################################
 
 class ZincIndex(object):
 
-    def __init__(self, id=None):
+    def __init__(self, id=None, backend=None):
         self.format = defaults['zinc_format']
         self.id = id
+        self.backend = backend
         self.bundle_info_by_name = dict()
 
-    def to_json(self):
+    def to_dict(self):
        return {
 				'id' : self.id,
                 'bundles' : self.bundle_info_by_name,
@@ -83,16 +73,14 @@ class ZincIndex(object):
         index.bundle_info_by_name = json_dict['bundles']
         return index
 
-    def write(self, path, gzip=False):
+    def save(self, gzip=True):
+        if self.backend is None:
+            raise ValueError("backend is None") # TODO: better exception?
+
         if self.id is None:
             raise ValueError("catalog id is None") # TODO: better exception?
-        index_file = open(path, 'w')
-        dict = self.to_json()
-        index_file.write(json.dumps(dict))
-        index_file.close()
-        if gzip:
-            gzpath = path + '.gz'
-            mygzip(path, gzpath)
+
+        self.backend.save_index(self)
 
     def _get_or_create_bundle_info(self, bundle_name):
         if self.bundle_info_by_name.get(bundle_name) is None:
@@ -160,11 +148,6 @@ class ZincIndex(object):
             raise ValueError("Unknown bundle %s" % (bundle_name))
         del bundle_info['distributions'][distribution_name]
 
-def load_index(path):
-    with open(path, 'r') as index_file:
-        json_dict = json.load(index_file)
-    return ZincIndex.from_dict(json_dict)
-
 
 ### ZincConfig ###############################################################
 
@@ -173,7 +156,7 @@ class ZincConfig(object):
     def __init__(self):
         self.gzip_threshhold = 0.85
 
-    def to_json(self):
+    def to_dict(self):
         d = {}
         if self.gzip_threshhold is not None:
             d['gzip_threshhold'] = self.gzip_threshhold
@@ -181,7 +164,7 @@ class ZincConfig(object):
    
     def write(self, path):
         config_file = open(path, 'w')
-        dict = self.to_json()
+        dict = self.to_dict()
         config_file.write(json.dumps(dict))
         config_file.close()
 
@@ -246,7 +229,7 @@ class ZincManifest(object):
     def flavors_for_file(self, path):
         return self.files[path].get('flavors')
 
-    def to_json(self):
+    def to_dict(self):
         return {
                 'catalog' : self.catalog_id,
                 'bundle' : self.bundle_name,
@@ -255,14 +238,15 @@ class ZincManifest(object):
                 'files' : self.files,
                 }
 
-    def write(self, path, gzip=False):
-        manifest_file = open(path, 'w')
-        dict = self.to_json()
-        manifest_file.write(json.dumps(dict))
-        manifest_file.close()
-        if gzip:
-            gzpath = path + '.gz'
-            mygzip(path, gzpath)
+    @classmethod
+    def from_dict(cls, json_dict):
+        catalog_id = json_dict['catalog']
+        bundle_name = json_dict['bundle']
+        version = int(json_dict['version'])
+        manifest = ZincManifest(catalog_id, bundle_name, version)
+        manifest.files = json_dict['files']
+        manifest._flavors = json_dict.get('flavors') or [] # to support legacy
+        return manifest
 
     def files_are_equivalent(self, other):
         # check that the keys are all the same
@@ -285,112 +269,8 @@ class ZincManifest(object):
                 and self.files_are_equivalent(other) \
                 and set(self.flavors) == set(other.flavors)
 
-def load_manifest(path):
-    print path
-    manifest_file = open(path, 'r')
-    dict = json.load(manifest_file)
-    manifest_file.close()
-    catalog_id = dict['catalog']
-    bundle_name = dict['bundle']
-    version = int(dict['version'])
-    manifest = ZincManifest(catalog_id, bundle_name, version)
-    manifest.files = dict['files']
-    manifest._flavors = dict.get('flavors') or [] # to support legacy
-    return manifest
-
 
 ##############################################################################
-
-class CreateBundleVersionOperation(ZincOperation):
-
-    def __init__(self, catalog, bundle_id, src_dir,
-            flavor_spec=None, force=False):
-        self.catalog = catalog
-        self.bundle_id = bundle_id
-        self.src_dir =  canonical_path(src_dir)
-        self.flavor_spec = flavor_spec
-        self.force = force
-
-    def _next_version_for_bundle(self, bundle_id):
-        versions = self.catalog.versions_for_bundle(bundle_id)
-        if len(versions) == 0:
-            return 1
-        return versions[-1] + 1
-
-    def _generate_manifest(self, version, flavor_spec=None):
-        """Create a new temporary manifest."""
-        new_manifest = ZincManifest(
-                self.catalog.index.id, self.bundle_id, version)
-
-        # Process all the paths and add them to the manifest
-        for root, dirs, files in os.walk(self.src_dir):
-            for f in files:
-                if f in IGNORE: continue # TODO: real ignore
-                full_path = pjoin(root, f)
-                rel_dir = root[len(self.src_dir)+1:]
-                rel_path = pjoin(rel_dir, f)
-                sha = sha1_for_path(full_path)
-                new_manifest.add_file(rel_path, sha)
-        return new_manifest
-
-    def _import_files_for_manifest(self, manifest, flavor_spec=None):
-
-        flavor_tar_files = dict()
-        if flavor_spec is not None:
-            for flavor in flavor_spec.flavors:
-                tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                        self.bundle_id, manifest.version, flavor)
-                tar = tarfile.open(tar_file_name, 'w')
-                flavor_tar_files[flavor] = tar
-
-        master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                self.bundle_id, manifest.version)
-        master_tar = tarfile.open(master_tar_file_name, 'w')
-
-        for file in manifest.files.keys():
-            full_path = pjoin(self.src_dir, file)
-            
-            (catalog_path, size) = self.catalog._import_path(full_path)
-            if catalog_path[-3:] == '.gz':
-                format = 'gz'
-            else:
-                format = 'raw'
-            manifest.add_format_for_file(file, format, size)
-            
-            master_tar.add(catalog_path, os.path.basename(catalog_path))
-
-            if flavor_spec is not None:
-                for flavor in flavor_spec.flavors:
-                    filter = flavor_spec.filter_for_flavor(flavor)
-                    if filter.match(full_path):
-                        manifest.add_flavor_for_file(file, flavor)
-                        tar = flavor_tar_files[flavor].add(
-                                catalog_path, os.path.basename(catalog_path))
-
-        master_tar.close()
-        for k, v in flavor_tar_files.iteritems():
-            v.close()
-
-    def run(self):
-        version = self._next_version_for_bundle(self.bundle_id)
-
-        manifest = self.catalog.manifest_for_bundle(self.bundle_id)
-        new_manifest = self._generate_manifest(version)
-
-        should_create_new_version = \
-                self.force or \
-                manifest is None \
-                or not new_manifest.files_are_equivalent(manifest)
-
-        if should_create_new_version:
-            manifest = new_manifest
-            self._import_files_for_manifest(manifest, self.flavor_spec)
-
-            self.catalog._write_manifest(manifest)
-            self.catalog.index.add_version_for_bundle(self.bundle_id, version)
-            self.catalog.save()
-
-        return manifest
 
 
 ### ZincFlavorSpec ############################################################
@@ -421,39 +301,19 @@ class ZincFlavorSpec(object):
 
 ### ZincCatalog ################################################################
 
-def create_catalog_at_path(path, id):
-
-    path = canonical_path(path)
-    try:
-        makedirs(path)
-    except OSError, e:
-        if e.errno == 17:
-            pass # directory already exists
-        else:
-            raise e
-
-    config_path = pjoin(path, defaults['catalog_config_name'])
-    ZincConfig().write(config_path)
-
-    index_path = pjoin(path, defaults['catalog_index_name'])
-    ZincIndex(id).write(index_path, True)
-
-    # TODO: check exceptions?
-
-    return ZincCatalog(path)
-
 class ZincCatalog(object):
 
     def _load(self):
-        self._read_index_file()
-        # TODO: check format, just assume 1 for now
+        self.index = self.index_backend.load_index()
         self._read_config_file()
-        self._loaded = True
 
-    def __init__(self, path):
-        self._loaded = False
-        self.path = canonical_path(path)
+    def __init__(self, index_backend, storage_backend):
+
+        self.index_backend = index_backend
+        self.storage_backend = storage_backend
+
         self._manifests = {}
+
         self._load()
 
     @property
@@ -463,40 +323,23 @@ class ZincCatalog(object):
     def format(self):
         return self.index.format
 
-    def is_loaded(self):
-        return self._loaded
-
     def _files_dir(self):
-        files_path = pjoin(self.path, "objects")
-        if not os.path.exists(files_path):
-            makedirs(files_path)
+        files_path = pjoin(self.storage_backend.path, "objects")
         return files_path
 
     def _manifests_dir(self):
-        manifests_path = pjoin(self.path, "manifests")
-        if not os.path.exists(manifests_path):
-            makedirs(manifests_path)
+        manifests_path = pjoin(self.storage_backend.path, "manifests")
         return manifests_path
 
     def _archives_dir(self):
-        archives_path = pjoin(self.path, "archives")
-        if not os.path.exists(archives_path):
-            makedirs(archives_path)
+        archives_path = pjoin(self.storage_backend.path, "archives")
         return archives_path
 
-    def _read_index_file(self):
-        index_path = pjoin(self.path, defaults['catalog_index_name'])
-        self.index = load_index(index_path)
-        if self.index.format != defaults['zinc_format']:
-            raise Exception("Incompatible format %s" % (self.index.format))
-
     def _read_config_file(self):
-        config_path = pjoin(self.path, defaults['catalog_config_name'])
-        self.config = load_config(config_path)
-
-    def _write_index_file(self):
-        index_path = pjoin(self.path, defaults['catalog_index_name'])
-        self.index.write(index_path, True)
+        # TODO: QQQ
+        #config_path = pjoin(self.path, defaults['catalog_config_name'])
+        #self.config = load_config(config_path)
+        self.config = ZincConfig()
 
     def _path_for_manifest_for_bundle_version(self, bundle_name, version):
         manifest_filename = "%s-%d.json" % (bundle_name, version)
@@ -505,12 +348,17 @@ class ZincCatalog(object):
 
     def _path_for_archive_for_bundle_version(self, bundle_name, version,
             flavor=None):
+        archive_filename = self._archive_filename(
+                bundle_name, version, flavor=flavor)
+        archive_path = pjoin(self._archives_dir(), archive_filename)
+        return archive_path
+
+    def _archive_filename(self, bundle_name, version, flavor=None):
         if flavor is None:
             archive_filename = "%s-%d.tar" % (bundle_name, version)
         else:
             archive_filename = "%s-%d~%s.tar" % (bundle_name, version, flavor)
-        archive_path = pjoin(self._archives_dir(), archive_filename)
-        return archive_path
+        return archive_filename
 
     def _path_for_manifest(self, manifest):
         return self._path_for_manifest_for_bundle_version(
@@ -524,7 +372,8 @@ class ZincCatalog(object):
             return None # throw exception?
         manifest_path = self._path_for_manifest_for_bundle_version(
                 bundle_name, version)
-        return load_manifest(manifest_path)
+        manifest_dict = self.storage_backend.read_json_dict(manifest_path)
+        return ZincManifest.from_dict(manifest_dict)
 
     def manifest_for_bundle_descriptor(self, bundle_descriptor):
         return self.manifest_for_bundle(
@@ -532,7 +381,9 @@ class ZincCatalog(object):
             bundle_version_from_bundle_descriptor(bundle_descriptor))
             
     def _write_manifest(self, manifest):
-        manifest.write(self._path_for_manifest(manifest), True)
+        path = self._path_for_manifest(manifest)
+        self.storage_backend.write_json_dict(
+                manifest.to_dict(), path, gzip=True)
 
     def _path_for_file_with_sha(self, sha, ext=None):
         subdir = pjoin(self._files_dir(), sha[0:2], sha[2:4])
@@ -544,7 +395,7 @@ class ZincCatalog(object):
     def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
         dst_path = self._path_for_file_with_sha(src_path_sha)
-        dst_path_gz = dst_path+'.gz'
+        dst_path_gz = dst_path + '.gz'
 
         # TODO: this is lame
         if os.path.exists(dst_path):
@@ -556,7 +407,7 @@ class ZincCatalog(object):
         # threshhold
 
         makedirs(os.path.dirname(dst_path))
-        mygzip(src_path, dst_path_gz)
+        gzip_path(src_path, dst_path_gz)
         src_size = os.path.getsize(src_path)
         dst_gz_size = os.path.getsize(dst_path_gz)
         if float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
@@ -565,7 +416,7 @@ class ZincCatalog(object):
         else:
             final_dst_path = dst_path
             final_dst_size = src_size
-            copyfile(src_path, dst_path)
+            self.storage_backend.write_path(src_path, dst_path)
             os.remove(dst_path_gz)
 
         logging.info("Imported %s --> %s" % (src_path, final_dst_path))
@@ -636,10 +487,6 @@ class ZincCatalog(object):
                     if not dry_run: os.remove(pjoin(root, f))
 
     def verify(self):
-        if not self._loaded:
-            raise Exception("not loaded")
-            # TODO: better exception
-            # TODO: wrap in decorator?
 
         for (bundle_name, bundle_info) in self.index.bundle_info_by_name.iteritems():
             for version in bundle_info['versions']:
@@ -681,12 +528,6 @@ class ZincCatalog(object):
     def bundle_names(self):
         return self.index.bundle_info_by_name.keys()
 
-    def create_bundle_version(self, bundle_name, src_dir, 
-            flavor_spec=None, force=False):
-        op = CreateBundleVersionOperation(
-                self, bundle_name, src_dir, flavor_spec, force)
-        return op.run()
-
     def delete_bundle_version(self, bundle_name, version):
         self.index.delete_bundle_version(bundle_name, version)
         self.save()
@@ -700,6 +541,12 @@ class ZincCatalog(object):
         self.save()
 
     def save(self):
-        #self._write_manifests()
-        self._write_index_file()
+        self.index.save()
+
+    def create_bundle_version(self, bundle_name, src_dir, 
+            flavor_spec=None, force=False):
+        from zinc.tasks.bundle_create import ZincBundleCreateTask
+        task = ZincBundleCreateTask(
+                self, bundle_name, src_dir, flavor_spec, force)
+        return task.run()
 
