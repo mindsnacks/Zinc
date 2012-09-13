@@ -21,7 +21,10 @@ class TestZincBundleCreateTask(ZincCatalogBaseTestCase):
 
         archive_path = catalog._path_for_archive_for_bundle_version(
                 "beep", 1)
-        self.assertFalse(os.path.exists(archive_path))
+        archive_rel_path = catalog._path_for_archive_for_bundle_version(
+                "beep", 1)
+        archive_abs_path = os.path.join(self.catalog_dir, archive_rel_path)
+        self.assertFalse(os.path.exists(archive_abs_path))
 
     def test_archive_is_created_master(self):
 
@@ -33,9 +36,10 @@ class TestZincBundleCreateTask(ZincCatalogBaseTestCase):
                 create_archives=True)
         task.run()
 
-        archive_path = catalog._path_for_archive_for_bundle_version(
+        archive_rel_path = catalog._path_for_archive_for_bundle_version(
                 "beep", 1)
-        self.assertTrue(os.path.exists(archive_path))
+        archive_abs_path = os.path.join(self.catalog_dir, archive_rel_path)
+        self.assertTrue(os.path.exists(archive_abs_path))
 
     def test_archive_is_created_flavor(self):
 
@@ -51,9 +55,10 @@ class TestZincBundleCreateTask(ZincCatalogBaseTestCase):
                 flavor_spec=flavor_spec, create_archives=True)
         task.run()
 
-        archive_path = catalog._path_for_archive_for_bundle_version(
+        archive_rel_path = catalog._path_for_archive_for_bundle_version(
                 "beep", 1, flavor="all")
-        self.assertTrue(os.path.exists(archive_path))
+        archive_abs_path = os.path.join(self.catalog_dir, archive_rel_path)
+        self.assertTrue(os.path.exists(archive_abs_path))
 
 
 

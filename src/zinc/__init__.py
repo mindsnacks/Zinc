@@ -4,29 +4,16 @@ import os
 import json
 import tarfile
 
-#from .utils import sha1_for_path, canonical_path, makedirs
-#from .models import (ZincIndex, ZincError, ZincErrors, ZincConfig, ZincManifest,
-#        ZincCatalog, ZincFlavorSpec)
-from .defaults import defaults
-#from .pathfilter import PathFilter
+from zinc.defaults import defaults
+from zinc.models import ZincFlavorSpec
 
-from .tasks.bundle_clone import ZincBundleCloneTask
+from zinc.tasks.bundle_clone import ZincBundleCloneTask
+from zinc.backends.filesystem import load_catalog_at_path
 
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
 
 ### Commands #################################################################
-
-def _cmd_verify(path):
-    catalog = ZincCatalog(path)
-    results = catalog.verify()
-    error_count = total_count = 0
-    for (file, error) in results.items():
-        if error.code != ZincErrors.OK.code:
-            print error.message + " : " + file
-            error_count = error_count + 1
-        total_count = total_count + 1
-    print "Verified %d files, %d errors" % (total_count, error_count)
 
 def catalog_create(args):
     dest = args.catalog_path
@@ -35,11 +22,11 @@ def catalog_create(args):
     create_catalog_at_path(dest, args.catalog_id)
 
 def catalog_clean(args):
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = load_catalog_at_path(args.catalog_path)
     catalog.clean(dry_run=not args.force)
 
 def catalog_list(args):
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = load_catalog_at_path(args.catalog_path)
     for bundle_name in catalog.bundle_names():
         distros = catalog.index.distributions_for_bundle_by_version(bundle_name)
         versions = catalog.versions_for_bundle(bundle_name)
@@ -55,7 +42,7 @@ def catalog_list(args):
         print "%s %s" % (bundle_name, final_string)
 
 def bundle_list(args):
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = load_catalog_at_path(args.catalog_path)
     bundle_name = args.bundle_name
     version = int(args.version)
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
@@ -74,7 +61,7 @@ def bundle_update(args):
             flavors_dict = json.load(f)
             flavors = ZincFlavorSpec.from_dict(flavors_dict)
 
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = load_catalog_at_path(args.catalog_path)
     bundle_name = args.bundle_name
     path = args.path
     force = args.force
@@ -83,7 +70,7 @@ def bundle_update(args):
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 def bundle_clone(args):
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = load_catalog_at_path(args.catalog_path)
 
     task = ZincBundleCloneTask()
     task.catalog = catalog
@@ -97,7 +84,7 @@ def bundle_clone(args):
 def bundle_delete(args):
     bundle_name = args.bundle_name
     version = args.version
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = load_catalog_at_path(args.catalog_path)
     if version == 'all':
         versions_to_delete = catalog.versions_for_bundle(bundle_name)
     else:
@@ -106,7 +93,7 @@ def bundle_delete(args):
             catalog.delete_bundle_version(bundle_name, int(v))
 
 def distro_update(args):
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = load_catalog_at_path(args.catalog_path)
     bundle_name = args.bundle_name
     distro_name = args.distro_name
     bundle_version = args.version
@@ -116,7 +103,7 @@ def distro_update(args):
             distro_name, bundle_name, bundle_version)
 
 def distro_delete(args):
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = load_catalog_at_path(args.catalog_path)
     bundle_name = args.bundle_name
     distro_name = args.distro_name
     catalog.delete_distribution(distro_name, bundle_name)
@@ -230,14 +217,6 @@ def main():
 
     args = parser.parse_args()
     args.func(args)
-
-#    if command == "catalog:verify":
-#        if len(args) < 2:
-#            parser.print_usage()
-#            exit(2)
-#        path = args[1]
-#        _cmd_verify(path)
-#        exit(0)
 
 if __name__ == "__main__":
     main()

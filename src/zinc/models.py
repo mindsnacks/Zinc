@@ -324,16 +324,13 @@ class ZincCatalog(object):
         return self.index.format
 
     def _files_dir(self):
-        files_path = pjoin(self.storage_backend.path, "objects")
-        return files_path
+        return "objects"
 
     def _manifests_dir(self):
-        manifests_path = pjoin(self.storage_backend.path, "manifests")
-        return manifests_path
+        return "manifests"
 
     def _archives_dir(self):
-        archives_path = pjoin(self.storage_backend.path, "archives")
-        return archives_path
+        return "archives"
 
     def _read_config_file(self):
         # TODO: QQQ
