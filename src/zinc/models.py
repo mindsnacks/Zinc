@@ -228,11 +228,12 @@ class ZincIndex(BaseZincIndex):
         if require_exists and not self._bundle_exists(bundle_name):
             raise LookupError("Unknown bundle %s" % (bundle_name))
         lock = uuid.uuid4()
-        print "lock %s %s" % (bundle_name, lock)
+        #print "lock %s %s" % (bundle_name, lock)
         return lock
 
     def _unlock_bundle(self, bundle_name, lock):
-        print "unlock %s %s" % (bundle_name, lock)
+        #print "unlock %s %s" % (bundle_name, lock)
+        pass
 
     def _get_or_create_bundle_info(self, bundle_name):
         if self._bundle_info_by_name.get(bundle_name) is None:
