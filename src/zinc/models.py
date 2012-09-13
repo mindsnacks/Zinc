@@ -281,14 +281,24 @@ class ZincIndex(BaseZincIndex):
 
 class ZincConfig(object):
 
-    def __init__(self):
-        self.gzip_threshhold = 0.85
+    def __init__(self, dictionary=None):
+        if dictionary is None:
+            self._dict = dict()
+        else:
+            self._dict = dictionary
+
+    @property
+    def gzip_threshhold(self):
+        return self._dict.get('gzip_threshhold') or defaults['gzip_threshhold']
+
+    @property 
+    def storage_backend(self):
+        return self._dict.get('storage_backend') or defaults['storage_backend']
+
+
 
     def to_dict(self):
-        d = {}
-        if self.gzip_threshhold is not None:
-            d['gzip_threshhold'] = self.gzip_threshhold
-        return d
+        return self._dict
    
     def write(self, path):
         config_file = open(path, 'w')
@@ -297,12 +307,11 @@ class ZincConfig(object):
         config_file.close()
 
 def load_config(path):
-    config_file = open(path, 'r')
-    dict = json.load(config_file)
-    config_file.close()
-    config = ZincConfig()
-    if dict.get('gzip_threshhold'):
-        config.gzip_threshhold = dict.get('gzip_threshhold')
+    dict = None
+    if os.path.exists(path):
+        with open(path, 'r') as config_file:
+            dict = json.load(config_file)
+    config = ZincConfig(dict)
     return config 
 
 ### ZincManifest #############################################################
@@ -453,17 +462,20 @@ class ZincCatalog(object):
 
     def _files_dir(self):
         return "objects"
+        #return os.path.join(self.index.id, "objects")
 
     def _manifests_dir(self):
         return "manifests"
+        #return os.path.join(self.index.id, "manifests")
 
     def _archives_dir(self):
         return "archives"
+        #return os.path.join(self.index.id, "archives")
 
     def _read_config_file(self):
         # TODO: QQQ
-        #config_path = pjoin(self.path, defaults['catalog_config_name'])
-        #self.config = load_config(config_path)
+        config_path = self.index_backend.config_path
+        self.config = load_config(config_path)
         self.config = ZincConfig()
 
     def _path_for_manifest_for_bundle_version(self, bundle_name, version):

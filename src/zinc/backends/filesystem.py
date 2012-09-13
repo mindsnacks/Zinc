@@ -110,7 +110,7 @@ def create_catalog_at_path(path, id):
 
     index_backend = FileSystemIndexBackend(path)
     index = ZincIndex(id=id, backend=index_backend)
-    index.save() # TODO: shouldn't have to call this
+    index.save()
     
     return load_catalog_at_path(path)
 

@@ -14,7 +14,7 @@ class SimpleDBIndexBackend(IndexBackend):
 
     def __init__(self,
             aws_key=None,
-            aws_secret=None
+            aws_secret=None,
             domain=None):
 
         self.domain = domain
@@ -33,7 +33,7 @@ class S3StorageBackend(StorageBackend):
     def __init__(self,
             aws_key=None,
             aws_secret=None,
-            bucket=bucket):
+            bucket=None):
 
         self.bucket = bucket
         
@@ -42,4 +42,7 @@ class S3StorageBackend(StorageBackend):
     def write(self):
         pass
 
+    def write_path(self, src_path, rel_path):
+        print src_path, rel_path
+        assert False
 

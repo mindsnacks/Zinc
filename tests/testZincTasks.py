@@ -21,9 +21,7 @@ class TestZincBundleCreateTask(ZincCatalogBaseTestCase):
 
         archive_path = catalog._path_for_archive_for_bundle_version(
                 "beep", 1)
-        archive_rel_path = catalog._path_for_archive_for_bundle_version(
-                "beep", 1)
-        archive_abs_path = os.path.join(self.catalog_dir, archive_rel_path)
+        archive_abs_path = os.path.join(self.catalog_dir, archive_path)
         self.assertFalse(os.path.exists(archive_abs_path))
 
     def test_archive_is_created_master(self):

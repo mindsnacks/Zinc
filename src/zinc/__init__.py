@@ -4,14 +4,48 @@ import os
 import json
 import tarfile
 
+
 from zinc.defaults import defaults
 from zinc.models import ZincFlavorSpec
 
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
-from zinc.backends.filesystem import load_catalog_at_path
+#from zinc.backends.filesystem import load_catalog_at_path
+
+from zinc.backends.filesystem import FileSystemIndexBackend, FileSystemStorageBackend
+from zinc.backends.aws import S3StorageBackend
+
+from zinc.models import load_config, ZincCatalog
+from zinc.utils import makedirs, canonical_path, gzip_path
 
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
+
+###
+
+def load_catalog_at_path(path):
+    makedirs(path)
+    
+    config_path = os.path.join(path, 'config.json')
+    config = load_config(config_path)
+
+    storage_backend_type = config.storage_backend
+    if storage_backend_type == 'S3':
+        aws_key = config._dict['aws_key']
+        aws_secret = config._dict['aws_secret']
+        bucket = config._dict['s3_bucket']
+        storage_backend = S3StorageBackend(
+                aws_key=aws_key, aws_secret=aws_secret, bucket=bucket)
+    else:
+        storage_backend = FileSystemStorageBackend(path)
+
+
+    index_backend = FileSystemIndexBackend(path)
+    return ZincCatalog(index_backend, storage_backend)
+
+
+
+
+
 
 ### Commands #################################################################
 
