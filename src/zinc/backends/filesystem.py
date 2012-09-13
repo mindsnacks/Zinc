@@ -4,7 +4,7 @@ from shutil import copyfile
 
 from zinc import *
 from zinc.backends import IndexBackend, StorageBackend
-from zinc.models import ZincCatalog, ZincIndex
+from zinc.models import ZincCatalog, ObjectZincIndex
 from zinc.utils import makedirs, canonical_path, gzip_path
 
 
@@ -44,6 +44,8 @@ class FileSystemIndexBackend(IndexBackend):
         self.index_path = os.path.join(root_path, FileSystemIndexBackend.INDEX_FILENAME)
         self.config_path = os.path.join(root_path, FileSystemIndexBackend.CONFIG_FILENAME)
 
+        self.lock_timeout = defaults['lock_timeout']
+
     def save_index(self, index):
         json_dict = index.to_dict()
         write_json_dict(json_dict, self.index_path)
@@ -51,11 +53,23 @@ class FileSystemIndexBackend(IndexBackend):
     def load_index(self):
         with open(self.index_path, 'r') as index_file:
             json_dict = json.load(index_file)
-        index = ZincIndex.from_dict(json_dict)
+        index = ObjectZincIndex.from_dict(json_dict)
         index.backend = self
         if index.format != defaults['zinc_format']:
             raise Exception("Incompatible format %s" % (self.index.format))
         return index
+
+    def lock_bundle(self, bundle_name, timeout=None):
+        return True
+ 
+    def unlock_bundle(self, bundle_name):
+        pass
+
+    def add_version_for_bundle(self, bundle_name):
+        lock = self.lock_bundle(bundle_name, timeout=self.lock_timeout)
+        if lock is None:
+            raise Exception("Couldn't lock")
+
 
 
 class FileSystemStorageBackend(StorageBackend):
@@ -95,8 +109,8 @@ def create_catalog_at_path(path, id):
     makedirs(path)
 
     index_backend = FileSystemIndexBackend(path)
-    index = ZincIndex(id=id, backend=index_backend)
-    index.save()
+    index = ObjectZincIndex(id=id, backend=index_backend)
+    #index.save()
     
     return load_catalog_at_path(path)
 
