@@ -30,16 +30,10 @@ class ZincBundleCreateTask(object):
         self._master_tar = None
         self._flavor_tars = None
 
-    def _next_version_for_bundle(self, bundle_name):
-        versions = self.catalog.versions_for_bundle(bundle_name)
-        if len(versions) == 0:
-            return 1
-        return versions[-1] + 1
-
     def _generate_manifest(self):
         """Create a new temporary manifest."""
         new_manifest = ZincManifest(
-                self.catalog.index.id, self.bundle_name, self._version)
+                self.catalog.index.id, self.bundle_name, 0)
 
         # Process all the paths and add them to the manifest
         for root, dirs, files in os.walk(self.src_dir):
@@ -142,7 +136,6 @@ class ZincBundleCreateTask(object):
         shutil.rmtree(self.temp_dir)
 
     def run(self):
-        self._version = self._next_version_for_bundle(self.bundle_name)
 
         manifest = self.catalog.manifest_for_bundle(self.bundle_name)
         new_manifest = self._generate_manifest()
@@ -153,12 +146,12 @@ class ZincBundleCreateTask(object):
                 or not new_manifest.files_are_equivalent(manifest)
 
         if should_create_new_version:
-            manifest = new_manifest
+            self._version = self.catalog.add_bundle_version(self.bundle_name)
+            new_manifest.version = self._version
 
-            self._import_files_for_manifest(manifest)
+            self._import_files_for_manifest(new_manifest)
 
-            self.catalog._write_manifest(manifest)
-            self.catalog.index.add_version_for_bundle(self.bundle_name, self._version)
+            self.catalog._write_manifest(new_manifest)
             self.catalog.save()
 
         self._cleanup()

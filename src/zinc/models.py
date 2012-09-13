@@ -56,7 +56,7 @@ def bundle_descriptor_for_bundle_id_and_version(bundle_id, version, flavor=None)
 ### ZincIndex ################################################################
 
 
-class ZincIndex(object):
+class BaseZincIndex(object):
 
     #def bundle_locking(func_to_decorate):
     #    @functools.wraps(func_to_decorate)
@@ -142,6 +142,10 @@ class ZincIndex(object):
             distros_by_version[version].append(distro)
         return distros_by_version
 
+    def save(self):
+        # TODO: this should probably not be here
+        self._save()
+
    # For Subclasses
         
     def _bundle_exists(self, bundle_name):
@@ -183,10 +187,11 @@ class ZincIndex(object):
         return versions[-1] + 1
 
 
-class ObjectZincIndex(ZincIndex):
+class ZincIndex(BaseZincIndex):
 
     def __init__(self, id=None, backend=None):
         self.id = id
+        self._backend = backend
         self._bundle_info_by_name = dict()
 
     def to_dict(self, format=None):
@@ -212,7 +217,8 @@ class ObjectZincIndex(ZincIndex):
         return index
 
     def _save(self):
-        pass
+        if self._backend is not None:
+            self._backend.save_index(self)
 
     def _bundle_exists(self, bundle_name):
         bundle_info = self._bundle_info_by_name.get(bundle_name)
@@ -605,7 +611,7 @@ class ZincCatalog(object):
                     if not dry_run: os.remove(pjoin(root, f))
 
     def add_bundle_version(self, bundle_name):
-        self.index.add_version_for_bundle(bundle_name, version)
+        return self.index.add_version_for_bundle(bundle_name)
 
     #def _add_manifest(self, bundle_name, version=1):
     #    if version in self.versions_for_bundle(bundle_name):
@@ -620,7 +626,7 @@ class ZincCatalog(object):
         return self.index.versions_for_bundle(bundle_name)
 
     def bundle_names(self):
-        return self.index.bundle_info_by_name.keys()
+        return self.index._bundle_info_by_name.keys()
 
     def delete_bundle_version(self, bundle_name, version):
         self.index.delete_bundle_version(bundle_name, version)
@@ -645,7 +651,7 @@ class ZincCatalog(object):
         return task.run()
 
     def verify(self):
-        for (bundle_name, bundle_info) in self.index.bundle_info_by_name.iteritems():
+        for (bundle_name, bundle_info) in self.index._bundle_info_by_name.iteritems():
             for version in bundle_info['versions']:
                 manifest = self.manifest_for_bundle(bundle_name, version)
                 if manifest is None:

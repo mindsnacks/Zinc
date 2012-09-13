@@ -4,7 +4,7 @@ from shutil import copyfile
 
 from zinc import *
 from zinc.backends import IndexBackend, StorageBackend
-from zinc.models import ZincCatalog, ObjectZincIndex
+from zinc.models import ZincCatalog, ZincIndex
 from zinc.utils import makedirs, canonical_path, gzip_path
 
 
@@ -53,7 +53,7 @@ class FileSystemIndexBackend(IndexBackend):
     def load_index(self):
         with open(self.index_path, 'r') as index_file:
             json_dict = json.load(index_file)
-        index = ObjectZincIndex.from_dict(json_dict)
+        index = ZincIndex.from_dict(json_dict)
         index.backend = self
         if index.format != defaults['zinc_format']:
             raise Exception("Incompatible format %s" % (self.index.format))
@@ -109,8 +109,8 @@ def create_catalog_at_path(path, id):
     makedirs(path)
 
     index_backend = FileSystemIndexBackend(path)
-    index = ObjectZincIndex(id=id, backend=index_backend)
-    #index.save()
+    index = ZincIndex(id=id, backend=index_backend)
+    index.save() # TODO: shouldn't have to call this
     
     return load_catalog_at_path(path)
 

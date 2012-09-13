@@ -2,7 +2,7 @@ from tests import *
 from zinc.models import ZincManifest
 from zinc.models import ZincCatalog
 from zinc.models import ZincFlavorSpec
-from zinc.models import ObjectZincIndex as ZincIndex
+from zinc.models import ZincIndex
 from zinc.models import bundle_id_from_bundle_descriptor
 from zinc.models import bundle_version_from_bundle_descriptor
 from zinc.backends.filesystem import create_catalog_at_path
@@ -11,115 +11,117 @@ from zinc.tasks.bundle_create import ZincBundleCreateTask
 from zinc.defaults import defaults
 import os.path
 
-#class ZincCatalogTestCase(ZincCatalogBaseTestCase):
-#
-#    def test_catalog_create(self):
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        assert catalog is not None
-#        assert len(catalog.verify()) == 0
-#        assert len(catalog.bundle_names()) == 0
-#        assert catalog.format() == defaults['zinc_format']
-#
-#    def test_catalog_create_manifest(self):
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        manifest = catalog._add_manifest("beep")
-#        assert manifest is not None
-# 
-#    def test_catalog_create_duplicate_manifest(self):
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        manifest1 = catalog._add_manifest("beep")
-#        assert manifest1 is not None
-#        self.assertRaises(ValueError, catalog._add_manifest, "beep")
-#
-#    def test_catalog_read_invalid_format(self):
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        index = catalog.index
-#        index.format = 2
-#        index.save()
-#        self.assertRaises(Exception, ZincCatalog, (self.catalog_dir))
-#
-#    def test_catalog_import_file(self):
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        f1 = create_random_file(self.scratch_dir)
-#        catalog._import_path(f1)
-#
-#    # TODO: kill test?
-#    #def test_bundle_add_version_without_catalog(self):
-#    #    bundle = ZincBundle("honk")
-#    #    assert bundle is not None
-#    #    self.assertRaises(Exception, bundle.add_version)
-#
-#    def test_bundle_names_with_no_bundles(self):
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        assert len(catalog.bundle_names()) == 0
-#
-#    def test_version_for_bundle(self):
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        catalog._add_manifest("meep", 1)
-#        versions = catalog.versions_for_bundle("meep")
-#        assert 1 in versions
-#        assert len(versions) == 1
-#
-#    def test_versions_for_nonexistant_bundle(self):
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        versions = catalog.versions_for_bundle("meep")
-#        assert len(versions) == 0
-#
-#    def test_create_bundle_version(self):
-#        catalog = self._build_test_catalog()
-#        assert "meep" in catalog.bundle_names()
-#        assert 1 in catalog.versions_for_bundle("meep")
-#        manifest = catalog.manifest_for_bundle("meep", 1)
-#        assert manifest is not None
-#        for (file, props) in manifest.files.items():
-#            sha = props['sha']
-#            formats = props['formats']
-#            for format in formats.keys():
-#                ext = None
-#                if format == 'gz':
-#                    ext = 'gz'
-#                object_path = catalog._path_for_file_with_sha(sha, ext)
-#                assert os.path.exists(object_path)
-#
-#    def test_bundle_name_in_manifest(self):
-#        catalog = self._build_test_catalog()
-#        bundle_name = "meep"
-#        manifest = catalog.manifest_for_bundle("meep", 1)
-#        assert manifest.bundle_name == bundle_name
-#
-#    def test_create_bundle_with_subdirs(self):
-#        f1 = create_random_file(self.scratch_dir)
-#        one_dir = os.mkdir(os.path.join(self.scratch_dir, "one"))
-#        f2 = create_random_file(one_dir)
-#        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-#        catalog.create_bundle_version("meep", self.scratch_dir)
-#        results = catalog.verify()
-#        
-#    def test_create_second_bundle_version(self):
-#        catalog = self._build_test_catalog()
-#        # add a file
-#        f3 = create_random_file(self.scratch_dir)
-#        catalog.create_bundle_version("meep", self.scratch_dir)
-#        self.assertTrue(2 in catalog.versions_for_bundle("meep"))
-#        versions = catalog.index.versions_for_bundle("meep")
-#        self.assertTrue(1 in versions)
-#        self.assertTrue(2 in versions)
-#
-#    def test_create_identical_bundle_version(self):
-#        catalog = self._build_test_catalog()
-#        catalog.create_bundle_version("meep", self.scratch_dir)
-#        self.assertEquals(len(catalog.versions_for_bundle("meep")), 1)
-#
-#    def test_catalog_verify(self):
-#        catalog = self._build_test_catalog()
-#        results = catalog.verify()
-#
-#    def test_path_for_manifest_with_name_version(self):
-#        catalog = self._build_test_catalog()
-#        manifest = ZincManifest(catalog.index.id, 'zoo', 1)
-#        path = catalog._path_for_manifest(manifest)
-#        filename = os.path.split(path)[-1]
-#        self.assertEquals(filename, 'zoo-1.json')
+class ZincCatalogTestCase(ZincCatalogBaseTestCase):
+
+    def test_catalog_create(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        assert catalog is not None
+        assert len(catalog.verify()) == 0
+        assert len(catalog.bundle_names()) == 0
+        assert catalog.format() == defaults['zinc_format']
+
+    # I think this test is defunct
+    #def test_catalog_create_manifest(self):
+    #    catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+    #    manifest = catalog._add_manifest("beep")
+    #    assert manifest is not None
+ 
+    ## I think this test is defunct
+    #def test_catalog_create_duplicate_manifest(self):
+    #    catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+    #    manifest1 = catalog._add_manifest("beep")
+    #    assert manifest1 is not None
+    #    self.assertRaises(ValueError, catalog._add_manifest, "beep")
+
+    def test_catalog_read_invalid_format(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        index = catalog.index
+        index.format = 2
+        index.save()
+        self.assertRaises(Exception, ZincCatalog, (self.catalog_dir))
+
+    def test_catalog_import_file(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        f1 = create_random_file(self.scratch_dir)
+        catalog._import_path(f1)
+
+    # TODO: kill test?
+    #def test_bundle_add_version_without_catalog(self):
+    #    bundle = ZincBundle("honk")
+    #    assert bundle is not None
+    #    self.assertRaises(Exception, bundle.add_version)
+
+    def test_bundle_names_with_no_bundles(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        assert len(catalog.bundle_names()) == 0
+
+    def test_version_for_bundle(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        catalog.add_bundle_version("meep")
+        versions = catalog.versions_for_bundle("meep")
+        assert 1 in versions
+        assert len(versions) == 1
+
+    def test_versions_for_nonexistant_bundle(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        versions = catalog.versions_for_bundle("meep")
+        assert len(versions) == 0
+
+    def test_create_bundle_version(self):
+        catalog = self._build_test_catalog()
+        assert "meep" in catalog.bundle_names()
+        assert 1 in catalog.versions_for_bundle("meep")
+        manifest = catalog.manifest_for_bundle("meep", 1)
+        assert manifest is not None
+        for (file, props) in manifest.files.items():
+            sha = props['sha']
+            formats = props['formats']
+            for format in formats.keys():
+                ext = None
+                if format == 'gz':
+                    ext = 'gz'
+                object_path = catalog._path_for_file_with_sha(sha, ext)
+                assert os.path.exists(object_path)
+
+    def test_bundle_name_in_manifest(self):
+        catalog = self._build_test_catalog()
+        bundle_name = "meep"
+        manifest = catalog.manifest_for_bundle("meep", 1)
+        assert manifest.bundle_name == bundle_name
+
+    def test_create_bundle_with_subdirs(self):
+        f1 = create_random_file(self.scratch_dir)
+        one_dir = os.mkdir(os.path.join(self.scratch_dir, "one"))
+        f2 = create_random_file(one_dir)
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        catalog.create_bundle_version("meep", self.scratch_dir)
+        results = catalog.verify()
+        
+    def test_create_second_bundle_version(self):
+        catalog = self._build_test_catalog()
+        # add a file
+        f3 = create_random_file(self.scratch_dir)
+        catalog.create_bundle_version("meep", self.scratch_dir)
+        self.assertTrue(2 in catalog.versions_for_bundle("meep"))
+        versions = catalog.index.versions_for_bundle("meep")
+        self.assertTrue(1 in versions)
+        self.assertTrue(2 in versions)
+
+    def test_create_identical_bundle_version(self):
+        catalog = self._build_test_catalog()
+        catalog.create_bundle_version("meep", self.scratch_dir)
+        self.assertEquals(len(catalog.versions_for_bundle("meep")), 1)
+
+    def test_catalog_verify(self):
+        catalog = self._build_test_catalog()
+        results = catalog.verify()
+
+    def test_path_for_manifest_with_name_version(self):
+        catalog = self._build_test_catalog()
+        manifest = ZincManifest(catalog.index.id, 'zoo', 1)
+        path = catalog._path_for_manifest(manifest)
+        filename = os.path.split(path)[-1]
+        self.assertEquals(filename, 'zoo-1.json')
 
 class ZincIndexTestCase(TempDirTestCase):
 
