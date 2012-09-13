@@ -19,8 +19,6 @@ def write_data(data, path, raw=True, gzip=False):
         gzpath = path + '.gz'
         gzip_path(path, gzpath)
 
-    # TODO: QQQ write gzip only
-
 def write_json_dict(json_dict, path, raw=True, gzip=False):
     data = json.dumps(json_dict)
     write_data(data, path, gzip=gzip)

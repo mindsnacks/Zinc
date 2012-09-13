@@ -2,12 +2,11 @@
 
 class IndexBackend(object):
 
-
-    def lock(self):
-        pass
-
-    def unlock(self):
-        pass
+    def lock_bundle(self, timeout=None):
+        raise NotImplementedError
+ 
+    def unlock_bundle(self):
+        raise NotImplementedError
 
 
 class StorageBackend(object):

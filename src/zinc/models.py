@@ -425,13 +425,6 @@ class ZincCatalog(object):
                 bundle_name, version, flavor=flavor)
         self.storage_backend.write_path(src_path, dst_path)
 
-        
-    def lock(self):
-        pass
-    
-    def unlock(self):
-        pass
-
     def bundle_descriptors(self):
         bundle_descriptors = []
         for bundle_name in self.bundle_names():
