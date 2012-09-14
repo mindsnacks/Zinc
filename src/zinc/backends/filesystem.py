@@ -96,6 +96,14 @@ class FileSystemStorageBackend(StorageBackend):
     def read_json_dict(self, rel_path):
         src_path = os.path.join(self.path, rel_path)
         return read_json_dict(src_path)
+
+    def path_exists(self, rel_path):
+        path = os.path.join(self.path, rel_path)
+        return os.path.exists(path)
+
+    def size_for_path(self, rel_path):
+        path = os.path.join(self.path, rel_path)
+        return os.path.getsize(path)
        
 
 def load_catalog_at_path(path):

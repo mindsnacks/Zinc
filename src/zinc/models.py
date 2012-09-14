@@ -3,6 +3,7 @@ from os.path import join as pjoin
 import json
 import logging
 import functools
+import tempfile
 from contextlib import contextmanager
 
 from zinc.utils import sha1_for_path, makedirs, gzip_path
@@ -444,6 +445,9 @@ class ZincCatalog(object):
         self.index = self.index_backend.load_index()
         self._read_config_file()
 
+        # TODO: this is a huge hack
+        self.storage_backend.prefix = self.index.id
+
     def __init__(self, index_backend, storage_backend):
 
         self.index_backend = index_backend
@@ -535,16 +539,21 @@ class ZincCatalog(object):
         dst_path_gz = dst_path + '.gz'
 
         # TODO: this is lame
-        if os.path.exists(dst_path):
-            return (dst_path, os.path.getsize(dst_path))
-        elif os.path.exists(dst_path_gz):
-            return (dst_path_gz, os.path.getsize(dst_path_gz))
+        if self.storage_backend.path_exists(dst_path):
+            return (dst_path,
+                    self.storage_backend.size_for_path(dst_path))
+        elif self.storage_backend.path_exists(dst_path_gz):
+            return (dst_path_gz,
+                    self.storage_backend.size_for_path(dst_path_gz))
 
         # gzip the file first, and see if it passes the compression
         # threshhold
 
-        makedirs(os.path.dirname(dst_path))
-        gzip_path(src_path, dst_path_gz)
+        #makedirs(os.path.dirname(dst_path))
+
+        tmp_path_gz = tempfile.mkstemp()[1]
+        gzip_path(src_path, tmp_path_gz)
+
         src_size = os.path.getsize(src_path)
         dst_gz_size = os.path.getsize(dst_path_gz)
         if float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
@@ -560,7 +569,6 @@ class ZincCatalog(object):
         return (final_dst_path, final_dst_size)
 
     def _import_archive(self, src_path, bundle_name, version, flavor=None):
-
         dst_path = self._path_for_archive_for_bundle_version(
                 bundle_name, version, flavor=flavor)
         self.storage_backend.write_path(src_path, dst_path)

@@ -2,6 +2,8 @@ from . import IndexBackend, StorageBackend
 
 import boto
 from boto.s3.connection import S3Connection
+from boto.s3.key import Key
+import os
 
 
 class GenericAWSBackend(object):
@@ -33,16 +35,38 @@ class S3StorageBackend(StorageBackend):
     def __init__(self,
             aws_key=None,
             aws_secret=None,
-            bucket=None):
+            bucket_name=None):
 
-        self.bucket = bucket
+        self.bucket_name = bucket_name
         
         self.s3 = S3Connection(aws_key, aws_secret)
+        self.bucket = self.s3.get_bucket(bucket_name)
 
-    def write(self):
-        pass
+        self.prefix = None
 
+
+    def _prefixed_path(self, path):
+        if self.prefix is None: return path
+        return os.path.join(self.prefix, path)
+
+    #def write_data(self, data, rel_path, raw=True, gzip=False):
+    #    pass
+
+    #def write_json_dict(self, json_dict, rel_path, raw=True, gzip=False):
+    #    pass
+    
     def write_path(self, src_path, rel_path):
-        print src_path, rel_path
-        assert False
+        dst_path = self._prefixed_path(rel_path)
+        k = Key(self.bucket)
+        k.key = dst_path
+        k.set_contents_from_filename(src_path)
+
+    def size_for_path(self, rel_path):
+        dst_path = self._prefixed_path(rel_path)
+        k = Key(self.bucket)
+        k.lookup(dst_path)
+        return k.size
+
+
+
 

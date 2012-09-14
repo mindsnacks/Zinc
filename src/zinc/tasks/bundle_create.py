@@ -108,7 +108,7 @@ class ZincBundleCreateTask(object):
     def _import_files_for_manifest(self, manifest):
 
         self._create_tars(manifest)
-    
+
         for file in manifest.files.keys():
             full_path = os.path.join(self.src_dir, file)
 
@@ -133,25 +133,27 @@ class ZincBundleCreateTask(object):
             
     def _cleanup(self):
         self._finish_tars()
-        shutil.rmtree(self.temp_dir)
+        #shutil.rmtree(self.temp_dir)
 
     def run(self):
 
         manifest = self.catalog.manifest_for_bundle(self.bundle_name)
         new_manifest = self._generate_manifest()
-
+        
         should_create_new_version = \
                 self.force or \
                 manifest is None \
                 or not new_manifest.files_are_equivalent(manifest)
 
         if should_create_new_version:
+            manifest = new_manifest
+
             self._version = self.catalog.add_bundle_version(self.bundle_name)
-            new_manifest.version = self._version
+            manifest.version = self._version
 
-            self._import_files_for_manifest(new_manifest)
+            self._import_files_for_manifest(manifest)
 
-            self.catalog._write_manifest(new_manifest)
+            self.catalog._write_manifest(manifest)
             self.catalog.save()
 
         self._cleanup()

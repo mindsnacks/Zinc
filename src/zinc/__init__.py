@@ -34,7 +34,7 @@ def load_catalog_at_path(path):
         aws_secret = config._dict['aws_secret']
         bucket = config._dict['s3_bucket']
         storage_backend = S3StorageBackend(
-                aws_key=aws_key, aws_secret=aws_secret, bucket=bucket)
+                aws_key=aws_key, aws_secret=aws_secret, bucket_name=bucket)
     else:
         storage_backend = FileSystemStorageBackend(path)
 
