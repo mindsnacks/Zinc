@@ -224,6 +224,13 @@ class ZincManifest(object):
 
     def size_for_file(self, path):
         return self.files.get(path).get('formats').itervalues().next().get('size')
+
+    def size(self, flavor=None):
+        files = self.get_all_files(flavor)
+        size_sum = 0
+        for f in files:
+            size_sum += self.size_for_file(f)
+        return size_sum
         
     def add_flavor_for_file(self, path, flavor):
         props = self.files[path]
@@ -289,7 +296,6 @@ class ZincManifest(object):
                 and set(self.flavors) == set(other.flavors)
 
 def load_manifest(path):
-    print path
     manifest_file = open(path, 'r')
     dict = json.load(manifest_file)
     manifest_file.close()

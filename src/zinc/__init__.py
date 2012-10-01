@@ -59,6 +59,24 @@ def catalog_list(args):
         final_string =  "[%s]" %(", ".join(version_strings))
         print "%s %s" % (bundle_name, final_string)
 
+def catalog_size(args):
+    catalog = ZincCatalog(args.catalog_path)
+    size_sum = 0
+    for bundle_name in catalog.bundle_names():
+        version_for_distro = catalog.index.version_for_bundle(bundle_name, args.distribution)
+        
+        if version_for_distro is None:
+            print "Unable to find distribution: %s for bundle: %s" % (args.distribution, bundle_name)
+            break;
+
+        manifest = catalog.manifest_for_bundle(bundle_name, version=version_for_distro)
+        manifest_size = manifest.size(args.flavor)
+        size_sum += manifest_size
+        print "%s size: %s" % (bundle_name, human_readable_filesize(manifest_size))
+
+    print "Catalog size: %s" % human_readable_filesize(size_sum)
+
+
 def bundle_list(args):
     catalog = ZincCatalog(args.catalog_path)
     bundle_name = args.bundle_name
@@ -174,6 +192,17 @@ def main():
     parser_catalog_list.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
     parser_catalog_list.set_defaults(func=catalog_list)
+
+    # catalog:size
+    parser_catalog_size = subparsers.add_parser('catalog:size',
+            help='List size of each bundle in specified catalog and total size of entire catalog.')
+    parser_catalog_size.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_catalog_size.add_argument('--flavor',
+            help='Limits size calculation to files belonging to specified flavor.')
+    parser_catalog_size.add_argument('distribution',
+            help='Distribution.')
+    parser_catalog_size.set_defaults(func=catalog_size)
 
     # bundle:list
     parser_bundle_list = subparsers.add_parser('bundle:list', 
