@@ -221,6 +221,9 @@ class ZincManifest(object):
         props = self.files[path]
         formats = props.get('formats')
         return formats
+
+    def size_for_file(self, path):
+        return self.files.get(path).get('formats').itervalues().next().get('size')
         
     def add_flavor_for_file(self, path, flavor):
         props = self.files[path]

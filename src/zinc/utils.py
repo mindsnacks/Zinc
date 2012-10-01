@@ -51,4 +51,10 @@ def gunzip(src_path, dst_path):
     f_out.close()
     f_in.close()
 
-
+def human_readable_filesize(num):
+    for x in ['bytes','KB','MB','GB']:
+        if num < 1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
+    return "%3.1f%s" % (num, 'TB')
+    
