@@ -286,7 +286,6 @@ class ZincManifest(object):
                 and set(self.flavors) == set(other.flavors)
 
 def load_manifest(path):
-    print path
     manifest_file = open(path, 'r')
     dict = json.load(manifest_file)
     manifest_file.close()

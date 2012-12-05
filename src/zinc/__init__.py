@@ -103,10 +103,23 @@ def bundle_delete(args):
     bundle_name = args.bundle_name
     version = args.version
     catalog = ZincCatalog(args.catalog_path)
+    dry_run = args.dry_run
     if version == 'all':
         versions_to_delete = catalog.versions_for_bundle(bundle_name)
+    elif version == 'unreferenced':
+        all_versions = catalog.versions_for_bundle(bundle_name)
+        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
+        versions_to_delete = [v for v in all_versions if v not in referenced_versions]
     else:
         versions_to_delete = [version]
+
+    if len(versions_to_delete) == 0:
+        print 'Nothing to do'
+    elif len(versions_to_delete) > 1:
+        verb = 'Would remove' if dry_run else 'Removing'
+        print "%s versions %s" % (verb, versions_to_delete)
+
+    if not dry_run:
         for v in versions_to_delete:
             catalog.delete_bundle_version(bundle_name, int(v))
 
@@ -205,6 +218,8 @@ def main():
     parser_bundle_delete = subparsers.add_parser('bundle:delete', help='bundle:delete help')
     parser_bundle_delete.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
+    parser_bundle_delete.add_argument('-n', '--dry-run', default=False, action='store_true', 
+            help='Dry run. Don\' actually delete anything.')
     parser_bundle_delete.add_argument('bundle_name',
             help='Name of the bundle. Must exist in catalog.')
     parser_bundle_delete.add_argument('version',
