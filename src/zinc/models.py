@@ -99,18 +99,38 @@ class ZincIndex(object):
             self.bundle_info_by_name[bundle_name] = {
                     'versions':[],
                     'distributions':{},
+                    'next_version':1,
                     }
         return self.bundle_info_by_name.get(bundle_name)
 
     def add_version_for_bundle(self, bundle_name, version):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
         if version not in bundle_info['versions']:
+            next_version = self.next_version_for_bundle(bundle_name) 
+            if version != next_version:
+                raise Exception("Expected next bundle version %d, got version %d" 
+                        % (verison, next_version))
             bundle_info['versions'].append(version)
             bundle_info['versions'] = sorted(bundle_info['versions'])
+            bundle_info['next_version'] = version + 1
 
     def versions_for_bundle(self, bundle_name):
         return self._get_or_create_bundle_info(bundle_name).get('versions')
 
+    def next_version_for_bundle(self, bundle_name):
+        bundle_info = self._get_or_create_bundle_info(bundle_name)
+
+        next_version = bundle_info.get('next_version')
+        if next_version is None: # older index without next_version
+            versions = self.versions_for_bundle(bundle_name)
+            if len(versions) == 0:
+                next_version = 1
+            else: 
+                next_version = versions[-1] + 1
+            bundle_info['next-version'] = next_version
+
+        return next_version
+       
     def delete_bundle_version(self, bundle_name, bundle_version):
         assert bundle_version == int(bundle_version)
         bundle_info = self.bundle_info_by_name.get(bundle_name)
@@ -311,12 +331,6 @@ class CreateBundleVersionOperation(ZincOperation):
         self.flavor_spec = flavor_spec
         self.force = force
 
-    def _next_version_for_bundle(self, bundle_id):
-        versions = self.catalog.versions_for_bundle(bundle_id)
-        if len(versions) == 0:
-            return 1
-        return versions[-1] + 1
-
     def _generate_manifest(self, version, flavor_spec=None):
         """Create a new temporary manifest."""
         new_manifest = ZincManifest(
@@ -380,7 +394,7 @@ class CreateBundleVersionOperation(ZincOperation):
                 v.close()
 
     def run(self):
-        version = self._next_version_for_bundle(self.bundle_id)
+        version = self.catalog.index.next_version_for_bundle(self.bundle_id)
 
         manifest = self.catalog.manifest_for_bundle(self.bundle_id)
         new_manifest = self._generate_manifest(version)

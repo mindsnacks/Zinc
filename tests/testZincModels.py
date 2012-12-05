@@ -144,6 +144,30 @@ class ZincCatalogTestCase(TempDirTestCase):
         archive_path = catalog._path_for_archive_for_bundle_version("meep", 1)
         self.assertTrue(os.path.exists(archive_path))
 
+    def test_next_version_is_2_for_new_bundle(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        f1 = create_random_file(self.scratch_dir)
+        catalog.create_bundle_version("meep", self.scratch_dir)
+        next_version = catalog.index.next_version_for_bundle("meep")
+        self.assertEquals(next_version, 2)
+
+    def test_next_version_is_added_if_missing(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+       
+        # create v1
+        f1 = create_random_file(self.scratch_dir)
+        catalog.create_bundle_version("meep", self.scratch_dir)
+        
+        # remove the 'next_version' key
+        del catalog.index.bundle_info_by_name["meep"]["next_version"]
+       
+        # create v2
+        f2 = create_random_file(self.scratch_dir)
+        catalog.create_bundle_version("meep", self.scratch_dir)
+
+        # check
+        next_version = catalog.index.next_version_for_bundle("meep")
+        self.assertEquals(next_version, 3)
 
 
 class ZincIndexTestCase(TempDirTestCase):
