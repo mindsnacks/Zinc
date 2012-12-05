@@ -1,6 +1,6 @@
 from tests import *
-from zinc import *
 import os.path
+from zinc.pathfilter import PathFilter
 from zinc.pathfilter import Match
 
 class TestPathFilterRuleMatching(unittest.TestCase):

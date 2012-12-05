@@ -37,7 +37,7 @@ def makedirs(path):
         else:
             raise e
 
-def mygzip(src_path, dst_path):
+def gzip_path(src_path, dst_path):
     f_in = open(src_path, 'rb')
     f_out = gzip.open(dst_path, 'wb')
     f_out.writelines(f_in)

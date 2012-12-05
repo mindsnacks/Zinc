@@ -1,16 +1,16 @@
 import os
 from os.path import join as pjoin
-import tarfile
 import json
 import logging
-from shutil import copyfile
+import functools
+from contextlib import contextmanager
 
-from .utils import sha1_for_path, canonical_path, makedirs, mygzip
-from .defaults import defaults
-from .pathfilter import PathFilter
+from zinc.utils import sha1_for_path, makedirs, gzip_path
+from zinc.defaults import defaults
+from zinc.pathfilter import PathFilter
 
-# TODO: real ignore system
-IGNORE = ['.DS_Store']
+import uuid
+
 
 ### Errors ###################################################################
 
@@ -24,6 +24,7 @@ class ZincErrors(object):
     OK = ZincError(0, "OK")
     INCORRECT_SHA = ZincError(1, "SHA did not match")
     DOES_NOT_EXIST = ZincError(2, "Does not exist")
+    INVALID_VERSION = ZincError(3, "Invalid version")
 
 ### Utils
 
@@ -52,87 +53,85 @@ def bundle_descriptor_for_bundle_id_and_version(bundle_id, version, flavor=None)
     if flavor is not None: descriptor += '~%s' % (flavor)
     return descriptor
 
-### ZincOperation ############################################################
-
-class ZincOperation(object):
-
-    def commit():
-        pass
-
 ### ZincIndex ################################################################
 
-class ZincIndex(object):
+
+class BaseZincIndex(object):
+
+    #def bundle_locking(func_to_decorate):
+    #    @functools.wraps(func_to_decorate)
+    #    def wrapper(*args, **kwargs):
+    #        self = args[0]
+    #        bundle_name = args[1]
+    #        bundle_lock = self._lock_bundle(bundle_name)
+    #        result = func_to_decorate(*args, **kwargs)
+    #        self._unlock_bundle(bundle_name, bundle_lock)
+    #        self._save()
+    #        return result
+    #    return wrapper
+
+    @contextmanager
+    def bundle_lock(self, bundle_name, require_exists=True):
+        bundle_lock = self._lock_bundle(bundle_name,
+                require_exists=require_exists)
+        yield
+        self._unlock_bundle(bundle_name, bundle_lock)
+        self._save()
 
     def __init__(self, id=None):
-        self.format = defaults['zinc_format']
         self.id = id
-        self.bundle_info_by_name = dict()
-
-    def to_json(self):
-       return {
-				'id' : self.id,
-                'bundles' : self.bundle_info_by_name,
-                'format' : self.format,
-                }
-
-    @classmethod
-    def from_dict(cls, json_dict):
-        index = cls()
-        index.id = json_dict['id']
-        index.format = json_dict['format']
-        index.bundle_info_by_name = json_dict['bundles']
-        return index
-
-    def write(self, path, gzip=False):
-        if self.id is None:
-            raise ValueError("catalog id is None") # TODO: better exception?
-        index_file = open(path, 'w')
-        dict = self.to_json()
-        index_file.write(json.dumps(dict))
-        index_file.close()
-        if gzip:
-            gzpath = path + '.gz'
-            mygzip(path, gzpath)
-
-    def _get_or_create_bundle_info(self, bundle_name):
-        if self.bundle_info_by_name.get(bundle_name) is None:
-            self.bundle_info_by_name[bundle_name] = {
-                    'versions':[],
-                    'distributions':{},
-                    }
-        return self.bundle_info_by_name.get(bundle_name)
-
-    def add_version_for_bundle(self, bundle_name, version):
-        bundle_info = self._get_or_create_bundle_info(bundle_name)
-        if version not in bundle_info['versions']:
-            bundle_info['versions'].append(version)
-            bundle_info['versions'] = sorted(bundle_info['versions'])
 
     def versions_for_bundle(self, bundle_name):
-        return self._get_or_create_bundle_info(bundle_name).get('versions')
+        with self.bundle_lock(bundle_name, require_exists=False):
+            return self._versions_for_bundle(bundle_name)
 
-    def delete_bundle_version(self, bundle_name, bundle_version):
-        assert bundle_version == int(bundle_version)
-        bundle_info = self.bundle_info_by_name.get(bundle_name)
-        if bundle_info is None:
-            raise Exception("Unknown bundle %s" % (bundle_name))
-        for distro_name, distro_version in bundle_info['distributions'].iteritems():
-            if distro_version == bundle_version:
-                raise Exception("bundle '%s' v%d is referenced by the distribution '%s'" 
-                        % (bundle_name, bundle_version, distro_name))
-        versions = bundle_info['versions']
-        if bundle_version in versions:
-            versions.remove(bundle_version)
-        if len(versions) == 0: # remove info if no more versions
-            del self.bundle_info_by_name[bundle_name]
-        else:
-            bundle_info['versions'] = versions
-        
+    def add_version_for_bundle(self, bundle_name):
+        with self.bundle_lock(bundle_name, require_exists=False):
+            return self._add_version_for_bundle(bundle_name)
+
+    def delete_bundle_version(self, bundle_name, version):
+        if version != int(version):
+            raise ValueError("Invalid version %s", version)
+
+        with self.bundle_lock(bundle_name, require_exists=False):
+            distros = self._distributions_for_bundle(bundle_name)
+            for distro in distros:
+                distro_version = self._bundle_version_for_distro(distro)
+                if distro_version == bundle_version:
+                     raise Exception("bundle '%s' v%d is referenced by the distribution '%s'" 
+                            % (bundle_name, version, distro))
+
+            return self._delete_bundle_version(bundle_name, version)
+    
     def distributions_for_bundle(self, bundle_name):
-        bundle_info = self.bundle_info_by_name.get(bundle_name)
-        if bundle_info is None:
-            raise ValueError("Unknown bundle %s" % (bundle_name))
-        return bundle_info['distributions']
+        with self.bundle_lock(bundle_name):
+            return self._distributions_for_bundle(bundle_name)
+
+    def update_distribution(self, bundle_name, version, distro_name):
+        if version != int(version):
+            raise ValueError("Invalid version %s", version)
+
+        with self.bundle_lock(bundle_name):
+            if version == 'latest':
+                version = self._versions_for_bundle(bundle_name)[-1]
+
+            if int(version) not in self._versions_for_bundle(bundle_name):
+                # TODO: Not sure a raise is the right thing to do here.
+                # Might screw up the lock context
+                raise LookupError("Invalid bundle version")
+            else:
+                return self._update_distribution(bundle_name, version, distro_name)
+
+    def delete_distribution(self, bundle_name, distro_name):
+        with self.bundle_lock(bundle_name):
+            return self._delete_distribution(bundle_name, distro_name)
+
+    def bundle_version_for_distro(self, bundle_name, distro):
+        with self.bundle_lock(bundle_name):
+            return self._bundle_version_for_distro(bundle_name, distro)
+
+    def _bundle_version_for_distro(self, bundle_name, distro):
+        return self._distributions_for_bundle(bundle_name).get(distro)
 
     def distributions_for_bundle_by_version(self, bundle_name):
         distros = self.distributions_for_bundle(bundle_name)
@@ -143,27 +142,138 @@ class ZincIndex(object):
             distros_by_version[version].append(distro)
         return distros_by_version
 
-    def version_for_bundle(self, bundle_name, distro):
-        return self.distributions_for_bundle(bundle_name).get(distro)
+    def save(self):
+        # TODO: this should probably not be here
+        self._save()
 
-    def update_distribution(self, distribution_name, bundle_name, bundle_version):
-        if bundle_version == 'latest':
-            bundle_version = self.versions_for_bundle(bundle_name)[-1]
-        elif int(bundle_version) not in self.versions_for_bundle(bundle_name):
-            raise ValueError("Invalid bundle version")
+   # For Subclasses
+        
+    def _bundle_exists(self, bundle_name):
+        raise NotImplementedError
+
+    def _lock_bundle(self, bundle_name, timeout=None, require_exists=True):
+        raise NotImplementedError
+
+    def _unlock_bundle(self, bundle_name, lock):
+        raise NotImplementedError
+
+    def _add_version_for_bundle(self, bundle_name):
+        raise NotImplementedError
+
+    def _delete_bundle_version(self, bundle_name, version):
+        raise NotImplementedError
+
+    def _distributions_for_bundle(self, bundle_name):
+        raise NotImplementedError
+
+    def _update_distribution(self, bundle_name, version, distro_name):
+        raise NotImplementedError
+
+    def _delete_distribution(self, bundle_name, distro_name):
+        raise NotImplementedError
+
+    def _save(self):
+        raise NotImplementedError
+
+    def to_dict(self, format=None):
+        raise NotImplementedError
+
+    # Internal Utility Methods
+
+    def _next_version_for_bundle(self, bundle_name):
+        versions = self._versions_for_bundle(bundle_name)
+        if len(versions) == 0:
+            return 1
+        return versions[-1] + 1
+
+
+class ZincIndex(BaseZincIndex):
+
+    def __init__(self, id=None, backend=None):
+        self.id = id
+        self._backend = backend
+        self._bundle_info_by_name = dict()
+
+    def to_dict(self, format=None):
+        if format is None:
+            format = defaults['zinc_format']
+
+        if format == '1':
+            return {
+		    		'id' : self.id,
+                    'bundles' : self._bundle_info_by_name,
+                    'format' : format,
+                    }
+        raise ValueError('Unknown format %s' % (format))
+
+    @classmethod
+    def from_dict(cls, json_dict, format=None):
+        if format is None:
+            format = defaults['zinc_format']
+        index = cls()
+        index.id = json_dict['id']
+        index.format = json_dict['format']
+        index._bundle_info_by_name = json_dict['bundles']
+        return index
+
+    def _save(self):
+        if self._backend is not None:
+            self._backend.save_index(self)
+
+    def _bundle_exists(self, bundle_name):
+        bundle_info = self._bundle_info_by_name.get(bundle_name)
+        return bundle_info is not None
+
+    def _lock_bundle(self, bundle_name, timeout=None, require_exists=True):
+        if require_exists and not self._bundle_exists(bundle_name):
+            raise LookupError("Unknown bundle %s" % (bundle_name))
+        lock = uuid.uuid4()
+        print "lock %s %s" % (bundle_name, lock)
+        return lock
+
+    def _unlock_bundle(self, bundle_name, lock):
+        print "unlock %s %s" % (bundle_name, lock)
+
+    def _get_or_create_bundle_info(self, bundle_name):
+        if self._bundle_info_by_name.get(bundle_name) is None:
+            self._bundle_info_by_name[bundle_name] = {
+                    'versions':[],
+                    'distributions':{},
+                    }
+        return self._bundle_info_by_name.get(bundle_name)
+
+    def _add_version_for_bundle(self, bundle_name):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
-        bundle_info['distributions'][distribution_name] = bundle_version
+        version = self._next_version_for_bundle(bundle_name)
+        if version not in bundle_info['versions']:
+            bundle_info['versions'].append(version)
+            bundle_info['versions'] = sorted(bundle_info['versions'])
+        return version
 
-    def delete_distribution(self, distribution_name, bundle_name):
-        bundle_info = self.bundle_info_by_name.get(bundle_name)
-        if bundle_name is None:
-            raise ValueError("Unknown bundle %s" % (bundle_name))
-        del bundle_info['distributions'][distribution_name]
+    def _versions_for_bundle(self, bundle_name):
+        return self._get_or_create_bundle_info(bundle_name).get('versions')
 
-def load_index(path):
-    with open(path, 'r') as index_file:
-        json_dict = json.load(index_file)
-    return ZincIndex.from_dict(json_dict)
+    def _delete_bundle_version(self, bundle_name, bundle_version):
+        bundle_info = self._bundle_info_by_name.get(bundle_name)
+        versions = bundle_info['versions']
+        if bundle_version in versions:
+            versions.remove(bundle_version)
+        if len(versions) == 0: # remove info if no more versions
+            del self._bundle_info_by_name[bundle_name]
+        else:
+            bundle_info['versions'] = versions
+        
+    def _distributions_for_bundle(self, bundle_name):
+        bundle_info = self._bundle_info_by_name.get(bundle_name)
+        return bundle_info['distributions']
+
+    def _update_distribution(self, bundle_name, bundle_version, distro_name):
+        bundle_info = self._get_or_create_bundle_info(bundle_name)
+        bundle_info['distributions'][distro_name] = bundle_version
+
+    def _delete_distribution(self, bundle_name, distro_name):
+        bundle_info = self._bundle_info_by_name.get(bundle_name)
+        del bundle_info['distributions'][distro_name]
 
 
 ### ZincConfig ###############################################################
@@ -173,7 +283,7 @@ class ZincConfig(object):
     def __init__(self):
         self.gzip_threshhold = 0.85
 
-    def to_json(self):
+    def to_dict(self):
         d = {}
         if self.gzip_threshhold is not None:
             d['gzip_threshhold'] = self.gzip_threshhold
@@ -181,7 +291,7 @@ class ZincConfig(object):
    
     def write(self, path):
         config_file = open(path, 'w')
-        dict = self.to_json()
+        dict = self.to_dict()
         config_file.write(json.dumps(dict))
         config_file.close()
 
@@ -246,7 +356,7 @@ class ZincManifest(object):
     def flavors_for_file(self, path):
         return self.files[path].get('flavors')
 
-    def to_json(self):
+    def to_dict(self):
         return {
                 'catalog' : self.catalog_id,
                 'bundle' : self.bundle_name,
@@ -255,14 +365,15 @@ class ZincManifest(object):
                 'files' : self.files,
                 }
 
-    def write(self, path, gzip=False):
-        manifest_file = open(path, 'w')
-        dict = self.to_json()
-        manifest_file.write(json.dumps(dict))
-        manifest_file.close()
-        if gzip:
-            gzpath = path + '.gz'
-            mygzip(path, gzpath)
+    @classmethod
+    def from_dict(cls, json_dict):
+        catalog_id = json_dict['catalog']
+        bundle_name = json_dict['bundle']
+        version = int(json_dict['version'])
+        manifest = ZincManifest(catalog_id, bundle_name, version)
+        manifest.files = json_dict['files']
+        manifest._flavors = json_dict.get('flavors') or [] # to support legacy
+        return manifest
 
     def files_are_equivalent(self, other):
         # check that the keys are all the same
@@ -285,112 +396,8 @@ class ZincManifest(object):
                 and self.files_are_equivalent(other) \
                 and set(self.flavors) == set(other.flavors)
 
-def load_manifest(path):
-    print path
-    manifest_file = open(path, 'r')
-    dict = json.load(manifest_file)
-    manifest_file.close()
-    catalog_id = dict['catalog']
-    bundle_name = dict['bundle']
-    version = int(dict['version'])
-    manifest = ZincManifest(catalog_id, bundle_name, version)
-    manifest.files = dict['files']
-    manifest._flavors = dict.get('flavors') or [] # to support legacy
-    return manifest
-
 
 ##############################################################################
-
-class CreateBundleVersionOperation(ZincOperation):
-
-    def __init__(self, catalog, bundle_id, src_dir,
-            flavor_spec=None, force=False):
-        self.catalog = catalog
-        self.bundle_id = bundle_id
-        self.src_dir =  canonical_path(src_dir)
-        self.flavor_spec = flavor_spec
-        self.force = force
-
-    def _next_version_for_bundle(self, bundle_id):
-        versions = self.catalog.versions_for_bundle(bundle_id)
-        if len(versions) == 0:
-            return 1
-        return versions[-1] + 1
-
-    def _generate_manifest(self, version, flavor_spec=None):
-        """Create a new temporary manifest."""
-        new_manifest = ZincManifest(
-                self.catalog.index.id, self.bundle_id, version)
-
-        # Process all the paths and add them to the manifest
-        for root, dirs, files in os.walk(self.src_dir):
-            for f in files:
-                if f in IGNORE: continue # TODO: real ignore
-                full_path = pjoin(root, f)
-                rel_dir = root[len(self.src_dir)+1:]
-                rel_path = pjoin(rel_dir, f)
-                sha = sha1_for_path(full_path)
-                new_manifest.add_file(rel_path, sha)
-        return new_manifest
-
-    def _import_files_for_manifest(self, manifest, flavor_spec=None):
-
-        flavor_tar_files = dict()
-        if flavor_spec is not None:
-            for flavor in flavor_spec.flavors:
-                tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                        self.bundle_id, manifest.version, flavor)
-                tar = tarfile.open(tar_file_name, 'w')
-                flavor_tar_files[flavor] = tar
-
-        master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                self.bundle_id, manifest.version)
-        master_tar = tarfile.open(master_tar_file_name, 'w')
-
-        for file in manifest.files.keys():
-            full_path = pjoin(self.src_dir, file)
-            
-            (catalog_path, size) = self.catalog._import_path(full_path)
-            if catalog_path[-3:] == '.gz':
-                format = 'gz'
-            else:
-                format = 'raw'
-            manifest.add_format_for_file(file, format, size)
-            
-            master_tar.add(catalog_path, os.path.basename(catalog_path))
-
-            if flavor_spec is not None:
-                for flavor in flavor_spec.flavors:
-                    filter = flavor_spec.filter_for_flavor(flavor)
-                    if filter.match(full_path):
-                        manifest.add_flavor_for_file(file, flavor)
-                        tar = flavor_tar_files[flavor].add(
-                                catalog_path, os.path.basename(catalog_path))
-
-        master_tar.close()
-        for k, v in flavor_tar_files.iteritems():
-            v.close()
-
-    def run(self):
-        version = self._next_version_for_bundle(self.bundle_id)
-
-        manifest = self.catalog.manifest_for_bundle(self.bundle_id)
-        new_manifest = self._generate_manifest(version)
-
-        should_create_new_version = \
-                self.force or \
-                manifest is None \
-                or not new_manifest.files_are_equivalent(manifest)
-
-        if should_create_new_version:
-            manifest = new_manifest
-            self._import_files_for_manifest(manifest, self.flavor_spec)
-
-            self.catalog._write_manifest(manifest)
-            self.catalog.index.add_version_for_bundle(self.bundle_id, version)
-            self.catalog.save()
-
-        return manifest
 
 
 ### ZincFlavorSpec ############################################################
@@ -421,39 +428,19 @@ class ZincFlavorSpec(object):
 
 ### ZincCatalog ################################################################
 
-def create_catalog_at_path(path, id):
-
-    path = canonical_path(path)
-    try:
-        makedirs(path)
-    except OSError, e:
-        if e.errno == 17:
-            pass # directory already exists
-        else:
-            raise e
-
-    config_path = pjoin(path, defaults['catalog_config_name'])
-    ZincConfig().write(config_path)
-
-    index_path = pjoin(path, defaults['catalog_index_name'])
-    ZincIndex(id).write(index_path, True)
-
-    # TODO: check exceptions?
-
-    return ZincCatalog(path)
-
 class ZincCatalog(object):
 
     def _load(self):
-        self._read_index_file()
-        # TODO: check format, just assume 1 for now
+        self.index = self.index_backend.load_index()
         self._read_config_file()
-        self._loaded = True
 
-    def __init__(self, path):
-        self._loaded = False
-        self.path = canonical_path(path)
+    def __init__(self, index_backend, storage_backend):
+
+        self.index_backend = index_backend
+        self.storage_backend = storage_backend
+
         self._manifests = {}
+
         self._load()
 
     @property
@@ -463,40 +450,20 @@ class ZincCatalog(object):
     def format(self):
         return self.index.format
 
-    def is_loaded(self):
-        return self._loaded
-
     def _files_dir(self):
-        files_path = pjoin(self.path, "objects")
-        if not os.path.exists(files_path):
-            makedirs(files_path)
-        return files_path
+        return "objects"
 
     def _manifests_dir(self):
-        manifests_path = pjoin(self.path, "manifests")
-        if not os.path.exists(manifests_path):
-            makedirs(manifests_path)
-        return manifests_path
+        return "manifests"
 
     def _archives_dir(self):
-        archives_path = pjoin(self.path, "archives")
-        if not os.path.exists(archives_path):
-            makedirs(archives_path)
-        return archives_path
-
-    def _read_index_file(self):
-        index_path = pjoin(self.path, defaults['catalog_index_name'])
-        self.index = load_index(index_path)
-        if self.index.format != defaults['zinc_format']:
-            raise Exception("Incompatible format %s" % (self.index.format))
+        return "archives"
 
     def _read_config_file(self):
-        config_path = pjoin(self.path, defaults['catalog_config_name'])
-        self.config = load_config(config_path)
-
-    def _write_index_file(self):
-        index_path = pjoin(self.path, defaults['catalog_index_name'])
-        self.index.write(index_path, True)
+        # TODO: QQQ
+        #config_path = pjoin(self.path, defaults['catalog_config_name'])
+        #self.config = load_config(config_path)
+        self.config = ZincConfig()
 
     def _path_for_manifest_for_bundle_version(self, bundle_name, version):
         manifest_filename = "%s-%d.json" % (bundle_name, version)
@@ -505,12 +472,17 @@ class ZincCatalog(object):
 
     def _path_for_archive_for_bundle_version(self, bundle_name, version,
             flavor=None):
+        archive_filename = self._archive_filename(
+                bundle_name, version, flavor=flavor)
+        archive_path = pjoin(self._archives_dir(), archive_filename)
+        return archive_path
+
+    def _archive_filename(self, bundle_name, version, flavor=None):
         if flavor is None:
             archive_filename = "%s-%d.tar" % (bundle_name, version)
         else:
             archive_filename = "%s-%d~%s.tar" % (bundle_name, version, flavor)
-        archive_path = pjoin(self._archives_dir(), archive_filename)
-        return archive_path
+        return archive_filename
 
     def _path_for_manifest(self, manifest):
         return self._path_for_manifest_for_bundle_version(
@@ -524,7 +496,8 @@ class ZincCatalog(object):
             return None # throw exception?
         manifest_path = self._path_for_manifest_for_bundle_version(
                 bundle_name, version)
-        return load_manifest(manifest_path)
+        manifest_dict = self.storage_backend.read_json_dict(manifest_path)
+        return ZincManifest.from_dict(manifest_dict)
 
     def manifest_for_bundle_descriptor(self, bundle_descriptor):
         return self.manifest_for_bundle(
@@ -532,7 +505,9 @@ class ZincCatalog(object):
             bundle_version_from_bundle_descriptor(bundle_descriptor))
             
     def _write_manifest(self, manifest):
-        manifest.write(self._path_for_manifest(manifest), True)
+        path = self._path_for_manifest(manifest)
+        self.storage_backend.write_json_dict(
+                manifest.to_dict(), path, gzip=True)
 
     def _path_for_file_with_sha(self, sha, ext=None):
         subdir = pjoin(self._files_dir(), sha[0:2], sha[2:4])
@@ -544,7 +519,7 @@ class ZincCatalog(object):
     def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
         dst_path = self._path_for_file_with_sha(src_path_sha)
-        dst_path_gz = dst_path+'.gz'
+        dst_path_gz = dst_path + '.gz'
 
         # TODO: this is lame
         if os.path.exists(dst_path):
@@ -556,7 +531,7 @@ class ZincCatalog(object):
         # threshhold
 
         makedirs(os.path.dirname(dst_path))
-        mygzip(src_path, dst_path_gz)
+        gzip_path(src_path, dst_path_gz)
         src_size = os.path.getsize(src_path)
         dst_gz_size = os.path.getsize(dst_path_gz)
         if float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
@@ -565,17 +540,17 @@ class ZincCatalog(object):
         else:
             final_dst_path = dst_path
             final_dst_size = src_size
-            copyfile(src_path, dst_path)
+            self.storage_backend.write_path(src_path, dst_path)
             os.remove(dst_path_gz)
 
         logging.info("Imported %s --> %s" % (src_path, final_dst_path))
         return (final_dst_path, final_dst_size)
-        
-    def lock(self):
-        pass
-    
-    def unlock(self):
-        pass
+
+    def _import_archive(self, src_path, bundle_name, version, flavor=None):
+
+        dst_path = self._path_for_archive_for_bundle_version(
+                bundle_name, version, flavor=flavor)
+        self.storage_backend.write_path(src_path, dst_path)
 
     def bundle_descriptors(self):
         bundle_descriptors = []
@@ -635,13 +610,48 @@ class ZincCatalog(object):
                     logging.info("%s %s" % (verb, pjoin(root, f)))
                     if not dry_run: os.remove(pjoin(root, f))
 
-    def verify(self):
-        if not self._loaded:
-            raise Exception("not loaded")
-            # TODO: better exception
-            # TODO: wrap in decorator?
+    def add_bundle_version(self, bundle_name):
+        return self.index.add_version_for_bundle(bundle_name)
 
-        for (bundle_name, bundle_info) in self.index.bundle_info_by_name.iteritems():
+    #def _add_manifest(self, bundle_name, version=1):
+    #    if version in self.versions_for_bundle(bundle_name):
+    #        raise ValueError("Bundle already exists")
+    #        return None
+
+    #    manifest = ZincManifest(self.index.id, bundle_name, version)
+    #    self._write_manifest(manifest)
+    #    return manifest
+
+    def versions_for_bundle(self, bundle_name):
+        return self.index.versions_for_bundle(bundle_name)
+
+    def bundle_names(self):
+        return self.index._bundle_info_by_name.keys()
+
+    def delete_bundle_version(self, bundle_name, version):
+        self.index.delete_bundle_version(bundle_name, version)
+        self.save()
+
+    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+        self.index.update_distribution(distribution_name, bundle_name, bundle_version)
+        self.save()
+
+    def delete_distribution(self, distribution_name, bundle_name):
+        self.index.delete_distribution(distribution_name, bundle_name)
+        self.save()
+
+    def save(self):
+        self.index.save()
+
+    def create_bundle_version(self, bundle_name, src_dir, 
+            flavor_spec=None, force=False):
+        from zinc.tasks.bundle_create import ZincBundleCreateTask
+        task = ZincBundleCreateTask(
+                self, bundle_name, src_dir, flavor_spec, force)
+        return task.run()
+
+    def verify(self):
+        for (bundle_name, bundle_info) in self.index._bundle_info_by_name.iteritems():
             for version in bundle_info['versions']:
                 manifest = self.manifest_for_bundle(bundle_name, version)
                 if manifest is None:
@@ -665,41 +675,5 @@ class ZincCatalog(object):
         #            results_by_file[file] = ZincErrors.OK
         return results_by_file
 
-    def _add_manifest(self, bundle_name, version=1):
-        if version in self.versions_for_bundle(bundle_name):
-            raise ValueError("Bundle already exists")
-            return None
 
-        manifest = ZincManifest(self.index.id, bundle_name, version)
-        self._write_manifest(manifest)
-        self.index.add_version_for_bundle(bundle_name, version)
-        return manifest
-
-    def versions_for_bundle(self, bundle_name):
-        return self.index.versions_for_bundle(bundle_name)
-
-    def bundle_names(self):
-        return self.index.bundle_info_by_name.keys()
-
-    def create_bundle_version(self, bundle_name, src_dir, 
-            flavor_spec=None, force=False):
-        op = CreateBundleVersionOperation(
-                self, bundle_name, src_dir, flavor_spec, force)
-        return op.run()
-
-    def delete_bundle_version(self, bundle_name, version):
-        self.index.delete_bundle_version(bundle_name, version)
-        self.save()
-
-    def update_distribution(self, distribution_name, bundle_name, bundle_version):
-        self.index.update_distribution(distribution_name, bundle_name, bundle_version)
-        self.save()
-
-    def delete_distribution(self, distribution_name, bundle_name):
-        self.index.delete_distribution(distribution_name, bundle_name)
-        self.save()
-
-    def save(self):
-        #self._write_manifests()
-        self._write_index_file()
 
