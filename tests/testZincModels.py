@@ -129,6 +129,23 @@ class ZincCatalogTestCase(TempDirTestCase):
         filename = os.path.split(path)[-1]
         self.assertEquals(filename, 'zoo-1.json')
 
+    def test_single_file_bundle_does_not_create_archive(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        f1 = create_random_file(self.scratch_dir)
+        catalog.create_bundle_version("meep", self.scratch_dir)
+        archive_path = catalog._path_for_archive_for_bundle_version("meep", 1)
+        self.assertFalse(os.path.exists(archive_path))
+
+    def test_more_than_one_file_bundle_does_create_archive(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        f1 = create_random_file(self.scratch_dir)
+        f2 = create_random_file(self.scratch_dir)
+        catalog.create_bundle_version("meep", self.scratch_dir)
+        archive_path = catalog._path_for_archive_for_bundle_version("meep", 1)
+        self.assertTrue(os.path.exists(archive_path))
+
+
+
 class ZincIndexTestCase(TempDirTestCase):
 
     def test_versions_for_nonexistant_bundle(self):
