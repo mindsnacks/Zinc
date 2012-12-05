@@ -333,19 +333,24 @@ class CreateBundleVersionOperation(ZincOperation):
                 new_manifest.add_file(rel_path, sha)
         return new_manifest
 
+
     def _import_files_for_manifest(self, manifest, flavor_spec=None):
 
-        flavor_tar_files = dict()
-        if flavor_spec is not None:
-            for flavor in flavor_spec.flavors:
-                tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                        self.bundle_id, manifest.version, flavor)
-                tar = tarfile.open(tar_file_name, 'w')
-                flavor_tar_files[flavor] = tar
+        should_create_archive = len(manifest.files) > 1
 
-        master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                self.bundle_id, manifest.version)
-        master_tar = tarfile.open(master_tar_file_name, 'w')
+        if should_create_archive:
+
+            flavor_tar_files = dict()
+            if flavor_spec is not None:
+                for flavor in flavor_spec.flavors:
+                    tar_file_name = self.catalog._path_for_archive_for_bundle_version(
+                            self.bundle_id, manifest.version, flavor)
+                    tar = tarfile.open(tar_file_name, 'w')
+                    flavor_tar_files[flavor] = tar
+    
+            master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
+                    self.bundle_id, manifest.version)
+            master_tar = tarfile.open(master_tar_file_name, 'w')
 
         for file in manifest.files.keys():
             full_path = pjoin(self.src_dir, file)
@@ -356,20 +361,23 @@ class CreateBundleVersionOperation(ZincOperation):
             else:
                 format = 'raw'
             manifest.add_format_for_file(file, format, size)
-            
-            master_tar.add(catalog_path, os.path.basename(catalog_path))
+           
+            if should_create_archive:
+                master_tar.add(catalog_path, os.path.basename(catalog_path))
 
             if flavor_spec is not None:
                 for flavor in flavor_spec.flavors:
                     filter = flavor_spec.filter_for_flavor(flavor)
                     if filter.match(full_path):
                         manifest.add_flavor_for_file(file, flavor)
-                        tar = flavor_tar_files[flavor].add(
-                                catalog_path, os.path.basename(catalog_path))
+                        if should_create_archive:
+                            tar = flavor_tar_files[flavor].add(
+                                    catalog_path, os.path.basename(catalog_path))
 
-        master_tar.close()
-        for k, v in flavor_tar_files.iteritems():
-            v.close()
+        if should_create_archive:
+            master_tar.close()
+            for k, v in flavor_tar_files.iteritems():
+                v.close()
 
     def run(self):
         version = self._next_version_for_bundle(self.bundle_id)
