@@ -331,12 +331,6 @@ class CreateBundleVersionOperation(ZincOperation):
         self.flavor_spec = flavor_spec
         self.force = force
 
-#    def _next_version_for_bundle(self, bundle_id):
-#        versions = self.catalog.versions_for_bundle(bundle_id)
-#        if len(versions) == 0:
-#            return 1
-#        return versions[-1] + 1
-#
     def _generate_manifest(self, version, flavor_spec=None):
         """Create a new temporary manifest."""
         new_manifest = ZincManifest(
