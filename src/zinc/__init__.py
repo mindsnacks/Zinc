@@ -127,9 +127,14 @@ def distro_update(args):
     catalog = ZincCatalog(args.catalog_path)
     bundle_name = args.bundle_name
     distro_name = args.distro_name
-    bundle_version = args.version
-    if bundle_version != "latest":
-        bundle_version = int(bundle_version)
+    bundle_version_arg = args.version
+    if bundle_version_arg == "latest":
+        bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
+    elif bundle_version_arg.startswith('@'):
+        source_distro = bundle_version_arg[1:]
+        bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
+    else:
+        bundle_version = int(bundle_version_arg)
     catalog.update_distribution(
             distro_name, bundle_name, bundle_version)
 

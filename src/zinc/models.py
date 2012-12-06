@@ -167,9 +167,7 @@ class ZincIndex(object):
         return self.distributions_for_bundle(bundle_name).get(distro)
 
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
-        if bundle_version == 'latest':
-            bundle_version = self.versions_for_bundle(bundle_name)[-1]
-        elif int(bundle_version) not in self.versions_for_bundle(bundle_name):
+        if int(bundle_version) not in self.versions_for_bundle(bundle_name):
             raise ValueError("Invalid bundle version")
         bundle_info = self._get_or_create_bundle_info(bundle_name)
         bundle_info['distributions'][distribution_name] = bundle_version
