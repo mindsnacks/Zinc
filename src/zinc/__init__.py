@@ -45,7 +45,11 @@ def catalog_clean(args):
 
 def catalog_list(args):
     catalog = ZincCatalog(args.catalog_path)
+    distro = args.distro
+    print_versions = not args.no_versions
     for bundle_name in catalog.bundle_names():
+        if distro and distro not in catalog.index.distributions_for_bundle(bundle_name):
+            continue
         distros = catalog.index.distributions_for_bundle_by_version(bundle_name)
         versions = catalog.versions_for_bundle(bundle_name)
         version_strings = list()
@@ -56,8 +60,11 @@ def catalog_list(args):
                 version_string += '=' + distro_string
             version_strings.append(version_string)
 
-        final_string =  "[%s]" %(", ".join(version_strings))
-        print "%s %s" % (bundle_name, final_string)
+        final_version_string =  "[%s]" %(", ".join(version_strings))
+        if print_versions:
+            print "%s %s" % (bundle_name, final_version_string)
+        else:
+            print "%s" % (bundle_name)
 
 def bundle_list(args):
     catalog = ZincCatalog(args.catalog_path)
@@ -176,6 +183,10 @@ def main():
             help='List contents of catalog')
     parser_catalog_list.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
+    parser_catalog_list.add_argument('-d', '--distro',
+            help='Only list bundles with specified distro.')
+    parser_catalog_list.add_argument('--no-versions', default=False, action='store_true', 
+            help='Omit version information for bundles.')
     parser_catalog_list.set_defaults(func=catalog_list)
 
     # bundle:list
