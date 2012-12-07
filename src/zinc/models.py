@@ -255,6 +255,8 @@ class ZincManifest(object):
         if flavor is None:
             return all_files
         else:
+            print flavor
+            print all_files
             return [f for f in all_files if flavor in self.flavors_for_file(f)]
 
     @property
@@ -262,6 +264,8 @@ class ZincManifest(object):
         return self._flavors
 
     def flavors_for_file(self, path):
+        print self.files[path].get('flavors')
+        print self.files
         return self.files[path].get('flavors')
 
     def to_json(self):
@@ -347,22 +351,6 @@ class CreateBundleVersionOperation(ZincOperation):
 
     def _import_files_for_manifest(self, manifest, flavor_spec=None):
 
-        should_create_archive = len(manifest.files) > 1
-
-        if should_create_archive:
-
-            flavor_tar_files = dict()
-            if flavor_spec is not None:
-                for flavor in flavor_spec.flavors:
-                    tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                            self.bundle_id, manifest.version, flavor)
-                    tar = tarfile.open(tar_file_name, 'w')
-                    flavor_tar_files[flavor] = tar
-    
-            master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                    self.bundle_id, manifest.version)
-            master_tar = tarfile.open(master_tar_file_name, 'w')
-
         for file in manifest.files.keys():
             full_path = pjoin(self.src_dir, file)
             
@@ -372,21 +360,44 @@ class CreateBundleVersionOperation(ZincOperation):
             else:
                 format = 'raw'
             manifest.add_format_for_file(file, format, size)
-           
-            if should_create_archive:
-                master_tar.add(catalog_path, os.path.basename(catalog_path))
 
             if flavor_spec is not None:
                 for flavor in flavor_spec.flavors:
                     filter = flavor_spec.filter_for_flavor(flavor)
                     if filter.match(full_path):
                         manifest.add_flavor_for_file(file, flavor)
-                        if should_create_archive:
-                            tar = flavor_tar_files[flavor].add(
-                                    catalog_path, os.path.basename(catalog_path))
 
-        if should_create_archive:
-            master_tar.close()
+        if len(manifest.files) > 1:
+            master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
+                    self.bundle_id, manifest.version)
+            master_tar = tarfile.open(master_tar_file_name, 'w')
+
+            flavor_tar_files = dict()
+            if flavor_spec is not None:
+                for flavor in flavor_spec.flavors:
+                    flavor_files = manifest.get_all_files(flavor=flavor)
+                    if len(flavor_files) > 1:
+                        tar_file_name = self.catalog._path_for_archive_for_bundle_version(
+                                self.bundle_id, manifest.version, flavor)
+                        tar = tarfile.open(tar_file_name, 'w')
+                        flavor_tar_files[flavor] = tar
+    
+            for file in manifest.files.keys():
+                full_path = pjoin(self.src_dir, file)
+                sha = manifest.sha_for_file(file)
+                
+                master_tar.add(full_path, sha)
+
+                if flavor_spec is not None:
+                    for flavor in flavor_spec.flavors:
+                        filter = flavor_spec.filter_for_flavor(flavor)
+                        if filter.match(full_path):
+                            manifest.add_flavor_for_file(file, flavor)
+                            flavor_tar = flavor_tar_files.get(flavor)
+                            if flavor_tar is not None:
+                                tar = flavor_tar.add(
+                                        full_path, os.path.basename(full_path))
+            master_tar.close() 
             for k, v in flavor_tar_files.iteritems():
                 v.close()
 
@@ -578,7 +589,7 @@ class ZincCatalog(object):
         mygzip(src_path, dst_path_gz)
         src_size = os.path.getsize(src_path)
         dst_gz_size = os.path.getsize(dst_path_gz)
-        if float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
+        if src_size > 0 and float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
             final_dst_path = dst_path_gz
             final_dst_size = dst_gz_size
         else:
