@@ -90,8 +90,10 @@ def bundle_update(args):
     bundle_name = args.bundle_name
     path = args.path
     force = args.force
+    skip_master_archive = args.skip_master_archive
     manifest = catalog.create_bundle_version(
-            bundle_name, path, flavor_spec=flavors, force=force)
+            bundle_name, path, flavor_spec=flavors, force=force,
+            skip_master_archive=skip_master_archive)
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 def bundle_clone(args):
@@ -208,6 +210,8 @@ def main():
             help='Catalog path. Defaults to "."')
     parser_bundle_update.add_argument('--flavors', 
             help='Flavor spec path. Should be JSON.')
+    parser_bundle_update.add_argument('--skip-master-archive', default=False, action='store_true', 
+            help='Skips creating master archive if flavors are specified.')
     parser_bundle_update.add_argument('-f', '--force', default=False, action='store_true', 
             help='Update bundle even if no files changed.')
     parser_bundle_update.add_argument('bundle_name',
