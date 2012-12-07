@@ -255,8 +255,6 @@ class ZincManifest(object):
         if flavor is None:
             return all_files
         else:
-            print flavor
-            print all_files
             return [f for f in all_files if flavor in self.flavors_for_file(f)]
 
     @property
@@ -264,8 +262,6 @@ class ZincManifest(object):
         return self._flavors
 
     def flavors_for_file(self, path):
-        print self.files[path].get('flavors')
-        print self.files
         return self.files[path].get('flavors')
 
     def to_json(self):
