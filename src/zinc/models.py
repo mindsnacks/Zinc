@@ -325,12 +325,13 @@ def load_manifest(path):
 class CreateBundleVersionOperation(ZincOperation):
 
     def __init__(self, catalog, bundle_id, src_dir,
-            flavor_spec=None, force=False):
+            flavor_spec=None, force=False, skip_master_archive=False):
         self.catalog = catalog
         self.bundle_id = bundle_id
         self.src_dir =  canonical_path(src_dir)
         self.flavor_spec = flavor_spec
         self.force = force
+        self.skip_master_archive = skip_master_archive
 
     def _generate_manifest(self, version, flavor_spec=None):
         """Create a new temporary manifest."""
@@ -368,9 +369,13 @@ class CreateBundleVersionOperation(ZincOperation):
                         manifest.add_flavor_for_file(file, flavor)
 
         if len(manifest.files) > 1:
-            master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                    self.bundle_id, manifest.version)
-            master_tar = tarfile.open(master_tar_file_name, 'w')
+
+            if flavor_spec is None or not self.skip_master_archive:
+                master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
+                        self.bundle_id, manifest.version)
+                master_tar = tarfile.open(master_tar_file_name, 'w')
+            else:
+                master_tar = None
 
             flavor_tar_files = dict()
             if flavor_spec is not None:
@@ -385,8 +390,9 @@ class CreateBundleVersionOperation(ZincOperation):
             for file in manifest.files.keys():
                 full_path = pjoin(self.src_dir, file)
                 sha = manifest.sha_for_file(file)
-                
-                master_tar.add(full_path, sha)
+               
+                if master_tar is not None:
+                    master_tar.add(full_path, sha)
 
                 if flavor_spec is not None:
                     for flavor in flavor_spec.flavors:
@@ -397,7 +403,10 @@ class CreateBundleVersionOperation(ZincOperation):
                             if flavor_tar is not None:
                                 tar = flavor_tar.add(
                                         full_path, os.path.basename(full_path))
-            master_tar.close() 
+            
+            if master_tar is not None:
+                master_tar.close() 
+            
             for k, v in flavor_tar_files.iteritems():
                 v.close()
 
@@ -712,9 +721,10 @@ class ZincCatalog(object):
         return self.index.bundle_info_by_name.keys()
 
     def create_bundle_version(self, bundle_name, src_dir, 
-            flavor_spec=None, force=False):
+            flavor_spec=None, force=False, skip_master_archive=False):
         op = CreateBundleVersionOperation(
-                self, bundle_name, src_dir, flavor_spec, force)
+                self, bundle_name, src_dir, flavor_spec=flavor_spec,
+                force=force, skip_master_archive=skip_master_archive)
         return op.run()
 
     def delete_bundle_version(self, bundle_name, version):

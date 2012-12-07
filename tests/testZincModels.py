@@ -154,6 +154,24 @@ class ZincCatalogTestCase(TempDirTestCase):
                 flavor='dummy')
         self.assertFalse(os.path.exists(archive_path))
 
+    def test_skip_master_archive_and_no_flavor_specified(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        f1 = create_random_file(self.scratch_dir)
+        f2 = create_random_file(self.scratch_dir)
+        catalog.create_bundle_version("meep", self.scratch_dir,
+                skip_master_archive=True)
+        archive_path = catalog._path_for_archive_for_bundle_version("meep", 1)
+        self.assertTrue(os.path.exists(archive_path))
+
+    def test_skip_master_archive_and_flavor_specified(self):
+        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
+        f1 = create_random_file(self.scratch_dir)
+        f2 = create_random_file(self.scratch_dir)
+        flavor_spec = ZincFlavorSpec.from_dict({'dummy': ['+ *']})
+        catalog.create_bundle_version("meep", self.scratch_dir,
+                flavor_spec=flavor_spec, skip_master_archive=True)
+        archive_path = catalog._path_for_archive_for_bundle_version("meep", 1)
+        self.assertFalse(os.path.exists(archive_path))
 
     def test_next_version_is_2_for_new_bundle(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
