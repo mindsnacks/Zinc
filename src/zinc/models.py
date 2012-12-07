@@ -388,7 +388,7 @@ class CreateBundleVersionOperation(ZincOperation):
                 sha = manifest.sha_for_file(file)
                
                 if master_tar is not None:
-                    master_tar.add(full_path, sha)
+                    master_tar.add(full_path, os.path.basename(full_path))
 
                 if flavor_spec is not None:
                     for flavor in flavor_spec.flavors:
