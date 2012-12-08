@@ -386,9 +386,13 @@ class CreateBundleVersionOperation(ZincOperation):
             for file in manifest.files.keys():
                 full_path = pjoin(self.src_dir, file)
                 sha = manifest.sha_for_file(file)
-               
+
+                member_name = sha
+                if manifest.formats_for_file(file).get('gz'):
+                    member_name += '.gz'
+
                 if master_tar is not None:
-                    master_tar.add(full_path, os.path.basename(full_path))
+                    master_tar.add(full_path, member_name)
 
                 if flavor_spec is not None:
                     for flavor in flavor_spec.flavors:
@@ -398,7 +402,7 @@ class CreateBundleVersionOperation(ZincOperation):
                             flavor_tar = flavor_tar_files.get(flavor)
                             if flavor_tar is not None:
                                 tar = flavor_tar.add(
-                                        full_path, os.path.basename(full_path))
+                                        full_path, member_name)
             
             if master_tar is not None:
                 master_tar.close() 
