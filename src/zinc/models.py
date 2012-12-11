@@ -99,18 +99,38 @@ class ZincIndex(object):
             self.bundle_info_by_name[bundle_name] = {
                     'versions':[],
                     'distributions':{},
+                    'next_version':1,
                     }
         return self.bundle_info_by_name.get(bundle_name)
 
     def add_version_for_bundle(self, bundle_name, version):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
         if version not in bundle_info['versions']:
+            next_version = self.next_version_for_bundle(bundle_name) 
+            if version != next_version:
+                raise Exception("Expected next bundle version %d, got version %d" 
+                        % (verison, next_version))
             bundle_info['versions'].append(version)
             bundle_info['versions'] = sorted(bundle_info['versions'])
+            bundle_info['next_version'] = version + 1
 
     def versions_for_bundle(self, bundle_name):
         return self._get_or_create_bundle_info(bundle_name).get('versions')
 
+    def next_version_for_bundle(self, bundle_name):
+        bundle_info = self._get_or_create_bundle_info(bundle_name)
+
+        next_version = bundle_info.get('next_version')
+        if next_version is None: # older index without next_version
+            versions = self.versions_for_bundle(bundle_name)
+            if len(versions) == 0:
+                next_version = 1
+            else: 
+                next_version = versions[-1] + 1
+            bundle_info['next-version'] = next_version
+
+        return next_version
+       
     def delete_bundle_version(self, bundle_name, bundle_version):
         assert bundle_version == int(bundle_version)
         bundle_info = self.bundle_info_by_name.get(bundle_name)
@@ -147,9 +167,7 @@ class ZincIndex(object):
         return self.distributions_for_bundle(bundle_name).get(distro)
 
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
-        if bundle_version == 'latest':
-            bundle_version = self.versions_for_bundle(bundle_name)[-1]
-        elif int(bundle_version) not in self.versions_for_bundle(bundle_name):
+        if int(bundle_version) not in self.versions_for_bundle(bundle_name):
             raise ValueError("Invalid bundle version")
         bundle_info = self._get_or_create_bundle_info(bundle_name)
         bundle_info['distributions'][distribution_name] = bundle_version
@@ -286,7 +304,6 @@ class ZincManifest(object):
                 and set(self.flavors) == set(other.flavors)
 
 def load_manifest(path):
-    print path
     manifest_file = open(path, 'r')
     dict = json.load(manifest_file)
     manifest_file.close()
@@ -304,18 +321,13 @@ def load_manifest(path):
 class CreateBundleVersionOperation(ZincOperation):
 
     def __init__(self, catalog, bundle_id, src_dir,
-            flavor_spec=None, force=False):
+            flavor_spec=None, force=False, skip_master_archive=False):
         self.catalog = catalog
         self.bundle_id = bundle_id
         self.src_dir =  canonical_path(src_dir)
         self.flavor_spec = flavor_spec
         self.force = force
-
-    def _next_version_for_bundle(self, bundle_id):
-        versions = self.catalog.versions_for_bundle(bundle_id)
-        if len(versions) == 0:
-            return 1
-        return versions[-1] + 1
+        self.skip_master_archive = skip_master_archive
 
     def _generate_manifest(self, version, flavor_spec=None):
         """Create a new temporary manifest."""
@@ -333,19 +345,8 @@ class CreateBundleVersionOperation(ZincOperation):
                 new_manifest.add_file(rel_path, sha)
         return new_manifest
 
+
     def _import_files_for_manifest(self, manifest, flavor_spec=None):
-
-        flavor_tar_files = dict()
-        if flavor_spec is not None:
-            for flavor in flavor_spec.flavors:
-                tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                        self.bundle_id, manifest.version, flavor)
-                tar = tarfile.open(tar_file_name, 'w')
-                flavor_tar_files[flavor] = tar
-
-        master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
-                self.bundle_id, manifest.version)
-        master_tar = tarfile.open(master_tar_file_name, 'w')
 
         for file in manifest.files.keys():
             full_path = pjoin(self.src_dir, file)
@@ -356,23 +357,62 @@ class CreateBundleVersionOperation(ZincOperation):
             else:
                 format = 'raw'
             manifest.add_format_for_file(file, format, size)
-            
-            master_tar.add(catalog_path, os.path.basename(catalog_path))
 
             if flavor_spec is not None:
                 for flavor in flavor_spec.flavors:
                     filter = flavor_spec.filter_for_flavor(flavor)
                     if filter.match(full_path):
                         manifest.add_flavor_for_file(file, flavor)
-                        tar = flavor_tar_files[flavor].add(
-                                catalog_path, os.path.basename(catalog_path))
 
-        master_tar.close()
-        for k, v in flavor_tar_files.iteritems():
-            v.close()
+        if len(manifest.files) > 1:
+
+            if flavor_spec is None or not self.skip_master_archive:
+                master_tar_file_name = self.catalog._path_for_archive_for_bundle_version(
+                        self.bundle_id, manifest.version)
+                master_tar = tarfile.open(master_tar_file_name, 'w')
+            else:
+                master_tar = None
+
+            flavor_tar_files = dict()
+            if flavor_spec is not None:
+                for flavor in flavor_spec.flavors:
+                    flavor_files = manifest.get_all_files(flavor=flavor)
+                    if len(flavor_files) > 1:
+                        tar_file_name = self.catalog._path_for_archive_for_bundle_version(
+                                self.bundle_id, manifest.version, flavor)
+                        tar = tarfile.open(tar_file_name, 'w')
+                        flavor_tar_files[flavor] = tar
+    
+            for file in manifest.files.keys():
+                full_path = pjoin(self.src_dir, file)
+                sha = manifest.sha_for_file(file)
+
+                ext = 'gz' if manifest.formats_for_file(file).get('gz') else None
+                catalog_path = self.catalog._path_for_file_with_sha(sha, ext=ext)
+
+                member_name = os.path.basename(catalog_path)
+
+                if master_tar is not None:
+                    master_tar.add(catalog_path, member_name)
+
+                if flavor_spec is not None:
+                    for flavor in flavor_spec.flavors:
+                        filter = flavor_spec.filter_for_flavor(flavor)
+                        if filter.match(full_path):
+                            manifest.add_flavor_for_file(file, flavor)
+                            flavor_tar = flavor_tar_files.get(flavor)
+                            if flavor_tar is not None:
+                                tar = flavor_tar.add(
+                                        catalog_path, member_name)
+            
+            if master_tar is not None:
+                master_tar.close() 
+            
+            for k, v in flavor_tar_files.iteritems():
+                v.close()
 
     def run(self):
-        version = self._next_version_for_bundle(self.bundle_id)
+        version = self.catalog.index.next_version_for_bundle(self.bundle_id)
 
         manifest = self.catalog.manifest_for_bundle(self.bundle_id)
         new_manifest = self._generate_manifest(version)
@@ -535,6 +575,7 @@ class ZincCatalog(object):
         manifest.write(self._path_for_manifest(manifest), True)
 
     def _path_for_file_with_sha(self, sha, ext=None):
+
         subdir = pjoin(self._files_dir(), sha[0:2], sha[2:4])
         file = sha
         if ext is not None:
@@ -559,7 +600,7 @@ class ZincCatalog(object):
         mygzip(src_path, dst_path_gz)
         src_size = os.path.getsize(src_path)
         dst_gz_size = os.path.getsize(dst_path_gz)
-        if float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
+        if src_size > 0 and float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
             final_dst_path = dst_path_gz
             final_dst_size = dst_gz_size
         else:
@@ -682,9 +723,10 @@ class ZincCatalog(object):
         return self.index.bundle_info_by_name.keys()
 
     def create_bundle_version(self, bundle_name, src_dir, 
-            flavor_spec=None, force=False):
+            flavor_spec=None, force=False, skip_master_archive=False):
         op = CreateBundleVersionOperation(
-                self, bundle_name, src_dir, flavor_spec, force)
+                self, bundle_name, src_dir, flavor_spec=flavor_spec,
+                force=force, skip_master_archive=skip_master_archive)
         return op.run()
 
     def delete_bundle_version(self, bundle_name, version):

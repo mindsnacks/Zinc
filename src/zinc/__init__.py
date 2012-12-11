@@ -45,7 +45,11 @@ def catalog_clean(args):
 
 def catalog_list(args):
     catalog = ZincCatalog(args.catalog_path)
+    distro = args.distro
+    print_versions = not args.no_versions
     for bundle_name in catalog.bundle_names():
+        if distro and distro not in catalog.index.distributions_for_bundle(bundle_name):
+            continue
         distros = catalog.index.distributions_for_bundle_by_version(bundle_name)
         versions = catalog.versions_for_bundle(bundle_name)
         version_strings = list()
@@ -56,8 +60,11 @@ def catalog_list(args):
                 version_string += '=' + distro_string
             version_strings.append(version_string)
 
-        final_string =  "[%s]" %(", ".join(version_strings))
-        print "%s %s" % (bundle_name, final_string)
+        final_version_string =  "[%s]" %(", ".join(version_strings))
+        if print_versions:
+            print "%s %s" % (bundle_name, final_version_string)
+        else:
+            print "%s" % (bundle_name)
 
 def bundle_list(args):
     catalog = ZincCatalog(args.catalog_path)
@@ -83,8 +90,10 @@ def bundle_update(args):
     bundle_name = args.bundle_name
     path = args.path
     force = args.force
+    skip_master_archive = args.skip_master_archive
     manifest = catalog.create_bundle_version(
-            bundle_name, path, flavor_spec=flavors, force=force)
+            bundle_name, path, flavor_spec=flavors, force=force,
+            skip_master_archive=skip_master_archive)
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 def bundle_clone(args):
@@ -103,10 +112,23 @@ def bundle_delete(args):
     bundle_name = args.bundle_name
     version = args.version
     catalog = ZincCatalog(args.catalog_path)
+    dry_run = args.dry_run
     if version == 'all':
         versions_to_delete = catalog.versions_for_bundle(bundle_name)
+    elif version == 'unreferenced':
+        all_versions = catalog.versions_for_bundle(bundle_name)
+        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
+        versions_to_delete = [v for v in all_versions if v not in referenced_versions]
     else:
         versions_to_delete = [version]
+
+    if len(versions_to_delete) == 0:
+        print 'Nothing to do'
+    elif len(versions_to_delete) > 1:
+        verb = 'Would remove' if dry_run else 'Removing'
+        print "%s versions %s" % (verb, versions_to_delete)
+
+    if not dry_run:
         for v in versions_to_delete:
             catalog.delete_bundle_version(bundle_name, int(v))
 
@@ -114,9 +136,14 @@ def distro_update(args):
     catalog = ZincCatalog(args.catalog_path)
     bundle_name = args.bundle_name
     distro_name = args.distro_name
-    bundle_version = args.version
-    if bundle_version != "latest":
-        bundle_version = int(bundle_version)
+    bundle_version_arg = args.version
+    if bundle_version_arg == "latest":
+        bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
+    elif bundle_version_arg.startswith('@'):
+        source_distro = bundle_version_arg[1:]
+        bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
+    else:
+        bundle_version = int(bundle_version_arg)
     catalog.update_distribution(
             distro_name, bundle_name, bundle_version)
 
@@ -158,6 +185,10 @@ def main():
             help='List contents of catalog')
     parser_catalog_list.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
+    parser_catalog_list.add_argument('-d', '--distro',
+            help='Only list bundles with specified distro.')
+    parser_catalog_list.add_argument('--no-versions', default=False, action='store_true', 
+            help='Omit version information for bundles.')
     parser_catalog_list.set_defaults(func=catalog_list)
 
     # bundle:list
@@ -179,6 +210,8 @@ def main():
             help='Catalog path. Defaults to "."')
     parser_bundle_update.add_argument('--flavors', 
             help='Flavor spec path. Should be JSON.')
+    parser_bundle_update.add_argument('--skip-master-archive', default=False, action='store_true', 
+            help='Skips creating master archive if flavors are specified.')
     parser_bundle_update.add_argument('-f', '--force', default=False, action='store_true', 
             help='Update bundle even if no files changed.')
     parser_bundle_update.add_argument('bundle_name',
@@ -205,6 +238,8 @@ def main():
     parser_bundle_delete = subparsers.add_parser('bundle:delete', help='bundle:delete help')
     parser_bundle_delete.add_argument('-c', '--catalog_path', default='.',
             help='Catalog path. Defaults to "."')
+    parser_bundle_delete.add_argument('-n', '--dry-run', default=False, action='store_true', 
+            help='Dry run. Don\' actually delete anything.')
     parser_bundle_delete.add_argument('bundle_name',
             help='Name of the bundle. Must exist in catalog.')
     parser_bundle_delete.add_argument('version',
