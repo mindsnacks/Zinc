@@ -1,10 +1,12 @@
 import os, json, urlparse
 import requests
 import zinc
+from redis_lock import Lock
+from redis import Redis
 from flask import Flask, request, redirect, abort
 
 ZINC_CONFIG = json.loads(open('config.json').read())
-REDIS = urlparse.urlparse(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
+REDIS = Redis.from_url(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
 
 def catalog_index_url(catalog):
 	return ZINC_CONFIG["url"] + '/' + catalog + '/index.json'
@@ -25,6 +27,8 @@ def valid_manifest(req):
 		return False
 	return True
 
+def verify_manifest_files(manifest):
+	return True
  
 app = Flask(__name__)
 @app.route('/')
@@ -43,27 +47,29 @@ def manifest(catalog, bundle, version=None):
 		if not version:
 			version = get_zinc_index(catalog).versions_for_bundle(bundle)[-1]
 
-		print manifest_url(catalog, bundle, version)
 		return redirect(manifest_url(catalog, bundle, version))
 
 	if request.method == 'POST':
 		if not valid_manifest(request):
 			abort(400)
 
-		# -- critical section (get and set)
-		zindex = get_zinc_index(catalog)
-		next_version = zindex.next_version_for_bundle(bundle)
-		zindex.add_version_for_bundle(bundle, next_version)
+		with Lock(catalog + ':' + bundle, redis=REDIS):
+			# -- critical section (get and set)
+			zindex = get_zinc_index(catalog)
+			next_version = zindex.next_version_for_bundle(bundle)
+			zindex.add_version_for_bundle(bundle, next_version)
 
-		manifest = zinc.ZincManifest(catalog, bundle, next_version)
-		manifest.files = request.json['files']
-		manifest.determine_flavors_from_files()
+			manifest = zinc.ZincManifest(catalog, bundle, next_version)
+			manifest.files = request.json['files']
+			manifest.determine_flavors_from_files()
 
-		# verify files
-		# upload manifest
-		# generate and upload tars to /archives
-		# update catalog index
-		# -- end critical section
+			verify_manifest_files(manifest)
+			# verify files
+			
+			# upload manifest
+			# generate and upload tars to /archives
+			# update catalog index
+			# -- end critical section
 
 		return json.dumps(manifest.to_json())
 
