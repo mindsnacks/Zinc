@@ -1,4 +1,4 @@
-import os, json, urlparse, time, hashlib, gzip
+import os, json, urlparse, time, hashlib, zlib
 import requests
 import zinc
 from redis_lock import Lock
@@ -34,7 +34,11 @@ def valid_files(manifest):
 	for path, info in manifest.files.items():
 		format, _ = info.get('formats').items()[0]
 		r = requests.get(object_url(manifest.catalog_id, info.get('sha') + ('.' + format if format != 'raw' else '')))
-		sha = hashlib.sha1(r.content)
+
+		bin = r.content
+		if format == 'gz':
+			bin = zlib.decompress(bin, 16+zlib.MAX_WBITS)
+		sha = hashlib.sha1(bin)
 		if sha.hexdigest() != info.get('sha'):
 			return False
 	return True
