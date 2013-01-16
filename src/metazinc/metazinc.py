@@ -1,4 +1,4 @@
-import os, json, urlparse
+import os, json, urlparse, time, hashlib, gzip
 import requests
 import zinc
 from redis_lock import Lock
@@ -12,6 +12,8 @@ def catalog_index_url(catalog):
 	return ZINC_CONFIG["url"] + '/' + catalog + '/index.json'
 def manifest_url(catalog, bundle, version):
 	return ZINC_CONFIG["url"] + '/' + catalog + '/manifests/' + bundle + '-' + str(version) + '.json'
+def object_url(catalog, sha):
+	return ZINC_CONFIG["url"] + '/' + catalog + '/objects/' + sha[0:2] + '/' + sha[2:4] + '/' + sha
 
 def get_zinc_index(catalog):
 	r = requests.get(catalog_index_url(catalog))
@@ -22,14 +24,22 @@ def valid_manifest(req):
 	# simple sanity checks
 	if not manifest or \
 	   not manifest.has_key('files') or \
-	   not len(manifest['files'].keys()) or \
-	   not manifest['files'][manifest['files'].keys()[0]]['sha']:
+	   not (lambda fs: len(fs.keys()) and \
+	   		(lambda f: f.has_key('sha') and \
+	   				   f.has_key('formats'))(fs[fs.keys()[0]]))(manifest['files']):
 		return False
 	return True
 
-def verify_manifest_files(manifest):
+def valid_files(manifest):
+	for path, info in manifest.files.items():
+		format, _ = info.get('formats').items()[0]
+		r = requests.get(object_url(manifest.catalog_id, info.get('sha') + ('.' + format if format != 'raw' else '')))
+		sha = hashlib.sha1(r.content)
+		if sha.hexdigest() != info.get('sha'):
+			return False
 	return True
- 
+
+
 app = Flask(__name__)
 @app.route('/')
 def root():
@@ -51,9 +61,10 @@ def manifest(catalog, bundle, version=None):
 
 	if request.method == 'POST':
 		if not valid_manifest(request):
-			abort(400)
+			abort(400, 'Bad manifest.')
 
-		with Lock(catalog + ':' + bundle, redis=REDIS):
+		# TODO: this could break if it takes longer than the expire time.
+		with Lock(catalog + ':' + bundle, redis=REDIS, expires=60):
 			# -- critical section (get and set)
 			zindex = get_zinc_index(catalog)
 			next_version = zindex.next_version_for_bundle(bundle)
@@ -63,11 +74,15 @@ def manifest(catalog, bundle, version=None):
 			manifest.files = request.json['files']
 			manifest.determine_flavors_from_files()
 
-			verify_manifest_files(manifest)
+			if not valid_files(manifest):
+				abort(400, 'Bad file.')
+
+			time.sleep(3)
+
+			app.logger.warning('here')
 			# verify files
-			
-			# upload manifest
 			# generate and upload tars to /archives
+			# upload manifest
 			# update catalog index
 			# -- end critical section
 

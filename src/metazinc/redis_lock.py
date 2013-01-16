@@ -45,12 +45,11 @@ class Lock(object):
             timeout -= 1
             if timeout >= 0:
                 time.sleep(1)
-        raise LockException("Timeout while waiting for lock")
+        raise LockException("Timeout while waiting for lock.")
 
     def __exit__(self, exc_type, exc_value, traceback):
         # Only delete the key if it's our token
         current_value = self.redis.get(self.key)
-        print current_value, self.token
 
         if current_value == self.token:
             self.redis.delete(self.key)
