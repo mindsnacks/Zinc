@@ -1,0 +1,1 @@
+web: gunicorn metazinc:app -w 3
