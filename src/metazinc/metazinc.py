@@ -1,11 +1,14 @@
 import os, json, urlparse, time, hashlib, zlib
 import requests
 import zinc
+
+from boto.s3.connection import S3Connection
 from redis_lock import Lock
 from redis import Redis
 from flask import Flask, request, redirect, abort
 
-ZINC_CONFIG = json.loads(open('config.json').read())
+from config import ZINC_CONFIG
+
 REDIS = Redis.from_url(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
 
 def catalog_index_url(catalog):

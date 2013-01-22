@@ -13,7 +13,7 @@ sdist
 develop-eggs
 .installed.cfg
 .venv
-config.json
+config.py
 
 # Installer logs
 pip-log.txt
