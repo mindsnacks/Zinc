@@ -269,7 +269,7 @@ class ZincManifest(object):
         for path, info in self.files.items():
             for flavor in info.get('flavors', []):
                 if flavor not in self._flavors:
-                    self._flavors.push(flavor)
+                    self._flavors.append(flavor)
 
     def to_json(self):
         return {
