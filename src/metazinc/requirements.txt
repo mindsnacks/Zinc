@@ -1,8 +1,14 @@
 Flask==0.9
 Jinja2==2.6
 Werkzeug==0.8.3
+boto==2.7.0
 distribute==0.6.27
 gunicorn==0.17.2
+python-dateutil==2.1
+pytz==2012j
 redis==2.7.2
 requests==1.1.0
+rq==0.3.3
+six==1.2.0
+times==0.6
 wsgiref==0.1.2
