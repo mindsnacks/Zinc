@@ -73,13 +73,19 @@ def process_manifest(manifest):
 	# generate tar
 	build_tar(manifest)
 
-	time.sleep(1)
+	return manifest
 
+Q = Queue(conncetion=REDIS)
+Jobs = {}
 
 app = Flask(__name__)
 @app.route('/')
 def root():
     return 'Metazinc!'
+
+@app.route('/jobs/<id>')
+def get_job(id):
+	return Jobs[id].result
 
 @app.route('/<catalog>')
 @app.route('/<catalog>/index.json')
@@ -98,34 +104,12 @@ def manifest(catalog, bundle, version=None):
 	if request.method == 'POST':
 		if not valid_manifest(request):
 			abort(400, 'Bad manifest.')
+		
+		manifest = zinc.ZincManifest(catalog, bundle, next_version)
+		job = Q.enqueue(proccess_manifest, manifest)
+		Jobs[job.id] = job
 
-		# TODO: this could break if it takes longer than the expire time.
-		with Lock(catalog + ':' + bundle, redis=REDIS, expires=60):
-			# -- critical section (get and set)
-			zindex = get_zinc_index(catalog)
-			next_version = zindex.next_version_for_bundle(bundle)
-			zindex.add_version_for_bundle(bundle, next_version)
-
-			manifest = zinc.ZincManifest(catalog, bundle, next_version)
-			manifest.files = request.json['files']
-			manifest.determine_flavors_from_files()
-
-			# verify files
-			if not process_files(manifest):	
-				abort(400, 'Bad file.')
-
-			# generate tar
-			build_tar(manifest)
-
-			time.sleep(1)
-			app.logger.warning('here')
-			# generate and upload tars to /archives
-			## s3 = S3Connection('<aws access key>', '<aws secret key>')
-			# upload manifest
-			# update catalog index
-			# -- end critical section
-
-		return json.dumps(manifest.to_json())
+		return job.id
 
 if __name__ == '__main__':
     # Bind to PORT if defined, otherwise default to 5000.
