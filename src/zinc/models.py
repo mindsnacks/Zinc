@@ -264,6 +264,13 @@ class ZincManifest(object):
     def flavors_for_file(self, path):
         return self.files[path].get('flavors')
 
+    def determine_flavors_from_files(self):
+        self._flavors = []
+        for path, info in self.files.items():
+            for flavor in info.get('flavors', []):
+                if flavor not in self._flavors:
+                    self._flavors.append(flavor)
+
     def to_json(self):
         return {
                 'catalog' : self.catalog_id,
