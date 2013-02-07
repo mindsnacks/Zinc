@@ -6,7 +6,7 @@ from os.path import join as pjoin
 import tarfile
 
 import errno
-from utils import sha1_for_path, canonical_path, makedirs, mygzip
+from utils import sha1_for_path, canonical_path, makedirs, mygzip, human_readable_filesize
 
 from .models import (ZincIndex, load_index, ZincError, ZincErrors,
         ZincOperation, ZincConfig, load_config, ZincManifest, load_manifest,
@@ -66,18 +66,51 @@ def catalog_list(args):
         else:
             print "%s" % (bundle_name)
 
+def catalog_size(args):
+    catalog = ZincCatalog(args.catalog_path)
+    size_sum = 0
+    for bundle_name in catalog.bundle_names():
+        version_for_distro = catalog.index.version_for_bundle(bundle_name, args.distribution)
+        
+        if version_for_distro is None:
+            print "Unable to find distribution: %s for bundle: %s" % (args.distribution, bundle_name)
+            break;
+
+        manifest = catalog.manifest_for_bundle(bundle_name, version=version_for_distro)
+        manifest_size = manifest.size(args.flavor)
+        size_sum += manifest_size
+        print "%s size: %s" % (bundle_name, human_readable_filesize(manifest_size))
+
+    print "Catalog size: %s" % human_readable_filesize(size_sum)
+
+
 def bundle_list(args):
     catalog = ZincCatalog(args.catalog_path)
     bundle_name = args.bundle_name
     version = int(args.version)
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
-    all_files = sorted(manifest.get_all_files())
+    all_files = sorted(manifest.get_all_files(args.flavor))
+    size_sum = 0
     for f in all_files:
-        if args.sha:
-            print f, 'sha=%s' % (manifest.sha_for_file(f))
-        else:
-            print f
+        file_size = manifest.size_for_file(f)
+        size_sum += file_size
 
+        print f,
+
+        if args.human_size:
+            print 'size=%s' % human_readable_filesize(file_size),
+        elif args.size:
+            print 'size=%s' % file_size,
+
+        if args.sha:
+            print 'sha=%s' % (manifest.sha_for_file(f)),
+
+        print ''
+
+    if args.human_size:
+        print 'bundle_size=%s' % human_readable_filesize(size_sum)
+    elif args.size:
+        print 'bundle_size=%s' % size_sum
 
 def bundle_update(args):
     flavors = None
@@ -191,6 +224,17 @@ def main():
             help='Omit version information for bundles.')
     parser_catalog_list.set_defaults(func=catalog_list)
 
+    # catalog:size
+    parser_catalog_size = subparsers.add_parser('catalog:size',
+            help='List size of each bundle in specified catalog and total size of entire catalog.')
+    parser_catalog_size.add_argument('-c', '--catalog_path', default='.',
+            help='Catalog path. Defaults to "."')
+    parser_catalog_size.add_argument('--flavor',
+            help='Limits size calculation to files belonging to specified flavor.')
+    parser_catalog_size.add_argument('distribution',
+            help='Distribution.')
+    parser_catalog_size.set_defaults(func=catalog_size)
+
     # bundle:list
     parser_bundle_list = subparsers.add_parser('bundle:list', 
             help='List contents of a bundle')
@@ -198,6 +242,12 @@ def main():
             help='Catalog path. Defaults to "."')
     parser_bundle_list.add_argument('--sha', default=False, action='store_true', 
             help='Print file SHA hash.')
+    parser_bundle_list.add_argument('--size', default=False, action='store_true',
+            help='Print individual file sizes (in bytes) and total bundle size.')
+    parser_bundle_list.add_argument('--human_size', default=False, action='store_true',
+            help='Prints human readable file sizes and total bundle size.')
+    parser_bundle_list.add_argument('--flavor',
+            help='Limits output to files belonging to specified flavor.')
     parser_bundle_list.add_argument('bundle_name',
             help='Name of the bundle. Must not contain a period (.).')
     parser_bundle_list.add_argument('version',
