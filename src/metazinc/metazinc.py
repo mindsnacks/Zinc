@@ -1,4 +1,4 @@
-import os, json, urlparse, time, hashlib, zlib
+import os, json, urlparse, time, hashlib, zlib, tempfile, tarfile
 import requests
 import zinc
 
@@ -37,24 +37,36 @@ def valid_manifest(req):
 def file_path(manifest, path):
 	return manifest.catalog_id + "/" + manifest.bundle_name + "/" + path
 
+def format_from_info(file_info):
+	return file_info.get('formats').items()[0][0]
+def file_extension(file_info):
+	format = format_from_info(file_info)
+	return ('.' + format if format != 'raw' else '')
+
 def process_files(manifest):
 	for path, info in manifest.files.items():
-		format, _ = info.get('formats').items()[0]
-		r = requests.get(object_url(manifest.catalog_id, info.get('sha') + ('.' + format if format != 'raw' else '')))
+		format = format_from_info(info)
+		r = requests.get(object_url(manifest.catalog_id, info.get('sha') + file_extension(info)))
 
-		bin = r.content
+		info['bin'] = bin = r.content
 		if format == 'gz':
 			bin = zlib.decompress(bin, 16+zlib.MAX_WBITS)
 		sha = hashlib.sha1(bin)
 		if sha.hexdigest() != info.get('sha'):
 			return False
 
-		info['bin'] = bin
 	return True
 
-def build_tar(manifest):
+def build_tars(manifest):
+	files = {}
+
+	tar = tarfile.open(manifest.bundle_name + '-' + str(manifest.version) + '.tar')
 	for path, info in manifest.files.items():
-		logger.warning(info.get('bin')[0:10])
+		temp = tempfile.NamedTemporaryFile()
+		temp.write(info.get('bin'))
+		format = format_from_info(info)
+		tar.add(nametemp.name, arcname=info.get('sha') + file_extension(info))
+
 
 # main queue job
 def process_manifest(manifest):
@@ -62,7 +74,6 @@ def process_manifest(manifest):
 	next_version = zindex.next_version_for_bundle(bundle)
 	zindex.add_version_for_bundle(bundle, next_version)
 
-	manifest = zinc.ZincManifest(catalog, bundle, next_version)
 	manifest.files = request.json['files']
 	manifest.determine_flavors_from_files()
 
@@ -71,7 +82,7 @@ def process_manifest(manifest):
 		abort(400, 'Bad file.')
 
 	# generate tar
-	build_tar(manifest)
+	build_tars(manifest)
 
 	return manifest
 
