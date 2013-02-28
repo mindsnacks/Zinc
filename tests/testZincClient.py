@@ -2,7 +2,7 @@ from tests import *
 from zinc import *
 from zinc.client import ZincClientConfig
 
-class TestZincClientConfig(unittest.TestCase):
+class TestZincClientConfigFromFile(unittest.TestCase):
 
     def setUp(self):
         path = abs_path_for_fixture("zinc-client.config")
