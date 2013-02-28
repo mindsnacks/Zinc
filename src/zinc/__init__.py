@@ -1,13 +1,12 @@
+import sys
+import os
 import logging
 import argparse
-import os
 import json
-from os.path import join as pjoin
-import tarfile
-
 import errno
-from utils import sha1_for_path, canonical_path, makedirs, mygzip
+from os.path import join as pjoin
 
+from .utils import sha1_for_path, canonical_path, makedirs, mygzip
 from .models import (ZincIndex, load_index, ZincError, ZincErrors,
         ZincOperation, ZincConfig, load_config, ZincManifest, load_manifest,
         CreateBundleVersionOperation, ZincCatalog, create_catalog_at_path,
@@ -15,38 +14,48 @@ from .models import (ZincIndex, load_index, ZincError, ZincErrors,
 from .defaults import defaults
 from .pathfilter import PathFilter
 from .tasks.bundle_clone import ZincBundleCloneTask
-
+from .client import ZincClientConfig
 
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
 
+DEFAULT_CONFIG_PATH='~/.zinc'
+
+
+### Helpers ##################################################################
+
+def load_config(path):
+
+    # if it's the default config path and it doesn't exist, just return and
+    # empty config
+
+    path = canonical_path(path)
+    is_default = path == canonical_path(DEFAULT_CONFIG_PATH)
+    exists = os.path.exists(path)
+
+    if is_default and not exists:
+        return ZincClientConfig()
+
+    if not exists:
+        sys.exit("File not found: %s" % (path))
+
+    return ZincClientConfig.from_path(path)
+
 
 ### Commands #################################################################
 
-# TODO: replace this
-def _cmd_verify(path):
-    catalog = ZincCatalog(path)
-    results = catalog.verify()
-    error_count = total_count = 0
-    for (file, error) in results.items():
-        if error.code != ZincErrors.OK.code:
-            print error.message + " : " + file
-            error_count = error_count + 1
-        total_count = total_count + 1
-    print "Verified %d files, %d errors" % (total_count, error_count)
-
-def catalog_create(args):
-    dest = args.catalog_path
+def cmd_catalog_create(args, config):
+    dest = args.catalog
     if dest is None:
         dest = './%s' % (args.catalog_id)
     create_catalog_at_path(dest, args.catalog_id)
 
-def catalog_clean(args):
-    catalog = ZincCatalog(args.catalog_path)
+def cmd_catalog_clean(args, config):
+    catalog = ZincCatalog(args.catalog)
     catalog.clean(dry_run=not args.force)
 
-def catalog_list(args):
-    catalog = ZincCatalog(args.catalog_path)
+def cmd_catalog_list(args, config):
+    catalog = ZincCatalog(args.catalog)
     distro = args.distro
     print_versions = not args.no_versions
     for bundle_name in catalog.bundle_names():
@@ -68,8 +77,8 @@ def catalog_list(args):
         else:
             print "%s" % (bundle_name)
 
-def bundle_list(args):
-    catalog = ZincCatalog(args.catalog_path)
+def cmd_bundle_list(args, config):
+    catalog = ZincCatalog(args.catalog)
     bundle_name = args.bundle_name
     version = int(args.version)
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
@@ -80,14 +89,14 @@ def bundle_list(args):
         else:
             print f
 
-def bundle_update(args):
+def cmd_bundle_update(args, config):
     flavors = None
     if args.flavors is not None:
         with open(args.flavors) as f:
             flavors_dict = json.load(f)
             flavors = ZincFlavorSpec.from_dict(flavors_dict)
 
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = ZincCatalog(args.catalog)
     bundle_name = args.bundle_name
     path = args.path
     force = args.force
@@ -97,8 +106,8 @@ def bundle_update(args):
             skip_master_archive=skip_master_archive)
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
-def bundle_clone(args):
-    catalog = ZincCatalog(args.catalog_path)
+def cmd_bundle_clone(args, config):
+    catalog = ZincCatalog(args.catalog)
 
     task = ZincBundleCloneTask()
     task.catalog = catalog
@@ -109,10 +118,10 @@ def bundle_clone(args):
 
     task.run()
 
-def bundle_delete(args):
+def cmd_bundle_delete(args, confg):
     bundle_name = args.bundle_name
     version = args.version
-    catalog = ZincCatalog(args.catalog_path)
+    catalog = ZincCatalog(args.catalog)
     dry_run = args.dry_run
     if version == 'all':
         versions_to_delete = catalog.versions_for_bundle(bundle_name)
@@ -133,8 +142,8 @@ def bundle_delete(args):
         for v in versions_to_delete:
             catalog.delete_bundle_version(bundle_name, int(v))
 
-def distro_update(args):
-    catalog = ZincCatalog(args.catalog_path)
+def cmd_distro_update(args, config):
+    catalog = ZincCatalog(args.catalog)
     bundle_name = args.bundle_name
     distro_name = args.distro_name
     bundle_version_arg = args.version
@@ -148,17 +157,32 @@ def distro_update(args):
     catalog.update_distribution(
             distro_name, bundle_name, bundle_version)
 
-def distro_delete(args):
-    catalog = ZincCatalog(args.catalog_path)
+def cmd_distro_delete(args, config):
+    catalog = ZincCatalog(args.catalog)
     bundle_name = args.bundle_name
     distro_name = args.distro_name
     catalog.delete_distribution(distro_name, bundle_name)
+
+## TODO: replace this
+#def _cmd_verify(path):
+#    catalog = ZincCatalog(path)
+#    results = catalog.verify()
+#    error_count = total_count = 0
+#    for (file, error) in results.items():
+#        if error.code != ZincErrors.OK.code:
+#            print error.message + " : " + file
+#            error_count = error_count + 1
+#        total_count = total_count + 1
+#    print "Verified %d files, %d errors" % (total_count, error_count)
 
 
 ### Main #####################################################################
 
 def main():
     parser = argparse.ArgumentParser(description='')
+
+    parser.add_argument('-C', '--config', default=DEFAULT_CONFIG_PATH,
+            help='Config file path. Defaults to \'%s\'.' % (DEFAULT_CONFIG_PATH))
 
     subparsers = parser.add_subparsers(
             title='subcommands',
@@ -178,9 +202,9 @@ def main():
     parser_catalog_create = subparsers.add_parser(
             'catalog:create', help='catalog:create help')
     parser_catalog_create.add_argument('catalog_id')
-    parser_catalog_create.add_argument('-c', '--catalog_path',
+    parser_catalog_create.add_argument('-c', '--catalog',
             help='Destination path. Defaults to "./<catalog_id>"')
-    parser_catalog_create.set_defaults(func=catalog_create)
+    parser_catalog_create.set_defaults(func=cmd_catalog_create)
 
     # catalog:clean
     parser_catalog_clean = subparsers.add_parser(
@@ -190,7 +214,7 @@ def main():
             '-f', '--force', default=False, action='store_true', 
             help='This command does a dry run by default. Specifying this flag '
             'will cause files to actually be removed.')
-    parser_catalog_clean.set_defaults(func=catalog_clean)
+    parser_catalog_clean.set_defaults(func=cmd_catalog_clean)
 
     # catalog:list
     parser_catalog_list = subparsers.add_parser(
@@ -200,7 +224,7 @@ def main():
     parser_catalog_list.add_argument(
             '--no-versions', default=False, action='store_true', 
             help='Omit version information for bundles.')
-    parser_catalog_list.set_defaults(func=catalog_list)
+    parser_catalog_list.set_defaults(func=cmd_catalog_list)
 
     # bundle:list
     parser_bundle_list = subparsers.add_parser(
@@ -211,7 +235,7 @@ def main():
     parser_bundle_list.add_argument(
             '--sha', default=False, action='store_true', 
             help='Print file SHA hash.')
-    parser_bundle_list.set_defaults(func=bundle_list)
+    parser_bundle_list.set_defaults(func=cmd_bundle_list)
 
     # bundle:update
     parser_bundle_update = subparsers.add_parser(
@@ -229,7 +253,7 @@ def main():
     parser_bundle_update.add_argument(
             '-f', '--force', default=False, action='store_true', 
             help='Update bundle even if no files changed.')
-    parser_bundle_update.set_defaults(func=bundle_update)
+    parser_bundle_update.set_defaults(func=cmd_bundle_update)
 
     # bundle:clone
     parser_bundle_clone = subparsers.add_parser(
@@ -242,7 +266,7 @@ def main():
             help='Destination path for bundle clone.')
     parser_bundle_clone.add_argument(
             '--flavor', help='Name of flavor.')
-    parser_bundle_clone.set_defaults(func=bundle_clone)
+    parser_bundle_clone.set_defaults(func=cmd_bundle_clone)
 
     # bundle:delete
     parser_bundle_delete = subparsers.add_parser(
@@ -253,7 +277,7 @@ def main():
     parser_bundle_delete.add_argument(
             '-n', '--dry-run', default=False, action='store_true', 
             help='Dry run. Don\' actually delete anything.')
-    parser_bundle_delete.set_defaults(func=bundle_delete)
+    parser_bundle_delete.set_defaults(func=cmd_bundle_delete)
 
     # distro:update
     parser_distro_update = subparsers.add_parser(
@@ -262,7 +286,7 @@ def main():
     add_bundle_arg(parser_distro_update)
     add_version_arg(parser_distro_update)
     add_distro_arg(parser_distro_update)
-    parser_distro_update.set_defaults(func=distro_update)
+    parser_distro_update.set_defaults(func=cmd_distro_update)
 
     # distro:delete
     parser_distro_delete = subparsers.add_parser(
@@ -270,10 +294,11 @@ def main():
     add_catalog_arg(parser_distro_delete)
     add_bundle_arg(parser_distro_delete)
     add_distro_arg(parser_distro_delete)
-    parser_distro_delete.set_defaults(func=distro_delete)
+    parser_distro_delete.set_defaults(func=cmd_distro_delete)
 
     args = parser.parse_args()
-    args.func(args)
+    config = load_config(args.config)
+    args.func(args, config)
 
 
 if __name__ == "__main__":
