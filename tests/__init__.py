@@ -3,6 +3,7 @@ import tempfile
 import shutil
 import random
 import base64
+import os
 
 
 class TempDirTestCase(unittest.TestCase):
@@ -24,3 +25,10 @@ def create_random_file(dir, size=1024):
     file.close()
     return path
 
+def abs_path_for_fixture(relpath):
+    mypath = os.path.abspath(__file__)
+    mydir = os.path.dirname(mypath)
+    return os.path.join(mydir, 'fixtures', relpath)
+
+    
+    
