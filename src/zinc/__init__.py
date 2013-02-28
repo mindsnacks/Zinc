@@ -8,9 +8,9 @@ from os.path import join as pjoin
 
 from .utils import sha1_for_path, canonical_path, makedirs, mygzip
 from .models import (ZincIndex, load_index, ZincError, ZincErrors,
-        ZincOperation, ZincConfig, load_config, ZincManifest, load_manifest,
-        CreateBundleVersionOperation, ZincCatalog, create_catalog_at_path,
-        ZincFlavorSpec)
+        ZincOperation, ZincCatalogConfig, load_config, ZincManifest,
+        load_manifest, CreateBundleVersionOperation, ZincCatalog,
+        create_catalog_at_path, ZincFlavorSpec)
 from .defaults import defaults
 from .pathfilter import PathFilter
 from .tasks.bundle_clone import ZincBundleCloneTask

@@ -184,9 +184,9 @@ def load_index(path):
     return ZincIndex.from_dict(json_dict)
 
 
-### ZincConfig ###############################################################
+### ZincCatalogConfig ###############################################################
 
-class ZincConfig(object):
+class ZincCatalogConfig(object):
 
     def __init__(self):
         self.gzip_threshhold = 0.85
@@ -207,7 +207,7 @@ def load_config(path):
     config_file = open(path, 'r')
     dict = json.load(config_file)
     config_file.close()
-    config = ZincConfig()
+    config = ZincCatalogConfig()
     if dict.get('gzip_threshhold'):
         config.gzip_threshhold = dict.get('gzip_threshhold')
     return config 
@@ -480,7 +480,7 @@ def create_catalog_at_path(path, id):
             raise e
 
     config_path = pjoin(path, defaults['catalog_config_name'])
-    ZincConfig().write(config_path)
+    ZincCatalogConfig().write(config_path)
 
     index_path = pjoin(path, defaults['catalog_index_name'])
     ZincIndex(id).write(index_path, True)
