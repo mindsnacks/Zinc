@@ -86,7 +86,7 @@ def process_manifest(manifest):
 
 	return manifest
 
-Q = Queue(conncetion=REDIS)
+Q = Queue(connection=REDIS)
 Jobs = {}
 
 app = Flask(__name__)
