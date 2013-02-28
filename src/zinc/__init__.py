@@ -20,8 +20,10 @@ from .tasks.bundle_clone import ZincBundleCloneTask
 logging.basicConfig(level=logging.DEBUG,
         format='%(asctime)s %(levelname)s %(message)s')
 
+
 ### Commands #################################################################
 
+# TODO: replace this
 def _cmd_verify(path):
     catalog = ZincCatalog(path)
     results = catalog.verify()
@@ -77,7 +79,6 @@ def bundle_list(args):
             print f, 'sha=%s' % (manifest.sha_for_file(f))
         else:
             print f
-
 
 def bundle_update(args):
     flavors = None
@@ -274,13 +275,6 @@ def main():
     args = parser.parse_args()
     args.func(args)
 
-#    if command == "catalog:verify":
-#        if len(args) < 2:
-#            parser.print_usage()
-#            exit(2)
-#        path = args[1]
-#        _cmd_verify(path)
-#        exit(0)
 
 if __name__ == "__main__":
     main()

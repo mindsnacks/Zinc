@@ -13,7 +13,7 @@ import gzip
 import os
 
 def sha1_for_path(path):
-    """Returns the SHA1 hash as a string for the given path"""
+    """Returns the SHA1 hash as a string for the given path."""
     sha1 = hashlib.sha1()
     f = open(path, 'rb')
     try:
@@ -29,6 +29,7 @@ def canonical_path(path):
     return path
 
 def makedirs(path):
+    """Convenience method that ignores errors if directory already exists."""
     try:
         os.makedirs(path)
     except OSError, e:
@@ -38,6 +39,7 @@ def makedirs(path):
             raise e
 
 def mygzip(src_path, dst_path):
+    """Convenience method for gzipping a file."""
     f_in = open(src_path, 'rb')
     f_out = gzip.open(dst_path, 'wb')
     f_out.writelines(f_in)
@@ -45,6 +47,7 @@ def mygzip(src_path, dst_path):
     f_in.close()
 
 def gunzip(src_path, dst_path):
+    """Convenience method for un-gzipping a file."""
     f_in = gzip.open(src_path, 'rb')
     f_out = open(dst_path, 'wb')
     f_out.writelines(f_in)
