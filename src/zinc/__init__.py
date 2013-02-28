@@ -159,113 +159,116 @@ def distro_delete(args):
 def main():
     parser = argparse.ArgumentParser(description='')
 
-    subparsers = parser.add_subparsers(title='subcommands',
+    subparsers = parser.add_subparsers(
+            title='subcommands',
             description='valid subcommands',
             help='additional help')
 
+    add_catalog_arg = lambda parser, required=True: parser.add_argument(
+            '-c', '--catalog', required=required, help='Catalog reference.')
+    add_bundle_arg = lambda parser, required=True: parser.add_argument(
+            '-b', '--bundle', required=True, help='Bundle name.')
+    add_distro_arg = lambda parser, required=True: parser.add_argument(
+            '-d', '--distro', required=required, help='Name of the distro.')
+    add_version_arg = lambda parser, required=True: parser.add_argument(
+            '-v', '--version', required=required, help='Version.')
+
     # catalog:create
-    parser_catalog_create = subparsers.add_parser('catalog:create', help='catalog:create help')
+    parser_catalog_create = subparsers.add_parser(
+            'catalog:create', help='catalog:create help')
     parser_catalog_create.add_argument('catalog_id')
     parser_catalog_create.add_argument('-c', '--catalog_path',
             help='Destination path. Defaults to "./<catalog_id>"')
     parser_catalog_create.set_defaults(func=catalog_create)
 
     # catalog:clean
-    parser_catalog_clean = subparsers.add_parser('catalog:clean',
-            help='catalog:clean help')
-    parser_catalog_clean.add_argument('-c', '--catalog_path', default='.',
-            help='Destination path. Defaults to "."')
-    parser_catalog_clean.add_argument('-f', '--force', default=False, action='store_true', 
+    parser_catalog_clean = subparsers.add_parser(
+            'catalog:clean', help='catalog:clean help')
+    add_catalog_arg(parser_catalog_clean)
+    parser_catalog_clean.add_argument(
+            '-f', '--force', default=False, action='store_true', 
             help='This command does a dry run by default. Specifying this flag '
             'will cause files to actually be removed.')
     parser_catalog_clean.set_defaults(func=catalog_clean)
 
     # catalog:list
-    parser_catalog_list = subparsers.add_parser('catalog:list', 
-            help='List contents of catalog')
-    parser_catalog_list.add_argument('-c', '--catalog_path', default='.',
-            help='Catalog path. Defaults to "."')
-    parser_catalog_list.add_argument('-d', '--distro',
-            help='Only list bundles with specified distro.')
-    parser_catalog_list.add_argument('--no-versions', default=False, action='store_true', 
+    parser_catalog_list = subparsers.add_parser(
+            'catalog:list', help='List contents of catalog')
+    add_catalog_arg(parser_catalog_list)
+    add_distro_arg(parser_catalog_list, required=False)
+    parser_catalog_list.add_argument(
+            '--no-versions', default=False, action='store_true', 
             help='Omit version information for bundles.')
     parser_catalog_list.set_defaults(func=catalog_list)
 
     # bundle:list
-    parser_bundle_list = subparsers.add_parser('bundle:list', 
-            help='List contents of a bundle')
-    parser_bundle_list.add_argument('-c', '--catalog_path', default='.',
-            help='Catalog path. Defaults to "."')
-    parser_bundle_list.add_argument('--sha', default=False, action='store_true', 
+    parser_bundle_list = subparsers.add_parser(
+            'bundle:list', help='List contents of a bundle')
+    add_catalog_arg(parser_bundle_list)
+    add_bundle_arg(parser_bundle_list)
+    add_version_arg(parser_bundle_list)
+    parser_bundle_list.add_argument(
+            '--sha', default=False, action='store_true', 
             help='Print file SHA hash.')
-    parser_bundle_list.add_argument('bundle_name',
-            help='Name of the bundle. Must not contain a period (.).')
-    parser_bundle_list.add_argument('version',
-            help='Version number or "latest".')
     parser_bundle_list.set_defaults(func=bundle_list)
 
     # bundle:update
-    parser_bundle_update = subparsers.add_parser('bundle:update', help='bundle:update help')
-    parser_bundle_update.add_argument('-c', '--catalog_path', default='.',
-            help='Catalog path. Defaults to "."')
-    parser_bundle_update.add_argument('--flavors', 
-            help='Flavor spec path. Should be JSON.')
-    parser_bundle_update.add_argument('--skip-master-archive', default=False, action='store_true', 
-            help='Skips creating master archive if flavors are specified.')
-    parser_bundle_update.add_argument('-f', '--force', default=False, action='store_true', 
-            help='Update bundle even if no files changed.')
-    parser_bundle_update.add_argument('bundle_name',
-            help='Name of the bundle. Must not contain a period (.).')
-    parser_bundle_update.add_argument('path',
+    parser_bundle_update = subparsers.add_parser(
+            'bundle:update', help='bundle:update help')
+    add_catalog_arg(parser_bundle_update)
+    add_bundle_arg(parser_bundle_update)
+    parser_bundle_update.add_argument(
+            '-p', '--path', required=True,
             help='Path to files for this bundle.')
+    parser_bundle_update.add_argument(
+            '--flavors', help='Flavor spec path. Should be JSON.')
+    parser_bundle_update.add_argument(
+            '--skip-master-archive', default=False, action='store_true', 
+            help='Skips creating master archive if flavors are specified.')
+    parser_bundle_update.add_argument(
+            '-f', '--force', default=False, action='store_true', 
+            help='Update bundle even if no files changed.')
     parser_bundle_update.set_defaults(func=bundle_update)
 
     # bundle:clone
-    parser_bundle_clone = subparsers.add_parser('bundle:clone',
-            help='Clones a bundle to a local directory.')
-    parser_bundle_clone.add_argument('-c', '--catalog_path', default='.',
-            help='Catalog path. Defaults to "."')
-    parser_bundle_clone.add_argument('--flavor', help='Name of flavor.')
-    parser_bundle_clone.add_argument('bundle_name',
-            help='Name of the bundle. Must not contain a period (.).')
-    parser_bundle_clone.add_argument('version',
-            help='Version number or "latest".')
-    parser_bundle_clone.add_argument('path',
+    parser_bundle_clone = subparsers.add_parser(
+            'bundle:clone', help='Clones a bundle to a local directory.')
+    add_catalog_arg(parser_bundle_clone)
+    add_bundle_arg(parser_bundle_clone)
+    add_version_arg(parser_bundle_clone)
+    parser_bundle_clone.add_argument(
+            '-p', '--path', required=True,
             help='Destination path for bundle clone.')
+    parser_bundle_clone.add_argument(
+            '--flavor', help='Name of flavor.')
     parser_bundle_clone.set_defaults(func=bundle_clone)
 
     # bundle:delete
-    parser_bundle_delete = subparsers.add_parser('bundle:delete', help='bundle:delete help')
-    parser_bundle_delete.add_argument('-c', '--catalog_path', default='.',
-            help='Catalog path. Defaults to "."')
-    parser_bundle_delete.add_argument('-n', '--dry-run', default=False, action='store_true', 
+    parser_bundle_delete = subparsers.add_parser(
+            'bundle:delete', help='bundle:delete help')
+    add_catalog_arg(parser_bundle_delete)
+    add_bundle_arg(parser_bundle_delete)
+    add_version_arg(parser_bundle_delete)
+    parser_bundle_delete.add_argument(
+            '-n', '--dry-run', default=False, action='store_true', 
             help='Dry run. Don\' actually delete anything.')
-    parser_bundle_delete.add_argument('bundle_name',
-            help='Name of the bundle. Must exist in catalog.')
-    parser_bundle_delete.add_argument('version',
-            help='Version number to delete or "all".')
     parser_bundle_delete.set_defaults(func=bundle_delete)
 
     # distro:update
-    parser_distro_update = subparsers.add_parser('distro:update', help='distro:update help')
-    parser_distro_update.add_argument('-c', '--catalog_path', default='.',
-            help='Catalog path. Defaults to "."')
-    parser_distro_update.add_argument('bundle_name',
-            help='Name of the bundle. Must exist in the catalog.')
-    parser_distro_update.add_argument('distro_name',
-            help='Name of the distro.')
-    parser_distro_update.add_argument('version',
-            help='Version number or "latest".')
+    parser_distro_update = subparsers.add_parser(
+            'distro:update', help='distro:update help')
+    add_catalog_arg(parser_distro_update)
+    add_bundle_arg(parser_distro_update)
+    add_version_arg(parser_distro_update)
+    add_distro_arg(parser_distro_update)
     parser_distro_update.set_defaults(func=distro_update)
 
     # distro:delete
-    parser_distro_delete = subparsers.add_parser('distro:delete', help='distro:delete help')
-    parser_distro_delete.add_argument('-c', '--catalog_path', default='.',
-            help='Catalog path. Defaults to "."')
-    parser_distro_delete.add_argument('bundle_name',
-            help='Name of the bundle. Must exist in the catalog.')
-    parser_distro_delete.add_argument('distro_name',
-            help='Name of the distro.')
+    parser_distro_delete = subparsers.add_parser(
+            'distro:delete', help='distro:delete help')
+    add_catalog_arg(parser_distro_delete)
+    add_bundle_arg(parser_distro_delete)
+    add_distro_arg(parser_distro_delete)
     parser_distro_delete.set_defaults(func=distro_delete)
 
     args = parser.parse_args()
