@@ -26,13 +26,12 @@ DEFAULT_CONFIG_PATH='~/.zinc'
 
 def load_config(path):
 
-    # if it's the default config path and it doesn't exist, just return and
-    # empty config
-
     path = canonical_path(path)
     is_default = path == canonical_path(DEFAULT_CONFIG_PATH)
     exists = os.path.exists(path)
 
+    # if it's the default config path and it doesn't exist, just return an
+    # empty config
     if is_default and not exists:
         return ZincClientConfig()
 
