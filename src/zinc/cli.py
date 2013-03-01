@@ -147,9 +147,9 @@ def cmd_distro_update(args, config):
             distro_name, bundle_name, bundle_version)
 
 def cmd_distro_delete(args, config):
-    catalog = ZincCatalog(args.catalog)
-    bundle_name = args.bundle_name
-    distro_name = args.distro_name
+    catalog = catalog_connect(args.catalog)
+    bundle_name = args.bundle
+    distro_name = args.distro
     catalog.delete_distribution(distro_name, bundle_name)
 
 ## TODO: replace this
