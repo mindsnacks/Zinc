@@ -132,9 +132,9 @@ def cmd_bundle_delete(args, confg):
             catalog.delete_bundle_version(bundle_name, int(v))
 
 def cmd_distro_update(args, config):
-    catalog = ZincCatalog(args.catalog)
-    bundle_name = args.bundle_name
-    distro_name = args.distro_name
+    catalog = catalog_connect(args.catalog)
+    bundle_name = args.bundle
+    distro_name = args.distro
     bundle_version_arg = args.version
     if bundle_version_arg == "latest":
         bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
