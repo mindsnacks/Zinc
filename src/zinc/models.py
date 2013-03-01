@@ -1,5 +1,4 @@
 import os
-from os.path import join as pjoin
 import tarfile
 import json
 import logging

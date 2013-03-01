@@ -66,7 +66,7 @@ class CatalogCoordinator(object):
     def __init__(self, url=None, storage=None, path_helper=None):
         assert url is not None
         assert self.validate_url(url)
-        assert storage is not None # TODO: replace
+        assert storage is not None
 
         self._url = url
         self._storage = storage
@@ -75,6 +75,7 @@ class CatalogCoordinator(object):
         self._after_init()
 
     def _after_init(self):
+        # TODO: remove?
         pass
 
     @property
@@ -156,21 +157,14 @@ def load_config(path):
 class ZincCatalog(object):
 
     def _reload(self):
-        #self._read_index_file()
-        ## TODO: check format, just assume 1 for now
         
+        ## TODO: check format, just assume 1 for now
         self.index = self._coordinator.read_index()
         if self.index.format != defaults['zinc_format']:
             raise Exception("Incompatible format %s" % (self.index.format))
 
         self._read_config_file()
         #self._loaded = True
-
-    #def __init__(self, path):
-    #    self._loaded = False
-    #    self.path = canonical_path(path)
-    #    self._manifests = {}
-    #    self._load()
 
     def __init__(self, coordinator=None):
         assert coordinator
