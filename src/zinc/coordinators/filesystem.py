@@ -40,8 +40,5 @@ class FilesystemCatalogCoordinator(CatalogCoordinator):
     def write_manifest(self, manifest, gzip=True):
         subpath = self._ph.path_for_manifest(manifest)
         bytes = manifest.to_bytes()
-        return self._storage.put(subpath, bytes)
-
-        pass
-        
+        self._storage.put(subpath, bytes)
 
