@@ -5,10 +5,10 @@ import json
 import logging
 from shutil import copyfile
 
-from .utils import sha1_for_path, canonical_path, makedirs, mygzip
-from .defaults import defaults
-from .pathfilter import PathFilter
-from .errors import ZincError, ZincErrors
+from zinc.utils import *
+from zinc.defaults import defaults
+from zinc.pathfilter import PathFilter
+from zinc.errors import ZincError, ZincErrors
 
 class ZincModel(object):
 
@@ -64,7 +64,7 @@ class ZincIndex(ZincModel):
         index_file.close()
         if gzip:
             gzpath = path + '.gz'
-            mygzip(path, gzpath)
+            gzip_path(path, gzpath)
 
     def _get_or_create_bundle_info(self, bundle_name):
         if self.bundle_info_by_name.get(bundle_name) is None:

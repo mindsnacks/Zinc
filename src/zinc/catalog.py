@@ -229,7 +229,7 @@ class ZincCatalog(object):
         # threshhold
 
         makedirs(os.path.dirname(dst_path))
-        mygzip(src_path, dst_path_gz)
+        gzip_path(src_path, dst_path_gz)
         src_size = os.path.getsize(src_path)
         dst_gz_size = os.path.getsize(dst_path_gz)
         if src_size > 0 and float(dst_gz_size) / src_size <= self.config.gzip_threshhold:

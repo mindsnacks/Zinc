@@ -38,7 +38,7 @@ def makedirs(path):
         else:
             raise e
 
-def mygzip(src_path, dst_path):
+def gzip_path(src_path, dst_path):
     """Convenience method for gzipping a file."""
     f_in = open(src_path, 'rb')
     f_out = gzip.open(dst_path, 'wb')
@@ -46,7 +46,7 @@ def mygzip(src_path, dst_path):
     f_out.close()
     f_in.close()
 
-def gunzip(src_path, dst_path):
+def gunzip_path(src_path, dst_path):
     """Convenience method for un-gzipping a file."""
     f_in = gzip.open(src_path, 'rb')
     f_out = open(dst_path, 'wb')
