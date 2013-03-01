@@ -5,6 +5,8 @@ from shutil import copyfile
 from zinc.utils import *
 from zinc.helpers import *
 
+## TODO: this is broken and needs to be tested too
+
 class ZincBundleCloneTask(object):
 
     def __init__(self, 
@@ -51,7 +53,7 @@ class ZincBundleCloneTask(object):
         all_files = manifest.get_all_files(flavor=self.flavor)
 
         makedirs(self.output_path)
-        bundle_id = bundle_id_for_catalog_id_and_bundle_name(
+        bundle_id = make_bundle_id(
                 self.catalog.id, self.bundle_name)
         bundle_descriptor = make_bundle_descriptor(
                 bundle_id, self.version, flavor=self.flavor)

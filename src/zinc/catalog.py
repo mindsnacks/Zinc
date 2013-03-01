@@ -221,6 +221,9 @@ class ZincCatalog(object):
         self._coordinator.write_manifest(manifest, True)
 
     def _import_path(self, src_path):
+
+        ## TODO: !!!: rewrite this next
+
         src_path_sha = sha1_for_path(src_path)
 
         # TODO: fix

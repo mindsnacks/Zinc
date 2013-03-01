@@ -6,8 +6,8 @@ from os.path import join as pjoin
 from zinc import *
 from zinc.utils import *
 from zinc.client import ZincClientConfig
-
 from zinc.catalog import catalog_connect
+from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
 DEFAULT_CONFIG_PATH='~/.zinc'
 
@@ -96,11 +96,11 @@ def cmd_bundle_update(args, config):
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 def cmd_bundle_clone(args, config):
-    catalog = ZincCatalog(args.catalog)
 
+    catalog = catalog_connect(args.catalog)
     task = ZincBundleCloneTask()
     task.catalog = catalog
-    task.bundle_name = args.bundle_name
+    task.bundle_name = args.bundle
     task.version = int(args.version)
     task.flavor = args.flavor
     task.output_path = args.path
@@ -108,9 +108,9 @@ def cmd_bundle_clone(args, config):
     task.run()
 
 def cmd_bundle_delete(args, confg):
-    bundle_name = args.bundle_name
+    bundle_name = args.bundle
     version = args.version
-    catalog = ZincCatalog(args.catalog)
+    catalog = catalog_connect(args.catalog)
     dry_run = args.dry_run
     if version == 'all':
         versions_to_delete = catalog.versions_for_bundle(bundle_name)
