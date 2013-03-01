@@ -155,7 +155,7 @@ class ZincCatalog(object):
     #    self._manifests = {}
     #    self._load()
 
-    def __init__(self, coordinator=None, storage=None):
+    def __init__(self, coordinator=None):
         assert coordinator
 
         self._coordinator = coordinator
@@ -181,27 +181,6 @@ class ZincCatalog(object):
     #def is_loaded(self):
     #    return self._loaded
 
-    #def _files_dir(self):
-    #    files_path = pjoin(self.path, "objects")
-    #    if not os.path.exists(files_path):
-    #        makedirs(files_path)
-    #    return files_path
-
-    #def _manifests_relpath(self):
-    #    return "manifests"
-
-    #def _archives_dir(self):
-    #    archives_path = pjoin(self.path, "archives")
-    #    if not os.path.exists(archives_path):
-    #        makedirs(archives_path)
-    #    return archives_path
-
-    #def _read_index_file(self):
-    #    index_path = pjoin(self.path, defaults['catalog_index_name'])
-    #    self.index = load_index(index_path)
-    #    if self.index.format != defaults['zinc_format']:
-    #        raise Exception("Incompatible format %s" % (self.index.format))
-
     def _read_config_file(self):
         logging.warn('reimplement config loading')
         self.config = ZincCatalogConfig()
@@ -211,22 +190,6 @@ class ZincCatalog(object):
     def _write_index_file(self):
         index_path = pjoin(self.path, defaults['catalog_index_name'])
         self.index.write(index_path, True)
-
-    #def _relpath_for_manifest_for_bundle_version(self, bundle_name, version):
-    #    return self._ph.path_for_manifest_for_bundle_version(bundle_name, version)
-
-    #def _path_for_archive_for_bundle_version(self, bundle_name, version,
-    #        flavor=None):
-    #    if flavor is None:
-    #        archive_filename = "%s-%d.tar" % (bundle_name, version)
-    #    else:
-    #        archive_filename = "%s-%d~%s.tar" % (bundle_name, version, flavor)
-    #    archive_path = pjoin(self._archives_dir(), archive_filename)
-    #    return archive_path
-
-    #def _path_for_manifest(self, manifest):
-    #    return self._ph.path_for_manifest_for_bundle_version(
-    #            manifest.bundle_name, manifest.version)
 
     def manifest_for_bundle(self, bundle_name, version=None):
         all_versions = self.index.versions_for_bundle(bundle_name)
@@ -245,19 +208,8 @@ class ZincCatalog(object):
             bundle_version_from_bundle_descriptor(bundle_descriptor))
             
     def _write_manifest(self, manifest):
-        #path = self._path_for_manifest(manifest)
-        #manifest.write(self._path_for_manifest(manifest), True)
-
         self._coordinator.write_manifest(manifest, True)
 
-#    def _path_for_file_with_sha(self, sha, ext=None):
-#
-#        subdir = pjoin(self._files_dir(), sha[0:2], sha[2:4])
-#        file = sha
-#        if ext is not None:
-#            file = file + '.' + ext
-#        return pjoin(subdir, file)
-    
     def _import_path(self, src_path):
         src_path_sha = sha1_for_path(src_path)
 
