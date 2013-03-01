@@ -1,4 +1,10 @@
 import ConfigParser
+from urlparse import urlparse
+import requests
+import logging
+
+from .defaults import defaults
+from .models import ZincIndex
 
 class ZincClientConfig(object):
 
@@ -20,6 +26,5 @@ class ZincClientConfig(object):
                 bookmarks=bookmarks)
 
         return zincConfig
-
 
 
