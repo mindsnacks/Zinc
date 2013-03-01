@@ -85,11 +85,23 @@ class CatalogCoordinator(object):
         raise Exception("Must be overridden by subclasses.")
 
     def read_index(self):
-        raise Exception("Must be overridden by subclasses.")
+        path = self._ph.path_for_index()
+        bytes = self._storage.get(path)
+        return ZincIndex.from_bytes(bytes)
 
-    def save_index(self, index):
-        raise Exception("Must be overridden by subclasses.")
+    def write_index(self, index):
+        index.write(self._index_path(), True)
 
+    def write_manifest(self, manifest, raw=True, gzip=True):
+        subpath = self._ph.path_for_manifest(manifest)
+        bytes = manifest.to_bytes()
+        if raw:
+            self._storage.put(subpath, bytes)
+        if gzip:
+            self._storage.put(subpath+'.gz', gzip_bytes(bytes))
+
+    def get_path(self, rel_path):
+        return self._storage.get(rel_path)
 
 class StorageBackend(object):
 
@@ -199,7 +211,7 @@ class ZincCatalog(object):
             return None # throw exception?
         manifest_path = self._ph.path_for_manifest_for_bundle_version(
                 bundle_name, version)
-        data = self._coordinator.load_path(manifest_path)
+        data = self._coordinator.get_path(manifest_path)
         return ZincManifest.from_bytes(data)
 
     def manifest_for_bundle_descriptor(self, bundle_descriptor):

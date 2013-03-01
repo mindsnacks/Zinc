@@ -10,6 +10,7 @@ This module provides utility functions that are used within Zinc.
 
 import hashlib
 import gzip
+import zlib
 import os
 
 def sha1_for_path(path):
@@ -53,4 +54,9 @@ def gunzip_path(src_path, dst_path):
     f_out.writelines(f_in)
     f_out.close()
     f_in.close()
+
+def gzip_bytes(bytes):
+    """Convenience method for gzipping bytes in memory."""
+    return zlib.compress(bytes)
+
 
