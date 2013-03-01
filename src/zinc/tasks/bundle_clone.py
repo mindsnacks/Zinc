@@ -53,7 +53,7 @@ class ZincBundleCloneTask(object):
         makedirs(self.output_path)
         bundle_id = bundle_id_for_catalog_id_and_bundle_name(
                 self.catalog.id, self.bundle_name)
-        bundle_descriptor = bundle_descriptor_for_bundle_id_and_version(
+        bundle_descriptor = make_bundle_descriptor(
                 bundle_id, self.version, flavor=self.flavor)
         root_dir = os.path.join(self.output_path, bundle_descriptor)
 

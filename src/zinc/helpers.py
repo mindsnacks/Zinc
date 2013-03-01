@@ -1,6 +1,18 @@
 
 ### Utils
 
+def make_bundle_id(catalog_id, bundle_name):
+    assert catalog_id
+    assert bundle_name
+    return '%s.%s' % (catalog_id, bundle_name)
+
+def make_bundle_descriptor(bundle_id, version, flavor=None):
+    assert bundle_id
+    assert version
+    descriptor = '%s-%d' % (bundle_id, version)
+    if flavor is not None: descriptor += '~%s' % (flavor)
+    return descriptor
+
 def _bundle_descriptor_without_flavor(bundle_descriptor):
     index = bundle_descriptor.rfind('~')
     if index == -1:
@@ -18,11 +30,4 @@ def bundle_version_from_bundle_descriptor(bundle_descriptor):
     version = int(version_flavor.split('~')[0])
     return version
 
-def bundle_id_for_catalog_id_and_bundle_name(catalog_id, bundle_name):
-    return '%s.%s' % (catalog_id, bundle_name)
-
-def bundle_descriptor_for_bundle_id_and_version(bundle_id, version, flavor=None):
-    descriptor = '%s-%d' % (bundle_id, version)
-    if flavor is not None: descriptor += '~%s' % (flavor)
-    return descriptor
 
