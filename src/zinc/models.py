@@ -40,8 +40,10 @@ class ZincIndex(ZincModel):
         self.bundle_info_by_name = dict()
 
     def to_dict(self):
-       return {
-				'id' : self.id,
+        if self.id is None:
+            raise ValueError("catalog id is None") # TODO: better exception?
+        return {
+               'id' : self.id,
                 'bundles' : self.bundle_info_by_name,
                 'format' : self.format,
                 }
@@ -53,18 +55,6 @@ class ZincIndex(ZincModel):
         index.format = d['format']
         index.bundle_info_by_name = d['bundles']
         return index
-
-    #TODO: fix
-    def write(self, path, gzip=False):
-        if self.id is None:
-            raise ValueError("catalog id is None") # TODO: better exception?
-        index_file = open(path, 'w')
-        dict = self.to_dict()
-        index_file.write(json.dumps(dict))
-        index_file.close()
-        if gzip:
-            gzpath = path + '.gz'
-            gzip_path(path, gzpath)
 
     def _get_or_create_bundle_info(self, bundle_name):
         if self.bundle_info_by_name.get(bundle_name) is None:

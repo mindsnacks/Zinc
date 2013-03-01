@@ -84,21 +84,26 @@ class CatalogCoordinator(object):
     def validate_url(self, url):
         raise Exception("Must be overridden by subclasses.")
 
+    def write(self, subpath, bytes, raw=True, gzip=True):
+        if raw:
+            self._storage.put(subpath, bytes)
+        if gzip:
+            self._storage.put(subpath+'.gz', gzip_bytes(bytes))
+
     def read_index(self):
         path = self._ph.path_for_index()
         bytes = self._storage.get(path)
         return ZincIndex.from_bytes(bytes)
 
-    def write_index(self, index):
-        index.write(self._index_path(), True)
+    def write_index(self, index, raw=True, gzip=True):
+        subpath = self._ph.path_for_index()
+        bytes = index.to_bytes()
+        self.write(subpath, bytes, raw=raw, gzip=gzip)
 
     def write_manifest(self, manifest, raw=True, gzip=True):
         subpath = self._ph.path_for_manifest(manifest)
         bytes = manifest.to_bytes()
-        if raw:
-            self._storage.put(subpath, bytes)
-        if gzip:
-            self._storage.put(subpath+'.gz', gzip_bytes(bytes))
+        self.write(subpath, bytes, raw=raw, gzip=gzip)
 
     def get_path(self, rel_path):
         return self._storage.get(rel_path)
@@ -200,8 +205,7 @@ class ZincCatalog(object):
         #self.config = load_config(config_path)
 
     def _write_index_file(self):
-        index_path = pjoin(self.path, defaults['catalog_index_name'])
-        self.index.write(index_path, True)
+        self._coordinator.write_index(self.index)
 
     def manifest_for_bundle(self, bundle_name, version=None):
         all_versions = self.index.versions_for_bundle(bundle_name)
@@ -446,7 +450,7 @@ def create_catalog_at_path(path, id):
     ZincCatalogConfig().write(config_path)
 
     index_path = pjoin(path, defaults['catalog_index_name'])
-    ZincIndex(id).write(index_path, True)
+    ZincIndex(id).write(index_path)
 
     # TODO: check exceptions?
 
