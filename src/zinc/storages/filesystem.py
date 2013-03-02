@@ -18,6 +18,14 @@ class FilesystemStorageBackend(StorageBackend):
             d = f.read()
         return d
 
+    def get_meta(self, subpath):
+        abs_path = self._abs_path(subpath)
+        if not os.path.exists(abs_path):
+            return None
+        meta = dict()
+        meta['size'] = os.path.getsize(abs_path)
+        return meta
+
     def put(self, subpath, bytes):
         abs_path = self._abs_path(subpath)
         makedirs(os.path.dirname(abs_path))

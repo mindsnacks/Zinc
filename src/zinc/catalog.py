@@ -1,11 +1,14 @@
 import json
 import logging
+import tempfile
 from urlparse import urlparse, urljoin
-from os.path import join as pjoin
+#from os.path import join as pjoin
 
 from zinc.utils import *
 from zinc.defaults import defaults
 from zinc.models import ZincIndex, ZincManifest
+
+VALID_FORMATS = ('raw', 'gz') # TODO: relocate this
 
 class ZincCatalogPathHelper(object):
 
@@ -35,7 +38,7 @@ class ZincCatalogPathHelper(object):
 
     def path_for_manifest_for_bundle_version(self, bundle_name, version):
         manifest_filename = "%s-%d.json" % (bundle_name, version)
-        manifest_path = pjoin(self.manifests_dir, manifest_filename)
+        manifest_path = os.path.join(self.manifests_dir, manifest_filename)
         return manifest_path
 
     def path_for_manifest(self, manifest):
@@ -43,11 +46,11 @@ class ZincCatalogPathHelper(object):
                 manifest.bundle_name, manifest.version)
 
     def path_for_file_with_sha(self, sha, ext=None):
-        subdir = pjoin(self.objects_dir, sha[0:2], sha[2:4])
+        subdir = os.path.join(self.objects_dir, sha[0:2], sha[2:4])
         file = sha
         if ext is not None:
             file = file + '.' + ext
-        return pjoin(subdir, file)
+        return os.path.join(subdir, file)
 
     def path_for_archive_for_bundle_version(
             self, bundle_name, version, flavor=None):
@@ -55,7 +58,7 @@ class ZincCatalogPathHelper(object):
             archive_filename = "%s-%d.tar" % (bundle_name, version)
         else:
             archive_filename = "%s-%d~%s.tar" % (bundle_name, version, flavor)
-        archive_path = pjoin(self.archives_dir, archive_filename)
+        archive_path = os.path.join(self.archives_dir, archive_filename)
         return archive_path
 
 
@@ -105,6 +108,26 @@ class CatalogCoordinator(object):
         subpath = self._ph.path_for_manifest(manifest)
         bytes = manifest.to_bytes()
         self.write(subpath, bytes, raw=raw, gzip=gzip)
+
+    def write_fileobj(self, sha, src_path, format='raw'):
+        if format not in VALID_FORMATS:
+            raise Exception("Invalid format '%s'." % (format))
+        ext = format if format != 'raw' else None
+        subpath = self._ph.path_for_file_with_sha(sha, ext)
+        with open(src_path) as src_file:
+            self.write(subpath, src_file.read(), raw=True, gzip=False)
+
+    def fileobj_exists(self, sha):
+        # first check for the uncompressed (non-gz) version
+        subpath = self._ph.path_for_file_with_sha(sha)
+        meta = self._storage.get_meta(subpath)
+        if meta is None:
+            # next check for the compressed (gz) version
+            subpath = self._ph.path_for_file_with_sha(sha, 'gz')
+            meta = self._storage.get_meta(subpath)
+        if meta is not None:
+            return (subpath, meta['size'])
+        return (None, None)
 
     def get_path(self, rel_path):
         return self._storage.get(rel_path)
@@ -222,40 +245,31 @@ class ZincCatalog(object):
 
     def _import_path(self, src_path):
 
-        ## TODO: !!!: rewrite this next
-
         src_path_sha = sha1_for_path(src_path)
 
-        # TODO: fix
-        dst_path = os.path.join(self.path, self._ph.path_for_file_with_sha(src_path_sha))
-        dst_path_gz = dst_path+'.gz'
+        existing_path, existing_size = self._coordinator.fileobj_exists(src_path_sha)
+        if existing_path is not None:
+            return (existing_path, existing_size)
 
-        makedirs(os.path.dirname(dst_path))
+        # gzip the file first, and see if it passes the compression threshhold
+        # TODO: this is stupid inefficient
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            src_path_gz = tmp_file.name
+            with open(src_path) as src_file:
+                tmp_file.write(gzip_bytes(src_file.read()))
 
-        # TODO: this is lame
-        if os.path.exists(dst_path):
-            return (dst_path, os.path.getsize(dst_path))
-        elif os.path.exists(dst_path_gz):
-            return (dst_path_gz, os.path.getsize(dst_path_gz))
-
-        # gzip the file first, and see if it passes the compression
-        # threshhold
-
-        makedirs(os.path.dirname(dst_path))
-        gzip_path(src_path, dst_path_gz)
-        src_size = os.path.getsize(src_path)
-        dst_gz_size = os.path.getsize(dst_path_gz)
-        if src_size > 0 and float(dst_gz_size) / src_size <= self.config.gzip_threshhold:
-            final_dst_path = dst_path_gz
-            final_dst_size = dst_gz_size
-        else:
-            final_dst_path = dst_path
-            final_dst_size = src_size
-            copyfile(src_path, dst_path)
-            os.remove(dst_path_gz)
-
-        logging.info("Imported %s --> %s" % (src_path, final_dst_path))
-        return (final_dst_path, final_dst_size)
+            src_size = os.path.getsize(src_path)
+            src_gz_size = os.path.getsize(src_path_gz)
+            if src_size > 0 and float(src_gz_size) / src_size <= self.config.gzip_threshhold:
+                final_src_path, final_src_size = src_path_gz, src_gz_size
+            else:
+                final_src_path, final_src_size = src_path, src_size
+    
+            imported_path = self._coordinator.write_fileobj(
+                    src_path_sha, final_src_path)
+    
+        logging.info("Imported %s --> %s" % (src_path, imported_path))
+        return (final_src_path, final_src_size)
         
     def bundle_descriptors(self):
         bundle_descriptors = []
@@ -387,10 +401,10 @@ class ZincCatalog(object):
         self.save()
 
     def save(self):
-        #self._write_manifests()
         self._write_index_file()
 
     def path_in_catalog(self, path):
+        # TODO: remove this
         return os.path.join(self.path, path)
 
 #######################################
@@ -443,10 +457,10 @@ def create_catalog_at_path(path, id):
         else:
             raise e
 
-    config_path = pjoin(path, defaults['catalog_config_name'])
+    config_path = os.path.join(path, defaults['catalog_config_name'])
     ZincCatalogConfig().write(config_path)
 
-    index_path = pjoin(path, defaults['catalog_index_name'])
+    index_path = os.path.join(path, defaults['catalog_index_name'])
     ZincIndex(id).write(index_path)
 
     # TODO: check exceptions?
