@@ -104,9 +104,6 @@ class ZincBundleUpdateTask(object):
                         ZincCatalogPathHelper().path_for_file_with_sha(
                             sha, ext=ext))
 
-                #TODO: fix
-                makedirs(os.path.dirname(catalog_path))
-
                 member_name = os.path.basename(catalog_path)
 
                 if master_tar is not None:
