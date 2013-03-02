@@ -336,7 +336,8 @@ class ZincCatalog(object):
 #            # TODO: better exception
 #            # TODO: wrap in decorator?
 #
-        for (bundle_name, bundle_info) in self.index.bundle_info_by_name.iteritems():
+        # TODO: fix private ref to _bundle_info_by_name
+        for (bundle_name, bundle_info) in self.index._bundle_info_by_name.iteritems():
             for version in bundle_info['versions']:
                 manifest = self.manifest_for_bundle(bundle_name, version)
                 if manifest is None:
@@ -374,7 +375,7 @@ class ZincCatalog(object):
         return self.index.versions_for_bundle(bundle_name)
 
     def bundle_names(self):
-        return self.index.bundle_info_by_name.keys()
+        return self.index.bundle_names()
 
     def create_bundle_version(self, bundle_name, src_dir, 
             flavor_spec=None, force=False, skip_master_archive=False):

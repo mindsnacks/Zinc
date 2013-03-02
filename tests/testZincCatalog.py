@@ -195,7 +195,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog.create_bundle_version("meep", self.scratch_dir)
         
         # remove the 'next_version' key
-        del catalog.index.bundle_info_by_name["meep"]["next_version"]
+        del catalog.index._bundle_info_by_name["meep"]["next_version"]
        
         # create v2
         f2 = create_random_file(self.scratch_dir)

@@ -36,14 +36,14 @@ class ZincIndex(ZincModel):
     def __init__(self, id=None):
         self.format = defaults['zinc_format']
         self.id = id
-        self.bundle_info_by_name = dict()
+        self._bundle_info_by_name = dict()
 
     def to_dict(self):
         if self.id is None:
             raise ValueError("catalog id is None") # TODO: better exception?
         return {
                'id' : self.id,
-                'bundles' : self.bundle_info_by_name,
+                'bundles' : self._bundle_info_by_name,
                 'format' : self.format,
                 }
 
@@ -52,17 +52,17 @@ class ZincIndex(ZincModel):
         index = cls()
         index.id = d['id']
         index.format = d['format']
-        index.bundle_info_by_name = d['bundles']
+        index._bundle_info_by_name = d['bundles']
         return index
 
     def _get_or_create_bundle_info(self, bundle_name):
-        if self.bundle_info_by_name.get(bundle_name) is None:
-            self.bundle_info_by_name[bundle_name] = {
+        if self._bundle_info_by_name.get(bundle_name) is None:
+            self._bundle_info_by_name[bundle_name] = {
                     'versions':[],
                     'distributions':{},
                     'next_version':1,
                     }
-        return self.bundle_info_by_name.get(bundle_name)
+        return self._bundle_info_by_name.get(bundle_name)
 
     def add_version_for_bundle(self, bundle_name, version):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
@@ -94,7 +94,7 @@ class ZincIndex(ZincModel):
        
     def delete_bundle_version(self, bundle_name, bundle_version):
         assert bundle_version == int(bundle_version)
-        bundle_info = self.bundle_info_by_name.get(bundle_name)
+        bundle_info = self._bundle_info_by_name.get(bundle_name)
         if bundle_info is None:
             raise Exception("Unknown bundle %s" % (bundle_name))
         for distro_name, distro_version in bundle_info['distributions'].iteritems():
@@ -105,12 +105,12 @@ class ZincIndex(ZincModel):
         if bundle_version in versions:
             versions.remove(bundle_version)
         if len(versions) == 0: # remove info if no more versions
-            del self.bundle_info_by_name[bundle_name]
+            del self._bundle_info_by_name[bundle_name]
         else:
             bundle_info['versions'] = versions
         
     def distributions_for_bundle(self, bundle_name):
-        bundle_info = self.bundle_info_by_name.get(bundle_name)
+        bundle_info = self._bundle_info_by_name.get(bundle_name)
         if bundle_info is None:
             raise ValueError("Unknown bundle %s" % (bundle_name))
         return bundle_info['distributions']
@@ -124,6 +124,9 @@ class ZincIndex(ZincModel):
             distros_by_version[version].append(distro)
         return distros_by_version
 
+    def bundle_names(self):
+        return self._bundle_info_by_name.keys()
+
     def version_for_bundle(self, bundle_name, distro):
         return self.distributions_for_bundle(bundle_name).get(distro)
 
@@ -134,11 +137,15 @@ class ZincIndex(ZincModel):
         bundle_info['distributions'][distribution_name] = bundle_version
 
     def delete_distribution(self, distribution_name, bundle_name):
-        bundle_info = self.bundle_info_by_name.get(bundle_name)
+        bundle_info = self._bundle_info_by_name.get(bundle_name)
         if bundle_name is None:
             raise ValueError("Unknown bundle %s" % (bundle_name))
         del bundle_info['distributions'][distribution_name]
 
+### ZincFileList #############################################################
+
+class ZincFileList(ZincModel):
+    pass
 
 ### ZincManifest #############################################################
 
