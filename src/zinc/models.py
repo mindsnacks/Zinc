@@ -162,7 +162,7 @@ class ZincManifest(ZincModel):
     def __init__(self, catalog_id, bundle_name, version=1):
         self._catalog_id = catalog_id
         self.bundle_name = bundle_name
-        self.version = int(version)
+        self._version = int(version)
         self._flavors = []
         self._files = dict()
 
@@ -179,6 +179,10 @@ class ZincManifest(ZincModel):
     @property
     def catalog_id(self):
         return self._catalog_id
+
+    @property
+    def version(self):
+        return self._version
 
     @property
     def files(self):
@@ -241,7 +245,7 @@ class ZincManifest(ZincModel):
         return {
                 'catalog' : self._catalog_id,
                 'bundle' : self.bundle_name,
-                'version' : self.version,
+                'version' : self._version,
                 'flavors' : self._flavors,
                 'files' : self._files,
                 }
@@ -261,7 +265,7 @@ class ZincManifest(ZincModel):
         return True
 
     def equals(self, other):
-        return self.version == other.version \
+        return self._version == other.version \
                 and self._catalog_id == other.catalog_id \
                 and self.bundle_name == other.bundle_name \
                 and self.files_are_equivalent(other) \
