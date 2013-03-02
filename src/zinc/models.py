@@ -35,7 +35,7 @@ class ZincIndex(ZincModel):
 
     def __init__(self, id=None):
         self._format = defaults['zinc_format']
-        self.id = id
+        self._id = id
         self._bundle_info_by_name = dict()
 
     def to_dict(self):
@@ -48,13 +48,17 @@ class ZincIndex(ZincModel):
                 }
 
     @property
+    def id(self):
+        return self._id
+
+    @property
     def format(self):
         return self._format
 
     @classmethod
     def from_dict(cls, d):
         index = cls()
-        index.id = d['id']
+        index._id = d['id']
         index._format = d['format']
         index._bundle_info_by_name = d['bundles']
         return index
