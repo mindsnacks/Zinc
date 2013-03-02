@@ -149,7 +149,7 @@ class ZincManifest(ZincModel):
         self.bundle_name = bundle_name
         self.version = int(version)
         self._flavors = []
-        self.files = dict()
+        self._files = dict()
 
     @classmethod
     def from_dict(cls, d):
@@ -157,29 +157,38 @@ class ZincManifest(ZincModel):
         bundle_name = d['bundle']
         version = int(d['version'])
         manifest = ZincManifest(catalog_id, bundle_name, version)
-        manifest.files = d['files']
+        manifest._files = d['files']
         manifest._flavors = d.get('flavors') or [] # to support legacy
         return manifest
 
+    @property
+    def files(self):
+        return self._files
+
+    @files.setter
+    def files(self, val):
+        self._files = val
+        self._determine_flavors_from_files()
+
     def add_file(self, path, sha):
-        self.files[path] = {'sha' : sha}
+        self._files[path] = {'sha' : sha}
 
     def sha_for_file(self, path):
-        return self.files.get(path).get('sha')
+        return self._files.get(path).get('sha')
 
     def add_format_for_file(self, path, format, size):
-        props = self.files[path]
+        props = self._files[path]
         formats = props.get('formats') or {}
         formats[format] = {'size' : size}
         props['formats'] = formats
 
     def formats_for_file(self, path):
-        props = self.files[path]
+        props = self._files[path]
         formats = props.get('formats')
         return formats
         
     def add_flavor_for_file(self, path, flavor):
-        props = self.files[path]
+        props = self._files[path]
         flavors = props.get('flavors') or []
         if not flavor in flavors:
             flavors.append(flavor)
@@ -189,7 +198,7 @@ class ZincManifest(ZincModel):
 
     #TODO: naming could be better
     def get_all_files(self, flavor=None):
-        all_files = self.files.keys()
+        all_files = self._files.keys()
         if flavor is None:
             return all_files
         else:
@@ -200,11 +209,11 @@ class ZincManifest(ZincModel):
         return self._flavors
 
     def flavors_for_file(self, path):
-        return self.files[path].get('flavors')
+        return self._files[path].get('flavors')
 
-    def determine_flavors_from_files(self):
+    def _determine_flavors_from_files(self):
         self._flavors = []
-        for path, info in self.files.items():
+        for path, info in self._files.items():
             for flavor in info.get('flavors', []):
                 if flavor not in self._flavors:
                     self._flavors.append(flavor)
@@ -215,19 +224,19 @@ class ZincManifest(ZincModel):
                 'bundle' : self.bundle_name,
                 'version' : self.version,
                 'flavors' : self._flavors,
-                'files' : self.files,
+                'files' : self._files,
                 }
 
     def files_are_equivalent(self, other):
         # check that the keys are all the same
-        if len(set(self.files.keys()) - set(other.files.keys())) != 0:
+        if len(set(self._files.keys()) - set(other._files.keys())) != 0:
             return False
-        if len(set(other.files.keys()) - set(self.files.keys())) != 0:
+        if len(set(other._files.keys()) - set(self._files.keys())) != 0:
             return False
         # if the keys are all the same, check the values
-        for (file, props) in self.files.items():
+        for (file, props) in self._files.items():
             sha = props.get('sha')
-            other_sha = other.files.get(file).get('sha')
+            other_sha = other._files.get(file).get('sha')
             if other_sha is None or sha != other_sha:
                 return False
         return True

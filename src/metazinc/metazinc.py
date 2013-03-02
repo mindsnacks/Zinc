@@ -75,7 +75,6 @@ def process_manifest(manifest):
 	zindex.add_version_for_bundle(bundle, next_version)
 
 	manifest.files = request.json['files']
-	manifest.determine_flavors_from_files()
 
 	# verify files
 	if not process_files(manifest):	
