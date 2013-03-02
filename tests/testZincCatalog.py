@@ -42,7 +42,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         index_path = os.path.join(self.catalog_dir, defaults['catalog_index_name'])
         index = ZincIndex.from_path(index_path)
-        index.format = 2
+        index._format = 2
         index.write(index_path)
         self.assertRaises(Exception, ZincCatalog, (self.catalog_dir))
 
