@@ -257,6 +257,7 @@ class ZincCatalog(object):
             src_path_gz = tmp_file.name
             with open(src_path) as src_file:
                 tmp_file.write(gzip_bytes(src_file.read()))
+            tmp_file.flush()
 
             src_size = os.path.getsize(src_path)
             src_gz_size = os.path.getsize(src_path_gz)
