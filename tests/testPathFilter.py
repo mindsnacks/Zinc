@@ -64,6 +64,8 @@ class TestPathFilterMatching(unittest.TestCase):
     def test_read_json(self):
         pf = PathFilter.from_rule_list(['+ a'])
         self.assertTrue(pf is not None)
+        pf = PathFilter.from_rule_list(['- a'])
+        self.assertTrue(pf is not None)
 
     def test_read_json_invalid(self):
         self.assertRaises(Exception, PathFilter.from_rule_list, ['? a'])
