@@ -1,6 +1,9 @@
-from tests import *
-from zinc import *
 import os.path
+
+from zinc.models import *
+from zinc.helpers import *
+
+from tests import *
 
 class ZincIndexTestCase(TempDirTestCase):
 
@@ -147,6 +150,20 @@ class ZincManifestTestCase(TempDirTestCase):
         self.assertEquals(len(flavors), 1)
         self.assertTrue('green' in flavors)
         self.assertTrue('green' in manifest.flavors)
+
+    def test_flavors_are_added_from_files(self):
+        # 1) create a FileList object with flavors
+        filelist = ZincFileList()
+        filelist.add_file('foo', 'ea502a7bbd407872e50b9328956277d0228272d4')
+        filelist.add_flavor_for_file('foo', 'green')
+
+        # 2) manifest.files = (that FileList)
+        manifest = ZincManifest('com.mindsnacks.test', 'meep', 1)
+        manifest.files = filelist
+
+        # 3) assert flavor in manifest.flavors
+        self.assertTrue('green' in manifest.flavors)
+
 
 class ZincFlavorSpecTestCase(unittest.TestCase):
 
