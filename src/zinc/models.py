@@ -155,9 +155,6 @@ class ZincIndex(ZincModel):
 
 class ZincFileList(ZincModel, UserDict.DictMixin):
 
-    #def __init__(self, filedict=None):
-    #    self._files = filedict or dict()
-
     def __init__(self):
         self._files = dict()
     
