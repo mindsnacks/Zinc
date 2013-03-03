@@ -214,20 +214,6 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
         else:
             return [f for f in all_files if flavor in self.flavors_for_file(f)]
 
-    def __eq__(self, other):
-        # check that the keys are all the same
-        if len(set(self._files.keys()) - set(other._files.keys())) != 0:
-            return False
-        if len(set(other._files.keys()) - set(self._files.keys())) != 0:
-            return False
-        # if the keys are all the same, check the values
-        for (file, props) in self._files.items():
-            sha = props.get('sha')
-            other_sha = other._files.get(file).get('sha')
-            if other_sha is None or sha != other_sha:
-                return False
-        return True
-
 
 ### ZincManifest #############################################################
 
