@@ -21,10 +21,11 @@ class ZincBundleUpdateTask(object):
 
         self.catalog = catalog
         self.bundle_name = bundle_name
-        self.src_dir = src_dir
         self.flavor_spec = flavor_spec
         self.force = force
         self.skip_master_archive = skip_master_archive
+
+        self._src_dir = src_dir
 
     @property
     def src_dir(self):
@@ -39,7 +40,7 @@ class ZincBundleUpdateTask(object):
     def _generate_manifest(self, version, flavor_spec=None):
         """Create a new temporary manifest."""
         new_manifest = ZincManifest(
-                self.catalog.index.id, self.bundle_name, version)
+                self.catalog.id, self.bundle_name, version)
 
         # Process all the paths and add them to the manifest
         for root, dirs, files in os.walk(self.src_dir):
