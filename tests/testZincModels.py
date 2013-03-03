@@ -129,7 +129,7 @@ class ZincManifestTestCase(TempDirTestCase):
         path = os.path.join(self.dir, "manifest.json")
         manifest1.write(path)
         manifest2 = ZincManifest.from_path(path)
-        assert manifest1.equals(manifest2)
+        self.assertEquals(manifest1, manifest2)
 
     def test_save_and_load_with_flavors(self):
         manifest1 = ZincManifest('com.mindsnacks.test', 'meep', 1)
@@ -137,7 +137,7 @@ class ZincManifestTestCase(TempDirTestCase):
         path = os.path.join(self.dir, "manifest.json")
         manifest1.write(path)
         manifest2 = ZincManifest.from_path(path)
-        assert manifest1.equals(manifest2)
+        self.assertEquals(manifest1, manifest2)
 
     def test_add_flavor(self):
         manifest = ZincManifest('com.mindsnacks.test', 'meep', 1)

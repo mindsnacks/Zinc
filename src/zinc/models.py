@@ -3,6 +3,7 @@ import tarfile
 import json
 import logging
 from shutil import copyfile
+import UserDict
 
 from zinc.utils import *
 from zinc.defaults import defaults
@@ -152,50 +153,34 @@ class ZincIndex(ZincModel):
 
 ### ZincFileList #############################################################
 
-class ZincFileList(ZincModel):
-    pass
+class ZincFileList(ZincModel, UserDict.DictMixin):
 
-### ZincManifest #############################################################
+    #def __init__(self, filedict=None):
+    #    self._files = filedict or dict()
 
-class ZincManifest(ZincModel):
-
-    def __init__(self, catalog_id, bundle_name, version=1):
-        self._catalog_id = catalog_id
-        self._bundle_name = bundle_name
-        self._version = int(version)
-        self._flavors = []
+    def __init__(self):
         self._files = dict()
-
+    
     @classmethod
     def from_dict(cls, d):
-        catalog_id = d['catalog']
-        bundle_name = d['bundle']
-        version = int(d['version'])
-        manifest = ZincManifest(catalog_id, bundle_name, version)
-        manifest._files = d['files']
-        manifest._flavors = d.get('flavors') or [] # to support legacy
-        return manifest
+        obj = cls()
+        obj._files = d
+        return obj
 
-    @property
-    def catalog_id(self):
-        return self._catalog_id
+    def __getitem__(self, key):
+        return self._files[key]
 
-    @property
-    def version(self):
-        return self._version
+    def __setitem__(self, key, item):
+        self._files[key] = item
 
-    @property
-    def bundle_name(self):
-        return self._bundle_name
+    def __delitem__(self, key):
+        del self._files[key]
 
-    @property
-    def files(self):
+    def keys(self):
+        return self._files.keys()
+    
+    def to_dict(self):
         return self._files
-
-    @files.setter
-    def files(self, val):
-        self._files = val
-        self._determine_flavors_from_files()
 
     def add_file(self, path, sha):
         self._files[path] = {'sha' : sha}
@@ -220,8 +205,9 @@ class ZincManifest(ZincModel):
         if not flavor in flavors:
             flavors.append(flavor)
         props['flavors'] = flavors
-        if flavor not in self._flavors:
-            self._flavors.append(flavor)
+
+    def flavors_for_file(self, path):
+        return self._files[path].get('flavors')
 
     #TODO: naming could be better
     def get_all_files(self, flavor=None):
@@ -231,12 +217,68 @@ class ZincManifest(ZincModel):
         else:
             return [f for f in all_files if flavor in self.flavors_for_file(f)]
 
+    def __eq__(self, other):
+        # check that the keys are all the same
+        if len(set(self._files.keys()) - set(other._files.keys())) != 0:
+            return False
+        if len(set(other._files.keys()) - set(self._files.keys())) != 0:
+            return False
+        # if the keys are all the same, check the values
+        for (file, props) in self._files.items():
+            sha = props.get('sha')
+            other_sha = other._files.get(file).get('sha')
+            if other_sha is None or sha != other_sha:
+                return False
+        return True
+
+
+### ZincManifest #############################################################
+
+class ZincManifest(ZincModel):
+
+    def __init__(self, catalog_id, bundle_name, version=1):
+        self._catalog_id = catalog_id
+        self._bundle_name = bundle_name
+        self._version = int(version)
+        self._flavors = []
+        self._files = ZincFileList()
+
+    @classmethod
+    def from_dict(cls, d):
+        catalog_id = d['catalog']
+        bundle_name = d['bundle']
+        version = int(d['version'])
+        manifest = ZincManifest(catalog_id, bundle_name, version)
+        manifest._files = ZincFileList.from_dict(d['files'])
+        manifest._flavors = d.get('flavors') or [] # to support legacy
+        return manifest
+
+    @property
+    def catalog_id(self):
+        return self._catalog_id
+
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def bundle_name(self):
+        return self._bundle_name
+
+    @property
+    def files(self):
+        return self._files
+
+    @files.setter
+    def files(self, val):
+        if isinstance(val, dict):
+            val = ZincFileList.from_dict(val)
+        self._files = val
+        self._determine_flavors_from_files()
+
     @property
     def flavors(self):
         return self._flavors
-
-    def flavors_for_file(self, path):
-        return self._files[path].get('flavors')
 
     def _determine_flavors_from_files(self):
         self._flavors = []
@@ -245,13 +287,37 @@ class ZincManifest(ZincModel):
                 if flavor not in self._flavors:
                     self._flavors.append(flavor)
 
+    def add_file(self, path, sha):
+        self._files.add_file(path, sha)
+
+    def sha_for_file(self, path):
+        return self._files.sha_for_file(path)
+
+    def add_format_for_file(self, path, format, size):
+        self._files.add_format_for_file(path, format, size)
+
+    def formats_for_file(self, path):
+        return self._files.formats_for_file(path)
+        
+    def add_flavor_for_file(self, path, flavor):
+        self._files.add_flavor_for_file(path, flavor)
+        if flavor not in self._flavors:
+            self._flavors.append(flavor)
+
+    def flavors_for_file(self, path):
+        return self._files.flavors_for_file(path)
+
+    #TODO: naming could be better
+    def get_all_files(self, flavor=None):
+        return self._files.get_all_files(flavor=flavor)
+
     def to_dict(self):
         return {
                 'catalog' : self._catalog_id,
                 'bundle' : self._bundle_name,
                 'version' : self._version,
                 'flavors' : self._flavors,
-                'files' : self._files,
+                'files' : self._files.to_dict(),
                 }
 
     def files_are_equivalent(self, other):
@@ -268,11 +334,11 @@ class ZincManifest(ZincModel):
                 return False
         return True
 
-    def equals(self, other):
+    def __eq__(self, other):
         return self._version == other.version \
                 and self._catalog_id == other.catalog_id \
                 and self._bundle_name == other.bundle_name \
-                and self.files_are_equivalent(other) \
+                and self.files == other.files \
                 and set(self.flavors) == set(other.flavors)
 
 
