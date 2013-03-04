@@ -127,6 +127,8 @@ class ZincBundleUpdateTask(object):
                             self.bundle_name, manifest.version, flavor))
                 # TODO: remove copyfile
                 shutil.copyfile(tmp_tar_path, catalog_tar_path)
+                # TODO: remove remove
+                os.remove(tmp_tar_path)
 
     def run(self):
 
