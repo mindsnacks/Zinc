@@ -27,7 +27,8 @@ def build_archive(catalog_coordinator, manifest, flavor=None):
             format, format_info = manifest.get_format_info_for_file(f)
             sha = manifest.sha_for_file(f)
             ext = file_extension_for_format(format)
-            
+           
+            # TODO: remove StringIO
             file_data = StringIO.StringIO(
                     catalog_coordinator.get_fileobj(sha, ext=ext))
 
