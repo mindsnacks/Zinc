@@ -1,8 +1,7 @@
 import json
 import logging
 import tempfile
-from urlparse import urlparse, urljoin
-#from os.path import join as pjoin
+from urlparse import urlparse
 
 from zinc.utils import *
 from zinc.helpers import *
