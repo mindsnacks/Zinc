@@ -55,9 +55,15 @@ class ZincCatalogPathHelper(object):
             file = file + '.' + ext
         return os.path.join(subdir, file)
 
+    def archive_name(self, bundle_name, version, flavor=None):
+        if flavor is None:
+            return "%s-%d.tar" % (bundle_name, version)
+        else:
+            return "%s-%d~%s.tar" % (bundle_name, version, flavor)
+
     def path_for_archive_for_bundle_version(
             self, bundle_name, version, flavor=None):
-        archive_filename = archive_name(bundle_name, version, flavor=flavor)
+        archive_filename = self.archive_name(bundle_name, version, flavor=flavor)
         archive_path = os.path.join(self.archives_dir, archive_filename)
         return archive_path
 

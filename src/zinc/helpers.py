@@ -30,12 +30,6 @@ def bundle_version_from_bundle_descriptor(bundle_descriptor):
     version = int(version_flavor.split('~')[0])
     return version
 
-def archive_name(bundle_name, version, flavor=None):
-    if flavor is None:
-        return "%s-%d.tar" % (bundle_name, version)
-    else:
-        return "%s-%d~%s.tar" % (bundle_name, version, flavor)
-
 def file_extension_for_format(format_name):
     if format_name == 'raw': return None
     return format_name

@@ -15,7 +15,7 @@ IGNORE = ['.DS_Store']
 
 def build_archive(catalog_coordinator, manifest, flavor=None):
 
-    archive_filename = archive_name(
+    archive_filename = catalog_coordinator.path_helper.archive_name(
             manifest.bundle_name, manifest.version, flavor=flavor)
     archive_path = os.path.join(
             tempfile.mkdtemp(), archive_filename)
