@@ -11,7 +11,6 @@ from zinc.models import ZincIndex, ZincManifest
 # tmp?
 from StringIO import StringIO 
 import tarfile
-import shutil
 
 VALID_FORMATS = ('raw', 'gz') # TODO: relocate this
 
@@ -191,6 +190,13 @@ class CatalogCoordinator(object):
 
     def get_path(self, rel_path):
         return self._storage.get(rel_path).read()
+
+    def write_archive(self, bundle_name, version, src_path, flavor=None):
+        subpath = self._ph.path_for_archive_for_bundle_version(
+                bundle_name, version, flavor=flavor)
+        with open(src_path, 'r') as src_file:
+            self._storage.put(subpath, src_file)
+        return subpath
 
 ################################################################################
 
@@ -541,13 +547,11 @@ class ZincCatalog(object):
             for flavor in archive_flavors:
                 tmp_tar_path = build_archive(
                         self._coordinator, new_manifest, flavor=flavor)
-                # TODO: remove call to path_in_catalog
-                catalog_tar_path = self.path_in_catalog(
-                        ZincCatalogPathHelper().path_for_archive_for_bundle_version(
-                            bundle_name, new_manifest.version, flavor))
-                # TODO: remove copyfile
-                shutil.copyfile(tmp_tar_path, catalog_tar_path)
-                # TODO: remove remove
+                self._coordinator.write_archive(
+                        bundle_name, new_manifest.version, 
+                        tmp_tar_path, flavor=flavor)
+               
+                # TODO: remove remove?
                 os.remove(tmp_tar_path)
 
         ## write manifest
@@ -575,9 +579,6 @@ class ZincCatalog(object):
     def save(self):
         self._write_index_file()
 
-    def path_in_catalog(self, path):
-        # TODO: remove this
-        return os.path.join(self.path, path)
 
 #######################################
 
