@@ -36,8 +36,11 @@ class ZincCatalogPathHelper(object):
     def path_for_index(self):
         return defaults['catalog_index_name']
 
+    def manifest_name(self, bundle_name, version):
+        return "%s-%d.json" % (bundle_name, version)
+
     def path_for_manifest_for_bundle_version(self, bundle_name, version):
-        manifest_filename = "%s-%d.json" % (bundle_name, version)
+        manifest_filename = self.manifest_name(bundle_name, version)
         manifest_path = os.path.join(self.manifests_dir, manifest_filename)
         return manifest_path
 
