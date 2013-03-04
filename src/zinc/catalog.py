@@ -8,6 +8,8 @@ from zinc.helpers import *
 from zinc.defaults import defaults
 from zinc.models import ZincIndex, ZincManifest
 
+from StringIO import StringIO # tmp?
+
 VALID_FORMATS = ('raw', 'gz') # TODO: relocate this
 
 class ZincCatalogPathHelper(object):
@@ -157,6 +159,13 @@ class StorageBackend(object):
     @property
     def url(self):
         return self._url
+
+    def puts(self, subpath, bytes):
+        """Write string 'bytes' to subpath."""
+        fileobj = StringIO(bytes)
+        self.put(subpath, fileobj)
+
+    ## Methods to override
     
     def get(self, subpath):
         """Return file-like object at subpath."""
@@ -171,10 +180,6 @@ class StorageBackend(object):
         """
         raise Exception("Must be overridden by subclasses.")
 
-    def puts(self, subpath, bytes):
-        """Write string 'bytes' to subpath."""
-        raise Exception("Must be overridden by subclasses.")
-    
     def put(self, subpath, fileobj):
         """Write data from file-like object 'fileobj' to subpath."""
         raise Exception("Must be overridden by subclasses.")

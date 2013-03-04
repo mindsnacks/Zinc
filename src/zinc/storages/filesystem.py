@@ -1,6 +1,5 @@
 import os
 from urlparse import urlparse
-from StringIO import StringIO
 
 from zinc.catalog import StorageBackend
 from zinc.utils import *
@@ -25,10 +24,6 @@ class FilesystemStorageBackend(StorageBackend):
         meta = dict()
         meta['size'] = os.path.getsize(abs_path)
         return meta
-
-    def puts(self, subpath, bytes):
-        fileobj = StringIO(bytes)
-        self.put(subpath, fileobj)
 
     def put(self, subpath, fileobj):
         abs_path = self._abs_path(subpath)
