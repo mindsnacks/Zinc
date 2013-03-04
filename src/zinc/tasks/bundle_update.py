@@ -2,7 +2,6 @@ import os.path
 import tarfile
 import tempfile
 #tmp
-import StringIO
 import shutil
 
 from zinc.utils import *
@@ -28,15 +27,13 @@ def build_archive(catalog_coordinator, manifest, flavor=None):
             sha = manifest.sha_for_file(f)
             ext = file_extension_for_format(format)
            
-            # TODO: remove StringIO
-            file_data = StringIO.StringIO(
-                    catalog_coordinator.get_fileobj(sha, ext=ext))
+            fileobj = catalog_coordinator.get_file(sha, ext=ext)
 
             tarinfo = tar.tarinfo()
             tarinfo.name = filename_with_ext(sha, ext)
             tarinfo.size = format_info['size']
             
-            tar.addfile(tarinfo, file_data)
+            tar.addfile(tarinfo, fileobj)
 
     return archive_path
     

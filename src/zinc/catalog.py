@@ -100,7 +100,7 @@ class CatalogCoordinator(object):
     def validate_url(self, url):
         raise Exception("Must be overridden by subclasses.")
 
-    def write(self, subpath, bytes, raw=True, gzip=True):
+    def puts(self, subpath, bytes, raw=True, gzip=True):
         if raw:
             self._storage.puts(subpath, bytes)
         if gzip:
@@ -114,22 +114,23 @@ class CatalogCoordinator(object):
     def write_index(self, index, raw=True, gzip=True):
         subpath = self._ph.path_for_index()
         bytes = index.to_bytes()
-        self.write(subpath, bytes, raw=raw, gzip=gzip)
+        self.puts(subpath, bytes, raw=raw, gzip=gzip)
 
     def write_manifest(self, manifest, raw=True, gzip=True):
         subpath = self._ph.path_for_manifest(manifest)
         bytes = manifest.to_bytes()
-        self.write(subpath, bytes, raw=raw, gzip=gzip)
+        self.puts(subpath, bytes, raw=raw, gzip=gzip)
 
-    def write_fileobj(self, sha, src_path, format='raw'):
+    def write_file(self, sha, src_path, format='raw'):
         if format not in VALID_FORMATS:
             raise Exception("Invalid format '%s'." % (format))
         ext = format if format != 'raw' else None
         subpath = self._ph.path_for_file_with_sha(sha, ext)
-        with open(src_path) as src_file:
-            self.write(subpath, src_file.read(), raw=True, gzip=False)
+        with open(src_path, 'r') as src_file:
+            self._storage.put(subpath, src_file)
+        return subpath
 
-    def fileobj_exists(self, sha):
+    def file_exists(self, sha):
         # first check for the uncompressed (non-gz) version
         subpath = self._ph.path_for_file_with_sha(sha)
         meta = self._storage.get_meta(subpath)
@@ -141,9 +142,9 @@ class CatalogCoordinator(object):
             return (subpath, meta['size'])
         return (None, None)
 
-    def get_fileobj(self, sha, ext=None):
+    def get_file(self, sha, ext=None):
         subpath = self._ph.path_for_file_with_sha(sha, ext=ext)
-        return self.get_path(subpath)
+        return self._storage.get(subpath)
 
     def get_path(self, rel_path):
         return self._storage.get(rel_path).read()
@@ -285,7 +286,7 @@ class ZincCatalog(object):
 
         src_path_sha = sha1_for_path(src_path)
 
-        existing_path, existing_size = self._coordinator.fileobj_exists(src_path_sha)
+        existing_path, existing_size = self._coordinator.file_exists(src_path_sha)
         if existing_path is not None:
             return (existing_path, existing_size)
 
@@ -304,7 +305,7 @@ class ZincCatalog(object):
             else:
                 final_src_path, final_src_size = src_path, src_size
     
-            imported_path = self._coordinator.write_fileobj(
+            imported_path = self._coordinator.write_file(
                     src_path_sha, final_src_path)
     
         logging.info("Imported %s --> %s" % (src_path, imported_path))
