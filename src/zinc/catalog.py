@@ -68,7 +68,7 @@ class ZincCatalogPathHelper(object):
         return archive_path
 
 
-### 
+################################################################################
 
 class CatalogCoordinator(object):
 
@@ -100,9 +100,9 @@ class CatalogCoordinator(object):
 
     def write(self, subpath, bytes, raw=True, gzip=True):
         if raw:
-            self._storage.put(subpath, bytes)
+            self._storage.puts(subpath, bytes)
         if gzip:
-            self._storage.put(subpath+'.gz', gzip_bytes(bytes))
+            self._storage.puts(subpath+'.gz', gzip_bytes(bytes))
 
     def read_index(self):
         path = self._ph.path_for_index()
@@ -146,6 +146,8 @@ class CatalogCoordinator(object):
     def get_path(self, rel_path):
         return self._storage.get(rel_path).read()
 
+################################################################################
+
 class StorageBackend(object):
 
     def __init__(self, url=None, ):
@@ -156,9 +158,26 @@ class StorageBackend(object):
     def url(self):
         return self._url
     
-    def read(self, subpath):
+    def get(self, subpath):
+        """Return file-like object at subpath."""
+        raise Exception("Must be overridden by subclasses.")
+    
+    def get_meta(self, subpath):
+        """Return dictionary of metadata for item at subpath or None if subpath
+        does not exist.
+
+        Keys:
+           - size: the size of the file
+        """
         raise Exception("Must be overridden by subclasses.")
 
+    def puts(self, subpath, bytes):
+        """Write string 'bytes' to subpath."""
+        raise Exception("Must be overridden by subclasses.")
+    
+    def put(self, subpath, fileobj):
+        """Write data from file-like object 'fileobj' to subpath."""
+        raise Exception("Must be overridden by subclasses.")
 
 ### ZincCatalogConfig ###############################################################
 
