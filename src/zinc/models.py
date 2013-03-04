@@ -146,6 +146,7 @@ class ZincIndex(ZincModel):
             raise ValueError("Unknown bundle %s" % (bundle_name))
         del bundle_info['distributions'][distribution_name]
 
+
 ### ZincFileList #############################################################
 
 class ZincFileList(ZincModel, UserDict.DictMixin):

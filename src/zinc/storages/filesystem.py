@@ -14,9 +14,8 @@ class FilesystemStorageBackend(StorageBackend):
 
     def get(self, subpath):
         abs_path = self._abs_path(subpath)
-        with open(abs_path, 'r') as f:
-            d = f.read()
-        return d
+        f =  open(abs_path, 'r')
+        return f
 
     def get_meta(self, subpath):
         abs_path = self._abs_path(subpath)

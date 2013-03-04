@@ -94,7 +94,7 @@ class CatalogCoordinator(object):
 
     def read_index(self):
         path = self._ph.path_for_index()
-        bytes = self._storage.get(path)
+        bytes = self.get_path(path)
         return ZincIndex.from_bytes(bytes)
 
     def write_index(self, index, raw=True, gzip=True):
@@ -132,7 +132,7 @@ class CatalogCoordinator(object):
         return self.get_path(subpath)
 
     def get_path(self, rel_path):
-        return self._storage.get(rel_path)
+        return self._storage.get(rel_path).read()
 
 class StorageBackend(object):
 
@@ -475,5 +475,4 @@ def create_catalog_at_path(path, id):
     storage = FilesystemStorageBackend(url=url)
     coord = FilesystemCatalogCoordinator(url=url, storage=storage)
     return ZincCatalog(coordinator=coord)
-
 
