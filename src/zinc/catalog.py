@@ -83,6 +83,10 @@ class CatalogCoordinator(object):
     def url(self):
         return self._url
 
+    @property
+    def path_helper(self):
+        return self._ph
+
     def validate_url(self, url):
         raise Exception("Must be overridden by subclasses.")
 
