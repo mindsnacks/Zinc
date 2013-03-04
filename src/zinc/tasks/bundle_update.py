@@ -87,7 +87,7 @@ class ZincBundleUpdateTask(object):
         for file in manifest.files.keys():
             full_path = os.path.join(self.src_dir, file)
             
-            (catalog_path, size) = self.catalog._import_path(full_path)
+            (catalog_path, size) = self.catalog.import_path(full_path)
             if catalog_path[-3:] == '.gz':
                 format = 'gz'
             else:

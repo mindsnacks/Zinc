@@ -49,7 +49,7 @@ class ZincCatalogTestCase(TempDirTestCase):
     def test_catalog_import_file(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         f1 = create_random_file(self.scratch_dir)
-        catalog._import_path(f1)
+        catalog.import_path(f1)
 
     def test_bundle_names_with_no_bundles(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
