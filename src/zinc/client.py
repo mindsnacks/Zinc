@@ -1,10 +1,10 @@
 import ConfigParser
-from urlparse import urlparse
-import requests
 import logging
 
-from .defaults import defaults
-from .models import ZincIndex
+from zinc.defaults import defaults
+from zinc.models import ZincIndex
+
+from zinc.tasks.bundle_update import ZincBundleUpdateTask
 
 class ZincClientConfig(object):
 
@@ -27,4 +27,16 @@ class ZincClientConfig(object):
 
         return zincConfig
 
+def create_bundle_version(catalog, bundle_name, src_dir, 
+        flavor_spec=None, force=False, skip_master_archive=False):
+
+    # TODO: fix force
+
+    task = ZincBundleUpdateTask()
+    task.catalog = catalog
+    task.bundle_name = bundle_name
+    task.src_dir = src_dir
+    task.flavor_spec = flavor_spec
+    task.skip_master_archive = skip_master_archive
+    return task.run()
 

@@ -478,20 +478,6 @@ class ZincCatalog(object):
     def bundle_names(self):
         return self.index.bundle_names()
 
-    # TODO: remove
-    def create_bundle_version(self, bundle_name, src_dir, 
-            flavor_spec=None, force=False, skip_master_archive=False):
-
-        from zinc.tasks.bundle_update import ZincBundleUpdateTask
-
-        task = ZincBundleUpdateTask()
-        task.catalog = self
-        task.bundle_name = bundle_name
-        task.src_dir = src_dir
-        task.flavor_spec = flavor_spec
-        task.skip_master_archive = skip_master_archive
-        return task.run()
-
     def update_bundle(self, bundle_name, filelist, skip_master_archive=False):
 
         assert bundle_name
