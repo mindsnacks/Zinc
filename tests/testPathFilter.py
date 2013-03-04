@@ -1,5 +1,3 @@
-import os.path
-
 from zinc.pathfilter import PathFilter
 from zinc.pathfilter import Match
 

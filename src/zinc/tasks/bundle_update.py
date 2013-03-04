@@ -108,16 +108,16 @@ class ZincBundleUpdateTask(object):
 
             flavors = list()
 
-            # create master archive?
+            # should create master archive?
             if flavor_spec is None or not self.skip_master_archive:
                 # None is the appropriate flavor for the master archive
                 flavors.append(None) 
 
-            # create archives for flavors?
+            # should create archives for flavors?
             if flavor_spec is not None:
                 flavors.extend(flavor_spec.flavors)
 
-            # create appropriate archives
+            # now create appropriate archives
             for flavor in flavors:
                 tmp_tar_path = build_archive(
                         self.catalog._coordinator, manifest, flavor=flavor)

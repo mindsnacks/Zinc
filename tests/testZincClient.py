@@ -1,6 +1,6 @@
-from tests import *
-from zinc import *
 from zinc.client import ZincClientConfig
+
+from tests import *
 
 class TestZincClientConfigFromFile(unittest.TestCase):
 

@@ -9,44 +9,39 @@ class ZincIndexTestCase(TempDirTestCase):
 
     def test_versions_for_nonexistant_bundle(self):
         index = ZincIndex()
-        assert len(index.versions_for_bundle("meep")) == 0
+        self.assertTrue(len(index.versions_for_bundle("meep")) == 0)
 
     def test_add_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
-        assert 1 in index.versions_for_bundle("meep")
+        self.assertTrue(1 in index.versions_for_bundle("meep"))
 
     def test_add_duplicate_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.add_version_for_bundle("meep", 1)
-        assert 1 in index.versions_for_bundle("meep")
-        assert len(index.versions_for_bundle("meep")) == 1
+        self.assertTrue(1 in index.versions_for_bundle("meep"))
+        self.assertTrue(len(index.versions_for_bundle("meep")) == 1)
 
     def test_del_version_for_nonexistant_bundle(self):
         index = ZincIndex()
         self.assertRaises(Exception, index.delete_bundle_version, "meep", 1)
-        assert len(index.versions_for_bundle("meep")) == 0
+        self.assertTrue(len(index.versions_for_bundle("meep")) == 0)
 
     def test_del_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.add_version_for_bundle("meep", 2)
         index.delete_bundle_version("meep", 1)
-        assert len(index.versions_for_bundle("meep")) == 1
-        assert 2 in index.versions_for_bundle("meep")
+        self.assertTrue(len(index.versions_for_bundle("meep")) == 1)
+        self.assertTrue(2 in index.versions_for_bundle("meep"))
 
     def test_del_nonexistant_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.delete_bundle_version("meep", 2)
-        assert len(index.versions_for_bundle("meep")) == 1
-        assert 1 in index.versions_for_bundle("meep")
-
-    def test_del_nonexistant_version_for_bundle(self):
-        index = ZincIndex()
-        index.add_version_for_bundle("meep", 1)
-        index.delete_bundle_version("meep", 2)
+        self.assertTrue(len(index.versions_for_bundle("meep")) == 1)
+        self.assertTrue(1 in index.versions_for_bundle("meep"))
 
     def test_del_version_for_bundle_in_active_distro_raises(self):
         index = ZincIndex()
@@ -72,15 +67,15 @@ class ZincIndexTestCase(TempDirTestCase):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.update_distribution("live", "meep", 1)
-        assert len(index.distributions_for_bundle("meep")) == 1
+        self.assertTrue(len(index.distributions_for_bundle("meep")) == 1)
         index.delete_distribution("live", "meep")
-        assert len(index.distributions_for_bundle("meep")) == 0
+        self.assertTrue(len(index.distributions_for_bundle("meep")) == 0)
 
     def test_version_for_distro(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.update_distribution("live", "meep", 1)
-        assert index.version_for_bundle("meep", "live") == 1
+        self.assertTrue(index.version_for_bundle("meep", "live") == 1)
 
     def test_distributions_for_bundle_by_version_unknown_bundle(self):
         """Tests that an exception is raised if called with an unknown bundle name"""
@@ -161,7 +156,7 @@ class ZincManifestTestCase(TempDirTestCase):
         manifest = ZincManifest('com.mindsnacks.test', 'meep', 1)
         manifest.files = filelist
 
-        # 3) assert flavor in manifest.flavors
+        # 3) self.assertTrue(flavor in manifest.flavors
         self.assertTrue('green' in manifest.flavors)
 
 
@@ -199,7 +194,4 @@ class BundleDescriptorTestCase(unittest.TestCase):
         descriptor = 'com.foo.bar-1~green-ish'
         bundle_version = 1
         self.assertEquals(bundle_version, bundle_version_from_bundle_descriptor(descriptor))
-
-
-
 
