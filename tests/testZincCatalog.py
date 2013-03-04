@@ -1,4 +1,5 @@
 import os.path
+import logging
 
 from zinc.models import ZincIndex, ZincManifest, ZincFlavorSpec
 from zinc.catalog import ZincCatalog, create_catalog_at_path, ZincCatalogPathHelper
@@ -14,6 +15,8 @@ class ZincCatalogTestCase(TempDirTestCase):
         os.mkdir(self.catalog_dir)
         self.scratch_dir = os.path.join(self.dir, "scratch")
         os.mkdir(self.scratch_dir)
+        logging.info("catalog: %s" % self.catalog_dir)
+        logging.info("scratch: %s" % self.scratch_dir)
 
     def path_exists_in_catalog(self, subpath):
         fullpath = os.path.join(self.catalog_dir, subpath)

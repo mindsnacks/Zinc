@@ -8,9 +8,42 @@ from zinc.helpers import *
 from zinc.defaults import defaults
 from zinc.models import ZincIndex, ZincManifest
 
-from StringIO import StringIO # tmp?
+# tmp?
+from StringIO import StringIO 
+import tarfile
+import shutil
 
 VALID_FORMATS = ('raw', 'gz') # TODO: relocate this
+
+################# TEMP ######################
+
+def build_archive(catalog_coordinator, manifest, flavor=None):
+
+    archive_filename = catalog_coordinator.path_helper.archive_name(
+            manifest.bundle_name, manifest.version, flavor=flavor)
+    archive_path = os.path.join(
+            tempfile.mkdtemp(), archive_filename)
+   
+    files = manifest.get_all_files(flavor=flavor)
+    
+    with tarfile.open(archive_path, 'w') as tar:
+        for f in files:
+            format, format_info = manifest.get_format_info_for_file(f)
+            sha = manifest.sha_for_file(f)
+            ext = file_extension_for_format(format)
+           
+            fileobj = catalog_coordinator.get_file(sha, ext=ext)
+
+            tarinfo = tar.tarinfo()
+            tarinfo.name = filename_with_ext(sha, ext)
+            tarinfo.size = format_info['size']
+            
+            tar.addfile(tarinfo, fileobj)
+
+    return archive_path
+
+
+################################################################################
 
 class ZincCatalogPathHelper(object):
 
@@ -50,7 +83,14 @@ class ZincCatalogPathHelper(object):
         return self.path_for_manifest_for_bundle_version(
                 manifest.bundle_name, manifest.version)
 
-    def path_for_file_with_sha(self, sha, ext=None):
+    def path_for_file_with_sha(self, sha, ext=None, format=None):
+
+        if ext is not None and format is not None:
+            raise Exception(
+                    "Should specify either `ext` or `format`, not both.")
+
+        if format is not None:
+            ext = file_extension_for_format(format)
         subdir = os.path.join(self.objects_dir, sha[0:2], sha[2:4])
         file = sha
         if ext is not None:
@@ -121,7 +161,8 @@ class CatalogCoordinator(object):
         bytes = manifest.to_bytes()
         self.puts(subpath, bytes, raw=raw, gzip=gzip)
 
-    def write_file(self, sha, src_path, format='raw'):
+    def write_file(self, sha, src_path, format=None):
+        format = format or 'raw' # default to 'raw'
         if format not in VALID_FORMATS:
             raise Exception("Invalid format '%s'." % (format))
         ext = format if format != 'raw' else None
@@ -130,17 +171,19 @@ class CatalogCoordinator(object):
             self._storage.put(subpath, src_file)
         return subpath
 
-    def file_exists(self, sha):
-        # first check for the uncompressed (non-gz) version
-        subpath = self._ph.path_for_file_with_sha(sha)
-        meta = self._storage.get_meta(subpath)
-        if meta is None:
-            # next check for the compressed (gz) version
-            subpath = self._ph.path_for_file_with_sha(sha, 'gz')
+    def get_file_info(self, sha, preferred_formats=None):
+        if preferred_formats is None:
+            preferred_formats = defaults['catalog_preferred_formats']
+        for format in preferred_formats:
+            subpath = self._ph.path_for_file_with_sha(sha, format=format)
             meta = self._storage.get_meta(subpath)
-        if meta is not None:
-            return (subpath, meta['size'])
-        return (None, None)
+            if meta is not None:
+                return {
+                        'sha' : sha,
+                        'size' : meta['size'],
+                        'format' : format
+                        }
+        return None
 
     def get_file(self, sha, ext=None):
         subpath = self._ph.path_for_file_with_sha(sha, ext=ext)
@@ -264,6 +307,9 @@ class ZincCatalog(object):
         self._coordinator.write_index(self.index)
 
     def manifest_for_bundle(self, bundle_name, version=None):
+        """Get a manifest for bundle. If version is not specified, it gets the
+        manifest with the highest version number.
+        """
         all_versions = self.index.versions_for_bundle(bundle_name)
         if version is None and len(all_versions) > 0:
             version = all_versions[-1]
@@ -284,11 +330,11 @@ class ZincCatalog(object):
 
     def import_path(self, src_path):
 
-        src_path_sha = sha1_for_path(src_path)
+        sha = sha1_for_path(src_path)
 
-        existing_path, existing_size = self._coordinator.file_exists(src_path_sha)
-        if existing_path is not None:
-            return (existing_path, existing_size)
+        file_info = self._coordinator.get_file_info(sha)
+        if file_info is not None:
+            return file_info
 
         # gzip the file first, and see if it passes the compression threshhold
         # TODO: this is stupid inefficient
@@ -301,16 +347,26 @@ class ZincCatalog(object):
             src_size = os.path.getsize(src_path)
             src_gz_size = os.path.getsize(src_path_gz)
             if src_size > 0 and float(src_gz_size) / src_size <= self.config.gzip_threshhold:
-                final_src_path, final_src_size = src_path_gz, src_gz_size
+                final_src_path = src_path_gz 
+                final_src_size = src_gz_size
+                format = 'gz'
             else:
-                final_src_path, final_src_size = src_path, src_size
+                final_src_path = src_path
+                final_src_size = src_size
+                format = 'raw'
     
             imported_path = self._coordinator.write_file(
-                    src_path_sha, final_src_path)
-    
-        logging.info("Imported %s --> %s" % (src_path, imported_path))
-        return (final_src_path, final_src_size)
-        
+                    sha, final_src_path, format=format)
+
+        file_info = {
+                'sha' :  sha,
+                'size' : final_src_size,
+                'format' : format
+                }
+        logging.info("Imported %s --> %s" % (src_path, file_info))
+        logging.debug("Imported path: %s" % imported_path)
+        return  file_info
+
     def bundle_descriptors(self):
         bundle_descriptors = []
         for bundle_name in self.bundle_names():
@@ -416,6 +472,7 @@ class ZincCatalog(object):
     def bundle_names(self):
         return self.index.bundle_names()
 
+    # TODO: remove
     def create_bundle_version(self, bundle_name, src_dir, 
             flavor_spec=None, force=False, skip_master_archive=False):
 
@@ -428,6 +485,80 @@ class ZincCatalog(object):
         task.flavor_spec = flavor_spec
         task.skip_master_archive = skip_master_archive
         return task.run()
+
+    def update_bundle(self, bundle_name, filelist, skip_master_archive=False):
+
+        assert bundle_name
+        assert filelist
+
+        ## TODO: lock bundle
+
+
+        ## Check if it matches the newest version
+        ## TODO: optionally check it if matches any existing versions?
+
+        existing_manifest = self.manifest_for_bundle(bundle_name)
+        if existing_manifest is not None and existing_manifest.files == filelist:
+            logging.info("Already have that version")
+            return existing_manifest
+
+        ## verify all files in the filelist exist in the repo
+        
+        missing_shas = list()
+
+        for path in filelist.keys():
+            sha = filelist.sha_for_file(path)
+            file_info = self._coordinator.get_file_info(sha)
+            if file_info is None:
+                missing_shas.append(sha)
+
+        if len(missing_shas) > 0:
+            # TODO: better error
+            raise Exception("Missing shas: %s" % (missing_shas))
+
+        ## build manifest
+        
+        version = self.index.next_version_for_bundle(bundle_name)
+        new_manifest = ZincManifest(self.id, bundle_name, version)
+        new_manifest.files = filelist
+
+        ## Handle archives
+
+        should_create_archives = len(filelist) > 1
+        if should_create_archives:
+            
+            archive_flavors = list()
+
+            # should create master archive?
+            if len(new_manifest.flavors) == 0 or not skip_master_archive:
+                # None is the appropriate flavor for the master archive
+                archive_flavors.append(None) 
+
+            # should create archives for flavors?
+            if new_manifest.flavors is not None:
+                archive_flavors.extend(new_manifest.flavors)
+
+            for flavor in archive_flavors:
+                tmp_tar_path = build_archive(
+                        self._coordinator, new_manifest, flavor=flavor)
+                # TODO: remove call to path_in_catalog
+                catalog_tar_path = self.path_in_catalog(
+                        ZincCatalogPathHelper().path_for_archive_for_bundle_version(
+                            bundle_name, new_manifest.version, flavor))
+                # TODO: remove copyfile
+                shutil.copyfile(tmp_tar_path, catalog_tar_path)
+                # TODO: remove remove
+                os.remove(tmp_tar_path)
+
+        ## write manifest
+
+        self._write_manifest(new_manifest)
+        
+        ## update catalog index
+        
+        self.index.add_version_for_bundle(bundle_name, version)
+        self.save()
+
 
     def delete_bundle_version(self, bundle_name, version):
         self.index.delete_bundle_version(bundle_name, version)

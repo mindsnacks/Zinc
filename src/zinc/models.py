@@ -195,8 +195,7 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
     def get_format_info_for_file(self, path, preferred_formats=None):
 
         if preferred_formats is None:
-            preferred_formats = ['gz', 'raw']
-
+            preferred_formats = defaults['catalog_preferred_formats']
         for format in preferred_formats:
             format_info = self.formats_for_file(path).get(format)
             if format_info is not None:
