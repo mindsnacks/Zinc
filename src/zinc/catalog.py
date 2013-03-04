@@ -5,6 +5,7 @@ from urlparse import urlparse, urljoin
 #from os.path import join as pjoin
 
 from zinc.utils import *
+from zinc.helpers import *
 from zinc.defaults import defaults
 from zinc.models import ZincIndex, ZincManifest
 
@@ -54,10 +55,7 @@ class ZincCatalogPathHelper(object):
 
     def path_for_archive_for_bundle_version(
             self, bundle_name, version, flavor=None):
-        if flavor is None:
-            archive_filename = "%s-%d.tar" % (bundle_name, version)
-        else:
-            archive_filename = "%s-%d~%s.tar" % (bundle_name, version, flavor)
+        archive_filename = archive_name(bundle_name, version, flavor=flavor)
         archive_path = os.path.join(self.archives_dir, archive_filename)
         return archive_path
 
@@ -128,6 +126,10 @@ class CatalogCoordinator(object):
         if meta is not None:
             return (subpath, meta['size'])
         return (None, None)
+
+    def get_fileobj(self, sha, ext=None):
+        subpath = self._ph.path_for_file_with_sha(sha, ext=ext)
+        return self.get_path(subpath)
 
     def get_path(self, rel_path):
         return self._storage.get(rel_path)

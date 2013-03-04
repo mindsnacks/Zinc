@@ -1,5 +1,9 @@
 import os.path
 import tarfile
+import tempfile
+#tmp
+import StringIO
+import shutil
 
 from zinc.utils import *
 from zinc.helpers import *
@@ -8,6 +12,33 @@ from zinc.catalog import ZincCatalogPathHelper
 
 # TODO: real ignore system
 IGNORE = ['.DS_Store']
+
+def build_archive(catalog_coordinator, manifest, flavor=None):
+
+    archive_filename = archive_name(
+            manifest.bundle_name, manifest.version, flavor=flavor)
+    archive_path = os.path.join(
+            tempfile.mkdtemp(), archive_filename)
+   
+    files = manifest.get_all_files(flavor=flavor)
+    
+    with tarfile.open(archive_path, 'w') as tar:
+        for f in files:
+            format, format_info = manifest.get_format_info_for_file(f)
+            sha = manifest.sha_for_file(f)
+            ext = file_extension_for_format(format)
+            
+            file_data = StringIO.StringIO(
+                    catalog_coordinator.get_fileobj(sha, ext=ext))
+
+            tarinfo = tar.tarinfo()
+            tarinfo.name = filename_with_ext(sha, ext)
+            tarinfo.size = format_info['size']
+            
+            tar.addfile(tarinfo, file_data)
+
+    return archive_path
+    
 
 class ZincBundleUpdateTask(object):
 
@@ -71,60 +102,30 @@ class ZincBundleUpdateTask(object):
                     if filter.match(full_path):
                         manifest.add_flavor_for_file(file, flavor)
 
-        if len(manifest.files) > 1:
+        should_create_archives = len(manifest.files) > 1
+        if should_create_archives:
 
+            flavors = list()
+
+            # create master archive?
             if flavor_spec is None or not self.skip_master_archive:
-                #TODO: fix
-                master_tar_file_path = self.catalog.path_in_catalog(
-                        ZincCatalogPathHelper().path_for_archive_for_bundle_version(
-                            self.bundle_name, manifest.version))
-                master_tar = tarfile.open(master_tar_file_path, 'w')
-            else:
-                master_tar = None
+                # None is the appropriate flavor for the master archive
+                flavors.append(None) 
 
-            flavor_tar_files = dict()
+            # create archives for flavors?
             if flavor_spec is not None:
-                for flavor in flavor_spec.flavors:
-                    flavor_files = manifest.get_all_files(flavor=flavor)
-                    if len(flavor_files) > 1:
-                        #TODO: fix
-                        tar_file_path = self.catalog.path_in_catalog(
-                                ZincCatalogPathHelper().path_for_archive_for_bundle_version(
-                                    self.bundle_name, manifest.version, flavor))
-                        tar = tarfile.open(tar_file_path, 'w')
-                        flavor_tar_files[flavor] = tar
-    
-            for file in manifest.files.keys():
-                full_path = os.path.join(self.src_dir, file)
-                sha = manifest.sha_for_file(file)
+                flavors.extend(flavor_spec.flavors)
 
-                ext = 'gz' if manifest.formats_for_file(file).get('gz') else None
-
-                #TODO: fix
-                catalog_path = self.catalog.path_in_catalog(
-                        ZincCatalogPathHelper().path_for_file_with_sha(
-                            sha, ext=ext))
-
-                member_name = os.path.basename(catalog_path)
-
-                if master_tar is not None:
-                    master_tar.add(catalog_path, member_name)
-
-                if flavor_spec is not None:
-                    for flavor in flavor_spec.flavors:
-                        filter = flavor_spec.filter_for_flavor(flavor)
-                        if filter.match(full_path):
-                            manifest.add_flavor_for_file(file, flavor)
-                            flavor_tar = flavor_tar_files.get(flavor)
-                            if flavor_tar is not None:
-                                tar = flavor_tar.add(
-                                        catalog_path, member_name)
-            
-            if master_tar is not None:
-                master_tar.close() 
-            
-            for k, v in flavor_tar_files.iteritems():
-                v.close()
+            # create appropriate archives
+            for flavor in flavors:
+                tmp_tar_path = build_archive(
+                        self.catalog._coordinator, manifest, flavor=flavor)
+                # TODO: remove call to path_in_catalog
+                catalog_tar_path = self.catalog.path_in_catalog(
+                        ZincCatalogPathHelper().path_for_archive_for_bundle_version(
+                            self.bundle_name, manifest.version, flavor))
+                # TODO: remove copyfile
+                shutil.copyfile(tmp_tar_path, catalog_tar_path)
 
     def run(self):
 

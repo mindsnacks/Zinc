@@ -59,4 +59,9 @@ def gzip_bytes(bytes):
     """Convenience method for gzipping bytes in memory."""
     return zlib.compress(bytes)
 
+def filename_with_ext(filename, ext):
+    if ext is not None:
+        return '%s.%s' % (filename, ext)
+    return filename
+
 

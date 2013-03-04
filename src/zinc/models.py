@@ -1,14 +1,9 @@
-import os
-import tarfile
 import json
-import logging
-from shutil import copyfile
 import UserDict
 
 from zinc.utils import *
 from zinc.defaults import defaults
 from zinc.pathfilter import PathFilter
-from zinc.errors import ZincError, ZincErrors
 
 class ZincModel(object):
 
@@ -195,7 +190,19 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
         props = self._files[path]
         formats = props.get('formats')
         return formats
-        
+
+    def get_format_info_for_file(self, path, preferred_formats=None):
+
+        if preferred_formats is None:
+            preferred_formats = ['gz', 'raw']
+
+        for format in preferred_formats:
+            format_info = self.formats_for_file(path).get(format)
+            if format_info is not None:
+                return (format, format_info)
+
+        return (None, None)
+
     def add_flavor_for_file(self, path, flavor):
         props = self._files[path]
         flavors = props.get('flavors') or []
@@ -282,6 +289,10 @@ class ZincManifest(ZincModel):
     def formats_for_file(self, path):
         return self._files.formats_for_file(path)
         
+    def get_format_info_for_file(self, path, preferred_formats=None):
+        return self._files.get_format_info_for_file(
+                path, preferred_formats=preferred_formats)
+
     def add_flavor_for_file(self, path, flavor):
         self._files.add_flavor_for_file(path, flavor)
         if flavor not in self._flavors:
