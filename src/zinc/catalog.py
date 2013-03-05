@@ -202,7 +202,7 @@ class CatalogCoordinator(object):
 
 class StorageBackend(object):
 
-    def __init__(self, url=None, ):
+    def __init__(self, url=None):
         assert url is not None
         self._url = url
 
@@ -219,7 +219,7 @@ class StorageBackend(object):
     
     def get(self, subpath):
         """Return file-like object at subpath."""
-        raise Exception("Must be overridden by subclasses.")
+        raise NotImplementedError()
     
     def get_meta(self, subpath):
         """Return dictionary of metadata for item at subpath or None if subpath
@@ -228,11 +228,11 @@ class StorageBackend(object):
         Keys:
            - size: the size of the file
         """
-        raise Exception("Must be overridden by subclasses.")
+        raise NotImplementedError()
 
     def put(self, subpath, fileobj):
         """Write data from file-like object 'fileobj' to subpath."""
-        raise Exception("Must be overridden by subclasses.")
+        raise NotImplementedError()
 
 ### ZincCatalogConfig ###############################################################
 

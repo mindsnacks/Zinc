@@ -2,12 +2,28 @@ import os.path
 import logging
 
 from zinc.models import ZincIndex, ZincManifest, ZincFlavorSpec
-from zinc.catalog import ZincCatalog, create_catalog_at_path, ZincCatalogPathHelper
+from zinc.catalog import (ZincCatalog, create_catalog_at_path,
+        ZincCatalogPathHelper, StorageBackend)
 from zinc.defaults import defaults
 
 from zinc.client import ZincClient
 
 from tests import *
+
+class StorageBackendTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.storage = StorageBackend(url='file:///tmp')
+
+    def test_get_raises(self):
+        self.assertRaises(NotImplementedError, self.storage.get, 'foo')
+
+    def test_get_meta_raises(self):
+        self.assertRaises(NotImplementedError, self.storage.get_meta, 'foo')
+
+    def test_put_raises(self):
+        self.assertRaises(NotImplementedError, self.storage.put , 'foo', 'bar')
+
 
 class ZincCatalogTestCase(TempDirTestCase):
 
