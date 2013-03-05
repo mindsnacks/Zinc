@@ -232,7 +232,8 @@ class StorageBackend(object):
         raise NotImplementedError()
     
     def get_meta(self, subpath):
-        """Return dictionary of metadata for item at subpath or None if subpath
+        """
+        Return dictionary of metadata for item at subpath or None if subpath
         does not exist.
 
         Keys:
