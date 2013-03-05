@@ -1,13 +1,17 @@
 import os
-import json
 from urlparse import urlparse
+from lockfile import FileLock
 
 from zinc.catalog import CatalogCoordinator
 from zinc.utils import *
 
 class FilesystemCatalogCoordinator(CatalogCoordinator):
 
-    ### TODO: fs-based locking
+    def _index_lock_path(self):
+        return os.path.join(self.path, '.index')
+
+    def get_index_lock(self):
+        return FileLock(self._index_lock_path())
 
     @property
     def path(self):
