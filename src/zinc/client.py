@@ -27,16 +27,28 @@ class ZincClientConfig(object):
 
         return zincConfig
 
-def create_bundle_version(catalog, bundle_name, src_dir, 
-        flavor_spec=None, force=False, skip_master_archive=False):
 
-    # TODO: fix force
+class ZincClient(object):
 
-    task = ZincBundleUpdateTask()
-    task.catalog = catalog
-    task.bundle_name = bundle_name
-    task.src_dir = src_dir
-    task.flavor_spec = flavor_spec
-    task.skip_master_archive = skip_master_archive
-    return task.run()
+    def __init__(self, catalog):
+        assert catalog
 
+        self._catalog = catalog
+
+    @property
+    def catalog(self):
+        return self._catalog
+
+    def create_bundle_version(self, bundle_name, src_dir, 
+            flavor_spec=None, force=False, skip_master_archive=False):
+    
+        # TODO: fix force
+    
+        task = ZincBundleUpdateTask()
+        task.catalog = self.catalog
+        task.bundle_name = bundle_name
+        task.src_dir = src_dir
+        task.flavor_spec = flavor_spec
+        task.skip_master_archive = skip_master_archive
+        return task.run()
+    
