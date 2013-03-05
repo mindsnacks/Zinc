@@ -92,7 +92,7 @@ class ZincIndex(ZincModel):
                 next_version = 1
             else: 
                 next_version = versions[-1] + 1
-            bundle_info['next-version'] = next_version
+            bundle_info['next_version'] = next_version
 
         return next_version
        

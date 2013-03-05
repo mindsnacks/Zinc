@@ -109,6 +109,21 @@ class ZincIndexTestCase(TempDirTestCase):
         self.assertTrue("master" in distros[1])
         self.assertTrue("test" in distros[1])
 
+    def test_next_version_for_bundle_from_old_index(self):
+        p = abs_path_for_fixture("index-pre-next_version.json")
+        index = ZincIndex.from_path(p)
+       
+        bundle_name = "meep"
+        expected_next_version = 2
+       
+        # ensure it returns the right value
+        next_version = index.next_version_for_bundle(bundle_name)
+        self.assertEquals(next_version, expected_next_version)
+
+        # ensure the 'next_version' key is written
+        next_version = index.to_dict()["bundles"][bundle_name]["next_version"]
+        self.assertEquals(next_version, expected_next_version)
+
 
 class ZincManifestTestCase(TempDirTestCase):
 
