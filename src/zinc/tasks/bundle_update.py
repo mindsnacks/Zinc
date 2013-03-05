@@ -71,7 +71,7 @@ class ZincBundleUpdateTask(object):
 
         filelist = self._import_files(self.src_dir, self.flavor_spec)
 
-        self.catalog.update_bundle(
-                self.bundle_name, filelist,
+        return self.catalog.update_bundle(
+                self.bundle_name, filelist, force=self.force,
                 skip_master_archive=self.skip_master_archive)
 

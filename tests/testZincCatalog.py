@@ -135,6 +135,30 @@ class ZincCatalogTestCase(TempDirTestCase):
         self.assertTrue(1 in new_index.versions_for_bundle("meep"))
         self.assertTrue(2 in new_index.versions_for_bundle("meep"))
 
+    def test_create_duplicate_bundle_version_no_force(self):
+        catalog = self._build_test_catalog()
+        # add a file
+        create_random_file(self.scratch_dir)
+        # create first version
+        manifest1 = ZincClient(catalog).create_bundle_version("meep", self.scratch_dir)
+        self.assertTrue(2 in catalog.versions_for_bundle("meep"))
+        # attempt to create same version again
+        manifest2 = ZincClient(catalog).create_bundle_version("meep", self.scratch_dir)
+        self.assertEquals(manifest1.version, manifest2.version)
+
+    def test_create_duplicate_bundle_version_with_force(self):
+        catalog = self._build_test_catalog()
+        # add a file
+        create_random_file(self.scratch_dir)
+        # create first version
+        manifest1 = ZincClient(catalog).create_bundle_version("meep", self.scratch_dir)
+        self.assertTrue(2 in catalog.versions_for_bundle("meep"))
+        # attempt to create same version again, with force
+        manifest2 = ZincClient(catalog).create_bundle_version(
+                "meep", self.scratch_dir, force=True)
+        self.assertNotEquals(manifest1.version, manifest2.version)
+
+
     def test_create_identical_bundle_version(self):
         catalog = self._build_test_catalog()
         ZincClient(catalog).create_bundle_version("meep", self.scratch_dir)
