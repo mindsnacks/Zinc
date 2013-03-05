@@ -319,7 +319,8 @@ class ZincCatalog(object):
         self._coordinator.write_index(self.index)
 
     def manifest_for_bundle(self, bundle_name, version=None):
-        """Get a manifest for bundle. If version is not specified, it gets the
+        """
+        Get a manifest for bundle. If version is not specified, it gets the
         manifest with the highest version number.
         """
         all_versions = self.index.versions_for_bundle(bundle_name)
@@ -469,7 +470,7 @@ class ZincCatalog(object):
         return results_by_file
 
     def _add_manifest(self, bundle_name, version=1):
-        if version in self.versions_for_bundle(bundle_name):
+        if version in self.index.versions_for_bundle(bundle_name):
             raise ValueError("Bundle already exists")
             return None
 
@@ -477,12 +478,6 @@ class ZincCatalog(object):
         self._write_manifest(manifest)
         self.index.add_version_for_bundle(bundle_name, version)
         return manifest
-
-    def versions_for_bundle(self, bundle_name):
-        return self.index.versions_for_bundle(bundle_name)
-
-    def bundle_names(self):
-        return self.index.bundle_names()
 
     def _lock(func):
         @wraps(func)
@@ -585,25 +580,22 @@ class ZincCatalog(object):
         self._write_index_file()
 
 
-#######################################
-
-
-def _catalog_connection_get_api_version(url):
-    ZINC_VERSION_HEADER = 'x-zinc-api-version'
-    resp = requests.head(url)
-    api_version = resp.headers.get(ZINC_VERSION_HEADER)
-    if api_version is None:
-        raise Exception("Unknown Zinc API - '%s' header not found" %
-                (ZINC_VERSION_HEADER))
-    return api_version
-
-def _catalog_connection_get_http(url):
-    ZINC_SUPPORTED_API_VERSIONS = ('1.0')
-    api_version = _catalog_connection_get_api_version(url)
-    if api_version not in ZINC_SUPPORTED_API_VERSIONS:
-        raise Exception("Unsupported Zinc API version '%s'" % (api_version))
-    else:
-        logging.debug("Found Zinc API %s" % (api_version))
+#def _catalog_connection_get_api_version(url):
+#    ZINC_VERSION_HEADER = 'x-zinc-api-version'
+#    resp = requests.head(url)
+#    api_version = resp.headers.get(ZINC_VERSION_HEADER)
+#    if api_version is None:
+#        raise Exception("Unknown Zinc API - '%s' header not found" %
+#                (ZINC_VERSION_HEADER))
+#    return api_version
+#
+#def _catalog_connection_get_http(url):
+#    ZINC_SUPPORTED_API_VERSIONS = ('1.0')
+#    api_version = _catalog_connection_get_api_version(url)
+#    if api_version not in ZINC_SUPPORTED_API_VERSIONS:
+#        raise Exception("Unsupported Zinc API version '%s'" % (api_version))
+#    else:
+#        logging.debug("Found Zinc API %s" % (api_version))
 
 def catalog_connect(catalog_ref):
     urlcomps = urlparse(catalog_ref)
@@ -616,10 +608,16 @@ def catalog_connect(catalog_ref):
         else:
             url = catalog_ref
 
-        from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
-        from zinc.storages.filesystem import FilesystemStorageBackend
-        storage = FilesystemStorageBackend(url=url)
-        coord = FilesystemCatalogCoordinator(url=url, storage=storage)
+        #from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
+        #from zinc.storages.filesystem import FilesystemStorageBackend
+
+        #storage = FilesystemStorageBackend(url=url)
+        #coord = FilesystemCatalogCoordinator(url=url, storage=storage)
+
+        from zinc.services.simple import SimpleService
+        service = SimpleService(catalog_ref)
+        service.process_command('foo')
+
         return ZincCatalog(coordinator=coord)
 
 

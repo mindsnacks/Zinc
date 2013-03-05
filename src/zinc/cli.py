@@ -5,7 +5,7 @@ from os.path import join as pjoin
 
 from zinc import *
 from zinc.utils import *
-from zinc.client import ZincClient, ZincClientConfig
+from zinc.client import connect, ZincClient, ZincClientConfig
 from zinc.catalog import catalog_connect
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
@@ -43,15 +43,14 @@ def cmd_catalog_clean(args, config):
     catalog = ZincCatalog(args.catalog)
     catalog.clean(dry_run=not args.force)
 
-def cmd_catalog_list(args, config):
-    catalog = catalog_connect(args.catalog)
-    distro = args.distro
-    print_versions = not args.no_versions
-    for bundle_name in catalog.bundle_names():
-        if distro and distro not in catalog.index.distributions_for_bundle(bundle_name):
+
+def catalog_list(client, distro=None, print_versions=True):
+    index = client.catalog_index()
+    for bundle_name in index.bundle_names():
+        if distro and distro not in index.distributions_for_bundle(bundle_name):
             continue
-        distros = catalog.index.distributions_for_bundle_by_version(bundle_name)
-        versions = catalog.versions_for_bundle(bundle_name)
+        distros = index.distributions_for_bundle_by_version(bundle_name)
+        versions = index.versions_for_bundle(bundle_name)
         version_strings = list()
         for version in versions:
             version_string = str(version)
@@ -65,6 +64,14 @@ def cmd_catalog_list(args, config):
             print "%s %s" % (bundle_name, final_version_string)
         else:
             print "%s" % (bundle_name)
+
+
+def subcmd_catalog_list(args, config):
+    client = connect(args.catalog)
+    distro = args.distro
+    catalog_list(client, distro=distro, 
+            print_versions=not args.no_versions)
+    
 
 def cmd_bundle_list(args, config):
     catalog = catalog_connect(args.catalog)
@@ -214,7 +221,7 @@ def main():
     parser_catalog_list.add_argument(
             '--no-versions', default=False, action='store_true', 
             help='Omit version information for bundles.')
-    parser_catalog_list.set_defaults(func=cmd_catalog_list)
+    parser_catalog_list.set_defaults(func=subcmd_catalog_list)
 
     # bundle:list
     parser_bundle_list = subparsers.add_parser(
