@@ -124,6 +124,24 @@ class ZincIndexTestCase(TempDirTestCase):
         next_version = index.to_dict()["bundles"][bundle_name]["next_version"]
         self.assertEquals(next_version, expected_next_version)
 
+    def test_next_version_for_bundle_with_old_bad_key(self):
+        p = abs_path_for_fixture("index-with-bad-next-version.json")
+        index = ZincIndex.from_path(p)
+
+        bundle_name = "meep"
+        expected_next_version = 2
+       
+        # ensure it returns the right value
+        next_version = index.next_version_for_bundle(bundle_name)
+        self.assertEquals(next_version, expected_next_version)
+
+        # ensure the 'next_version' key is written
+        next_version = index.to_dict()["bundles"][bundle_name]["next_version"]
+        self.assertEquals(next_version, expected_next_version)
+
+        # ensure the 'next-version' key is deleted
+        bad_key = index.to_dict()["bundles"][bundle_name].get('next-version')
+        self.assertTrue(bad_key is None)
 
 class ZincManifestTestCase(TempDirTestCase):
 

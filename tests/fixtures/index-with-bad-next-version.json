@@ -1,0 +1,11 @@
+{
+	"bundles": {
+		"meep": {
+			"distributions": {},
+			"next-version": 2,
+			"versions": [1]
+		}
+	},
+	"id": "com.mindsnacks.test",
+	"format": "1"
+}

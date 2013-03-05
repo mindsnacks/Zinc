@@ -60,13 +60,16 @@ class ZincIndex(ZincModel):
         return index
 
     def _get_or_create_bundle_info(self, bundle_name):
-        if self._bundle_info_by_name.get(bundle_name) is None:
-            self._bundle_info_by_name[bundle_name] = {
+        info = self._bundle_info_by_name.get(bundle_name)
+        if info is None:
+            info = self._bundle_info_by_name[bundle_name] = {
                     'versions':[],
                     'distributions':{},
                     'next_version':1,
                     }
-        return self._bundle_info_by_name.get(bundle_name)
+        if info.get('next-version'): # clean mispelled 'next_version' key
+            del info['next-version']
+        return info
 
     def add_version_for_bundle(self, bundle_name, version):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
