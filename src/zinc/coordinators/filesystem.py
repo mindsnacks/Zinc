@@ -28,5 +28,3 @@ class FilesystemCatalogCoordinator(CatalogCoordinator):
         urlcomps = urlparse(url)
         return urlcomps.scheme == 'file'
 
-
-

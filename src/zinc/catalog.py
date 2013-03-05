@@ -2,6 +2,7 @@ import json
 import logging
 import tempfile
 from urlparse import urlparse
+from functools import wraps
 
 from zinc.utils import *
 from zinc.helpers import *
@@ -287,6 +288,8 @@ class ZincCatalog(object):
         self._manifests = {}
         self._ph = ZincCatalogPathHelper()
         self._reload()
+        
+        self.lock_timeout = defaults['catalog_lock_timeout']
 
     @property
     def url(self):
@@ -481,79 +484,89 @@ class ZincCatalog(object):
     def bundle_names(self):
         return self.index.bundle_names()
 
+    def _lock(func):
+        @wraps(func)
+        def with_lock(*args, **kwargs):
+            self = args[0]
+            lock = self._coordinator.get_index_lock()
+            lock.acquire(timeout=self.lock_timeout)
+            output = func(*args, **kwargs)
+            lock.release()
+            return output
+        return with_lock
+
+    @_lock
     def update_bundle(self, bundle_name, filelist, 
             skip_master_archive=False, force=False):
 
         assert bundle_name
         assert filelist
 
-        with self._coordinator.get_index_lock():
-
-            ## Check if it matches the newest version
-            ## TODO: optionally check it if matches any existing versions?
+        ## Check if it matches the newest version
+        ## TODO: optionally check it if matches any existing versions?
    
-            if not force:
-                existing_manifest = self.manifest_for_bundle(bundle_name)
-                if existing_manifest is not None and existing_manifest.files == filelist:
-                    logging.info("Found existing version with same contents.")
-                    return existing_manifest
+        if not force:
+            existing_manifest = self.manifest_for_bundle(bundle_name)
+            if existing_manifest is not None and existing_manifest.files == filelist:
+                logging.info("Found existing version with same contents.")
+                return existing_manifest
     
-            ## verify all files in the filelist exist in the repo
+        ## verify all files in the filelist exist in the repo
+        
+        missing_shas = list()
+    
+        for path in filelist.keys():
+            sha = filelist.sha_for_file(path)
+            file_info = self._coordinator.get_file_info(sha)
+            if file_info is None:
+                missing_shas.append(sha)
+    
+        if len(missing_shas) > 0:
+            # TODO: better error
+            raise Exception("Missing shas: %s" % (missing_shas))
+    
+        ## build manifest
+        
+        version = self.index.next_version_for_bundle(bundle_name)
+        new_manifest = ZincManifest(self.id, bundle_name, version)
+        new_manifest.files = filelist
+    
+        ## Handle archives
+    
+        should_create_archives = len(filelist) > 1
+        if should_create_archives:
             
-            missing_shas = list()
+            archive_flavors = list()
     
-            for path in filelist.keys():
-                sha = filelist.sha_for_file(path)
-                file_info = self._coordinator.get_file_info(sha)
-                if file_info is None:
-                    missing_shas.append(sha)
+            # should create master archive?
+            if len(new_manifest.flavors) == 0 or not skip_master_archive:
+                # None is the appropriate flavor for the master archive
+                archive_flavors.append(None) 
     
-            if len(missing_shas) > 0:
-                # TODO: better error
-                raise Exception("Missing shas: %s" % (missing_shas))
+            # should create archives for flavors?
+            if new_manifest.flavors is not None:
+                archive_flavors.extend(new_manifest.flavors)
     
-            ## build manifest
-            
-            version = self.index.next_version_for_bundle(bundle_name)
-            new_manifest = ZincManifest(self.id, bundle_name, version)
-            new_manifest.files = filelist
+            for flavor in archive_flavors:
+                tmp_tar_path = build_archive(
+                        self._coordinator, new_manifest, flavor=flavor)
+                self._coordinator.write_archive(
+                        bundle_name, new_manifest.version, 
+                        tmp_tar_path, flavor=flavor)
+               
+                # TODO: remove remove?
+                os.remove(tmp_tar_path)
     
-            ## Handle archives
+        ## write manifest
     
-            should_create_archives = len(filelist) > 1
-            if should_create_archives:
-                
-                archive_flavors = list()
-    
-                # should create master archive?
-                if len(new_manifest.flavors) == 0 or not skip_master_archive:
-                    # None is the appropriate flavor for the master archive
-                    archive_flavors.append(None) 
-    
-                # should create archives for flavors?
-                if new_manifest.flavors is not None:
-                    archive_flavors.extend(new_manifest.flavors)
-    
-                for flavor in archive_flavors:
-                    tmp_tar_path = build_archive(
-                            self._coordinator, new_manifest, flavor=flavor)
-                    self._coordinator.write_archive(
-                            bundle_name, new_manifest.version, 
-                            tmp_tar_path, flavor=flavor)
-                   
-                    # TODO: remove remove?
-                    os.remove(tmp_tar_path)
-    
-            ## write manifest
-    
-            self._write_manifest(new_manifest)
-            
-            ## update catalog index
-            
-            self.index.add_version_for_bundle(bundle_name, version)
-            self.save()
+        self._write_manifest(new_manifest)
+        
+        ## update catalog index
+        
+        self.index.add_version_for_bundle(bundle_name, version)
+        self.save()
 
-            return new_manifest
+        return new_manifest
 
 
     def delete_bundle_version(self, bundle_name, version):
