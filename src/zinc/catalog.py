@@ -150,8 +150,8 @@ class CatalogCoordinator(object):
             self._storage.puts(subpath+'.gz', gzip_bytes(bytes))
 
     def read_index(self):
-        path = self._ph.path_for_index()
-        bytes = self.get_path(path)
+        subpath = self._ph.path_for_index()
+        bytes = self.get_path(subpath)
         return ZincIndex.from_bytes(bytes)
 
     def write_index(self, index, raw=True, gzip=True):
@@ -163,6 +163,12 @@ class CatalogCoordinator(object):
         subpath = self._ph.path_for_manifest(manifest)
         bytes = manifest.to_bytes()
         self.puts(subpath, bytes, raw=raw, gzip=gzip)
+
+    def read_manifest(self, bundle_name, version):
+        subpath = self._ph.path_for_manifest_for_bundle_version(
+                bundle_name, version)
+        bytes = self.get_path(subpath)
+        return ZincManifest.from_bytes(bytes)
 
     def write_file(self, sha, src_path, format=None):
         format = format or 'raw' # default to 'raw'
@@ -328,10 +334,7 @@ class ZincCatalog(object):
             version = all_versions[-1]
         elif version not in all_versions:
             return None # throw exception?
-        manifest_path = self._ph.path_for_manifest_for_bundle_version(
-                bundle_name, version)
-        data = self._coordinator.get_path(manifest_path)
-        return ZincManifest.from_bytes(data)
+        return self._coordinator.read_manifest(bundle_name, version)
 
     def manifest_for_bundle_descriptor(self, bundle_descriptor):
         return self.manifest_for_bundle(
