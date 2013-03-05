@@ -317,20 +317,6 @@ class ZincManifest(ZincModel):
                 'files' : self._files.to_dict(),
                 }
 
-    def files_are_equivalent(self, other):
-        # check that the keys are all the same
-        if len(set(self._files.keys()) - set(other._files.keys())) != 0:
-            return False
-        if len(set(other._files.keys()) - set(self._files.keys())) != 0:
-            return False
-        # if the keys are all the same, check the values
-        for (file, props) in self._files.items():
-            sha = props.get('sha')
-            other_sha = other._files.get(file).get('sha')
-            if other_sha is None or sha != other_sha:
-                return False
-        return True
-
     def __eq__(self, other):
         return self._version == other.version \
                 and self._catalog_id == other.catalog_id \
