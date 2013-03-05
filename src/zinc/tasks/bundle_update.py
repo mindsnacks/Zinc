@@ -58,6 +58,7 @@ class ZincBundleUpdateTask(object):
                             if filter.match(full_path):
                                 filelist.add_flavor_for_file(rel_path, flavor)
                 else:
+                    # TODO: better error
                     raise Exception("we broke")
 
         return filelist
