@@ -5,6 +5,7 @@ from urlparse import urlparse
 from zinc.defaults import defaults
 from zinc.utils import *
 from zinc.helpers import *
+from zinc.catalog import ZincAbstractCatalog
 
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 
@@ -30,6 +31,50 @@ class ZincClientConfig(object):
         return zincConfig
 
 
+################################################################################
+
+class ZincClientCatalog(ZincAbstractCatalog):
+
+    pass
+
+#    def get_index(self):
+#        """
+#        Returns an *immutable* copy of the catalog index.
+#        """
+#        pass
+#
+#    def get_manifest(self, bundle_name, version):
+#        """
+#        Returns an *immutable* copy of the manifest for the specified
+#        `bundle_name` and version`.
+#        """
+#        pass
+#    
+#    def update_bundle(self, bundle_name, filelist, skip_master_archive=False, force=False):
+#        pass
+# 
+#    # special
+#    def import_path(self, src_path):
+#        pass
+#   
+#    def delete_bundle_version(self, bundle_name, version):
+#        pass
+#    
+#    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+#        pass
+#    
+#    def delete_distribution(self, distribution_name, bundle_name):
+#        pass
+#
+#    def verify(self):
+#        pass
+#
+#    def clean(self):
+#        pass
+
+
+################################################################################
+
 class ZincClient(object):
 
     def __init__(self, service):
@@ -44,6 +89,10 @@ class ZincClient(object):
     def catalog_index(self):
         return self._service.get_index()
 
+    def get_catalog(self, id=None):
+        return ZincClientCatalog()
+
+
     def create_bundle_version(self, bundle_name, src_dir, 
             flavor_spec=None, force=False, skip_master_archive=False):
 
@@ -54,8 +103,8 @@ class ZincClient(object):
         # TODO: colossal hack here...
         url = self.service.url
         storage = FilesystemStorageBackend(url=url)
-        coordinator = FilesystemCatalogCoordinator(url=url, storage=storage)
-        catalog = ZincCatalog(coordinator=coordinator)
+        coordinator = FilesystemCatalogCoordinator(url=url)
+        catalog = ZincCatalog(storage=storage, coordinator=coordinator)
     
         task = ZincBundleUpdateTask()
         task.catalog = catalog

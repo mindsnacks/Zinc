@@ -15,8 +15,9 @@ def f(service, conn, command):
 
 def _get_index(url, conn):
     storage = FilesystemStorageBackend(url=url)
-    coordinator = FilesystemCatalogCoordinator(url=url, storage=storage)
-    conn.send(coordinator.read_index())
+    coordinator = FilesystemCatalogCoordinator(url=url)
+    catalog = ZincCatalog(coordinator=coordinator, storage=storage)
+    conn.send(catalog.read_index())
     conn.close()
 
 
