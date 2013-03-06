@@ -257,6 +257,7 @@ class ZincFlavorSpecTestCase(unittest.TestCase):
         self.assertRaises(TypeError, spec.add_flavor, 'small', None)
 
 
+# TODO: relocate?
 class BundleDescriptorTestCase(unittest.TestCase):
 
     def test_bundle_id_from_descriptor_without_flavor(self):
