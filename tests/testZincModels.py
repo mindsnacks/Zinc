@@ -5,6 +5,7 @@ from zinc.helpers import *
 
 from tests import *
 
+
 class ZincIndexTestCase(TempDirTestCase):
 
     def test_versions_for_nonexistant_bundle(self):
@@ -143,6 +144,41 @@ class ZincIndexTestCase(TempDirTestCase):
         bad_key = index.to_dict()["bundles"][bundle_name].get('next-version')
         self.assertTrue(bad_key is None)
 
+    def test_immutable(self):
+        index = ZincIndex(mutable=False)
+        self.assertFalse(index.is_mutable)
+        self.assertRaises(TypeError, index.add_version_for_bundle, "meep", 1)
+        self.assertRaises(TypeError, index.delete_bundle_version, "meep", 1)
+        self.assertRaises(TypeError, index.update_distribution, "master", "meep", 1)
+        self.assertRaises(TypeError, index.delete_distribution, "master", "meep")
+    
+    def test_immutable_from_dict(self):
+        index = ZincIndex(id='com.foo')
+        index.add_version_for_bundle("meep", 1)
+        d = index.to_dict()
+        immutable_index = ZincIndex.from_dict(d, mutable=False)
+        self.assertFalse(immutable_index.is_mutable)
+
+
+class ZincFileListTestCase(unittest.TestCase):
+
+    def test_immutable(self):
+
+        filelist = ZincFileList(mutable=False)
+        self.assertFalse(filelist.is_mutable)
+        self.assertRaises(TypeError, filelist.add_file, "/tmp/foo", "123")
+        self.assertRaises(
+                TypeError, filelist.add_format_for_file, "/tmp/foo", "gz", 123)
+        self.assertRaises(
+                TypeError, filelist.add_flavor_for_file, "/tmp/foo", "small")
+        
+    def test_immutable_from_dict(self):
+        filelist = ZincFileList()
+        filelist.add_file('/tmp/foo', '123')
+        d = filelist.to_dict()
+        immutable_filelist = ZincFileList.from_dict(d, mutable=False)
+        self.assertFalse(immutable_filelist.is_mutable)
+
 class ZincManifestTestCase(TempDirTestCase):
 
     def test_save_and_load_with_files(self):
@@ -192,6 +228,20 @@ class ZincManifestTestCase(TempDirTestCase):
         # 3) self.assertTrue(flavor in manifest.flavors
         self.assertTrue('green' in manifest.flavors)
 
+    def test_immutable(self):
+        manifest = ZincManifest('com.foo', 'stuff', 1, mutable=False)
+        # TODO: test files setter
+        self.assertRaises(
+                TypeError, manifest.add_file, '/tmp/hi', '123')
+        self.assertRaises(
+                TypeError, manifest.add_format_for_file, '/tmp/hi', 'gz', 123)
+    
+    def test_immutable_from_dict(self):
+        manifest = ZincManifest('com.foo', 'stuff', 1)
+        d = manifest.to_dict()
+        immutable_manifest = ZincManifest.from_dict(d, mutable=False)
+        self.assertFalse(immutable_manifest.is_mutable)
+
 
 class ZincFlavorSpecTestCase(unittest.TestCase):
 
@@ -200,6 +250,12 @@ class ZincFlavorSpecTestCase(unittest.TestCase):
         spec = ZincFlavorSpec.from_dict(d)
         self.assertTrue(spec is not None)
         self.assertEquals(len(spec.flavors), 2)
+
+    def test_immutable(self):
+        spec = ZincFlavorSpec(mutable=False)
+        self.assertFalse(spec.is_mutable)
+        self.assertRaises(TypeError, spec.add_flavor, 'small', None)
+
 
 class BundleDescriptorTestCase(unittest.TestCase):
 
