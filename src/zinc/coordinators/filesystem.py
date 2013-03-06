@@ -2,7 +2,7 @@ import os
 from urlparse import urlparse
 from lockfile import FileLock
 
-from zinc.catalog import CatalogCoordinator
+from . import CatalogCoordinator
 from zinc.utils import *
 
 class FilesystemCatalogCoordinator(CatalogCoordinator):

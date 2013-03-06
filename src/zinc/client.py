@@ -98,7 +98,7 @@ class ZincClient(object):
 
         from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
         from zinc.storages.filesystem import FilesystemStorageBackend
-        from zinc.catalog import ZincCatalog
+        from zinc.services import ZincCatalog
 
         # TODO: colossal hack here...
         url = self.service.url

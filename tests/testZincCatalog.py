@@ -2,9 +2,10 @@ import os.path
 import logging
 
 from zinc.models import ZincIndex, ZincManifest, ZincFlavorSpec
-from zinc.catalog import (ZincCatalog, create_catalog_at_path,
-        ZincCatalogPathHelper, StorageBackend)
+from zinc.catalog import (create_catalog_at_path, ZincCatalogPathHelper)
 from zinc.defaults import defaults
+from zinc.services import ZincCatalog
+from zinc.storages import StorageBackend
 
 from zinc.client import ZincClient, connect
 

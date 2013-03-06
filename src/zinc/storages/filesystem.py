@@ -1,7 +1,7 @@
 import os
 from urlparse import urlparse
 
-from zinc.catalog import StorageBackend
+from . import StorageBackend
 from zinc.utils import *
 
 class FilesystemStorageBackend(StorageBackend):

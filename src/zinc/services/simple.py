@@ -2,8 +2,7 @@ from multiprocessing import Process, Pipe
 
 from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
 from zinc.storages.filesystem import FilesystemStorageBackend
-from zinc.catalog import ZincCatalog
-from . import ZincService
+from . import ZincService, ZincCatalog
 
 from zinc.utils import *
 from zinc.helpers import *
@@ -39,8 +38,6 @@ class SimpleService(ZincService):
         index = parent_conn.recv()
         p.join()
         return index
-        
-       
 
 
     ## TODO: tmp
