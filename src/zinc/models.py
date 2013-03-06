@@ -386,3 +386,23 @@ class ZincFlavorSpec(ZincModel):
             spec.add_flavor(k, pf)
         return spec
 
+
+### ZincCatalogConfig ###############################################################
+
+class ZincCatalogConfig(ZincModel):
+
+    def __init__(self, **kwargs):
+        super(ZincCatalogConfig, self).__init__(**kwargs)
+        self.gzip_threshhold = 0.85
+
+    @classmethod
+    def from_dict(cls, d, mutable=True):
+        config = ZincCatalogConfig()
+        if d.get('gzip_threshhold'):
+            config.gzip_threshhold = d.get('gzip_threshhold')
+
+    def to_dict(self):
+        return {
+                'gzip_threshold' : self.gzip_threshhold
+                }
+

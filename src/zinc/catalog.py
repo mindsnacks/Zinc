@@ -7,7 +7,7 @@ from functools import wraps
 from zinc.utils import *
 from zinc.helpers import *
 from zinc.defaults import defaults
-from zinc.models import ZincIndex, ZincManifest
+from zinc.models import ZincIndex, ZincManifest, ZincCatalogConfig
 
 # tmp?
 from StringIO import StringIO 
@@ -245,33 +245,10 @@ class StorageBackend(object):
         """Write data from file-like object 'fileobj' to subpath."""
         raise NotImplementedError()
 
-### ZincCatalogConfig ###############################################################
 
-class ZincCatalogConfig(object):
 
-    def __init__(self):
-        self.gzip_threshhold = 0.85
 
-    def to_json(self):
-        d = {}
-        if self.gzip_threshhold is not None:
-            d['gzip_threshhold'] = self.gzip_threshhold
-        return d
    
-    def write(self, path):
-        config_file = open(path, 'w')
-        dict = self.to_json()
-        config_file.write(json.dumps(dict))
-        config_file.close()
-
-def load_config(path):
-    config_file = open(path, 'r')
-    dict = json.load(config_file)
-    config_file.close()
-    config = ZincCatalogConfig()
-    if dict.get('gzip_threshhold'):
-        config.gzip_threshhold = dict.get('gzip_threshhold')
-    return config 
 
 
 ### ZincCatalog ################################################################
