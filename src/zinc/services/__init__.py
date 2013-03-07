@@ -17,9 +17,9 @@ import tarfile
 
 ################# TEMP ######################
 
-def build_archive(catalog_coordinator, manifest, flavor=None):
+def _build_archive(catalog, manifest, flavor=None):
 
-    archive_filename = catalog_coordinator.path_helper.archive_name(
+    archive_filename = catalog.path_helper.archive_name(
             manifest.bundle_name, manifest.version, flavor=flavor)
     archive_path = os.path.join(
             tempfile.mkdtemp(), archive_filename)
@@ -32,7 +32,7 @@ def build_archive(catalog_coordinator, manifest, flavor=None):
             sha = manifest.sha_for_file(f)
             ext = file_extension_for_format(format)
            
-            fileobj = catalog_coordinator.get_file(sha, ext=ext)
+            fileobj = catalog._read_file(sha, ext=ext)
 
             tarinfo = tar.tarinfo()
             tarinfo.name = filename_with_ext(sha, ext)
@@ -103,95 +103,17 @@ class ZincCatalog(ZincAbstractCatalog):
 
     def _lock(func):
         @wraps(func)
-        def with_lock(self, *args, **kwargs):
+        def with_lock(*args, **kwargs):
+            self = args[0]
             lock = self._coordinator.get_index_lock()
             lock.acquire(timeout=self.lock_timeout)
             output = func(*args, **kwargs)
-            self._save()
             lock.release()
             return output
         return with_lock
-
-    def _write_index_file(self):
-        self.write_index(self.index)
-
-    def _write_manifest(self, manifest):
-        self.write_manifest(manifest, True)
-
-
-#    def clean(self, dry_run=False):
-#        bundle_descriptors = self.bundle_descriptors()
-#        verb = 'Would remove' if dry_run else 'Removing'
-#
-#        ### 1. scan manifests for ones that aren't in index
-#        for root, dirs, files in os.walk(self._manifests_url()):
-#            for f in files:
-#                remove = False
-#                if not (f.endswith(".json") or f.endswith(".json.gz")):
-#                    # remove stray files
-#                    remove = True
-#                else:
-#                    bundle_descr = f.split(".")[0]
-#                    if bundle_descr not in bundle_descriptors:
-#                        remove = True
-#                if remove:
-#                    logging.info("%s %s" % (verb, pjoin(root, f)))
-#                    if not dry_run: os.remove(pjoin(root, f))
-#
-#        ### 2. scan archives for ones that aren't in index
-#        for root, dirs, files in os.walk(self._archives_dir()):
-#            for f in files:
-#                remove = False
-#                if not (f.endswith(".tar")):
-#                    # remove stray files
-#                    remove = True
-#                else:
-#                    bundle_descr = f.split(".")[0]
-#                    if bundle_descr not in bundle_descriptors:
-#                        remove = True
-#                if remove:
-#                    logging.info("%s %s" % (verb, pjoin(root, f)))
-#                    if not dry_run: os.remove(pjoin(root, f))
-#
-#        ### 3. clean objects
-#        all_objects = set()
-#        for bundle_desc in bundle_descriptors:
-#            manifest = self.manifest_for_bundle_descriptor(bundle_desc)
-#            for f, meta in manifest.files.iteritems():
-#                all_objects.add(meta['sha'])
-#        for root, dirs, files in os.walk(self._files_dir()):
-#            for f in files:
-#                basename = os.path.splitext(f)[0]
-#                if basename not in all_objects:
-#                    logging.info("%s %s" % (verb, pjoin(root, f)))
-#                    if not dry_run: os.remove(pjoin(root, f))
-#
-    def verify(self):
-        
-        # TODO: fix private ref to _bundle_info_by_name
-        for (bundle_name, bundle_info) in self.index._bundle_info_by_name.iteritems():
-            for version in bundle_info['versions']:
-                manifest = self.manifest_for_bundle(bundle_name, version)
-                if manifest is None:
-                    raise Exception("manifest not found: %s-%d" % (bundle_name,
-                        version))
-                #for (file, sha) in manifest.files.iteritems():
-                #    print file, sha
-
-        results_by_file = dict()
-        #for version, manifest in self.manifests.items():
-        #    files = manifest.get("files")
-        #    for file, sha in files.items():
-        #        full_path = pjoin(self.path, self.path_for_file(file, version))
-        #        logging.debug("verifying %s" % full_path)
-        #        if not os.path.exists(full_path):
-        #            results_by_file[file] = ZincErrors.DOES_NOT_EXIST
-        #        elif sha1_for_path(full_path) != sha:
-        #            results_by_file[file] = ZincErrors.INCORRECT_SHA
-        #        else:
-        #            # everything is ok alarm
-        #            results_by_file[file] = ZincErrors.OK
-        return results_by_file
+    
+    def _save(self):
+        self._write_index(self.index)
 
     def _add_manifest(self, bundle_name, version=1):
         if version in self.index.versions_for_bundle(bundle_name):
@@ -203,17 +125,12 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.add_version_for_bundle(bundle_name, version)
         return manifest
 
+    ### I/O Helpers ###
 
-    def delete_distribution(self, distribution_name, bundle_name):
-        self.index.delete_distribution(distribution_name, bundle_name)
-        self._save()
+    def _read(self, rel_path):
+        return self._storage.get(rel_path).read()
 
-    def _save(self):
-        self._write_index_file()
-
-    ### helpers
-
-    def puts(self, subpath, bytes, raw=True, gzip=True):
+    def _write(self, subpath, bytes, raw=True, gzip=True):
         if raw:
             self._storage.puts(subpath, bytes)
         if gzip:
@@ -221,36 +138,26 @@ class ZincCatalog(ZincAbstractCatalog):
 
     def _read_index(self):
         subpath = self._ph.path_for_index()
-        bytes = self.get_path(subpath)
+        bytes = self._read(subpath)
         return ZincIndex.from_bytes(bytes)
 
-    def write_index(self, index, raw=True, gzip=True):
+    def _write_index(self, index, raw=True, gzip=True):
         subpath = self._ph.path_for_index()
         bytes = index.to_bytes()
-        self.puts(subpath, bytes, raw=raw, gzip=gzip)
+        self._write(subpath, bytes, raw=raw, gzip=gzip)
 
-    def write_manifest(self, manifest, raw=True, gzip=True):
-        subpath = self._ph.path_for_manifest(manifest)
-        bytes = manifest.to_bytes()
-        self.puts(subpath, bytes, raw=raw, gzip=gzip)
-
-    def read_manifest(self, bundle_name, version):
+    def _read_manifest(self, bundle_name, version):
         subpath = self._ph.path_for_manifest_for_bundle_version(
                 bundle_name, version)
-        bytes = self.get_path(subpath)
+        bytes = self._read(subpath)
         return ZincManifest.from_bytes(bytes)
 
-    def write_file(self, sha, src_path, format=None):
-        format = format or 'raw' # default to 'raw'
-        if format not in VALID_FORMATS:
-            raise Exception("Invalid format '%s'." % (format))
-        ext = format if format != 'raw' else None
-        subpath = self._ph.path_for_file_with_sha(sha, ext)
-        with open(src_path, 'r') as src_file:
-            self._storage.put(subpath, src_file)
-        return subpath
+    def _write_manifest(self, manifest, raw=True, gzip=True):
+        subpath = self._ph.path_for_manifest(manifest)
+        bytes = manifest.to_bytes()
+        self._write(subpath, bytes, raw=raw, gzip=gzip)
 
-    def get_file_info(self, sha, preferred_formats=None):
+    def _get_file_info(self, sha, preferred_formats=None):
         if preferred_formats is None:
             preferred_formats = defaults['catalog_preferred_formats']
         for format in preferred_formats:
@@ -264,14 +171,21 @@ class ZincCatalog(ZincAbstractCatalog):
                         }
         return None
 
-    def get_file(self, sha, ext=None):
+    def _read_file(self, sha, ext=None):
         subpath = self._ph.path_for_file_with_sha(sha, ext=ext)
         return self._storage.get(subpath)
 
-    def get_path(self, rel_path):
-        return self._storage.get(rel_path).read()
+    def _write_file(self, sha, src_path, format=None):
+        format = format or 'raw' # default to 'raw'
+        if format not in VALID_FORMATS:
+            raise Exception("Invalid format '%s'." % (format))
+        ext = format if format != 'raw' else None
+        subpath = self._ph.path_for_file_with_sha(sha, ext)
+        with open(src_path, 'r') as src_file:
+            self._storage.put(subpath, src_file)
+        return subpath
 
-    def write_archive(self, bundle_name, version, src_path, flavor=None):
+    def _write_archive(self, bundle_name, version, src_path, flavor=None):
         subpath = self._ph.path_for_archive_for_bundle_version(
                 bundle_name, version, flavor=flavor)
         with open(src_path, 'r') as src_file:
@@ -284,7 +198,7 @@ class ZincCatalog(ZincAbstractCatalog):
         return self.index.clone(mutable=False)
 
     def get_manifest(self, bundle_name, version):
-        return self.read_manifest(bundle_name, version)
+        return self._read_manifest(bundle_name, version)
 
     @_lock
     def update_bundle(self, bundle_name, filelist, 
@@ -308,7 +222,7 @@ class ZincCatalog(ZincAbstractCatalog):
     
         for path in filelist.keys():
             sha = filelist.sha_for_file(path)
-            file_info = self.get_file_info(sha)
+            file_info = self._get_file_info(sha)
             if file_info is None:
                 missing_shas.append(sha)
     
@@ -339,9 +253,9 @@ class ZincCatalog(ZincAbstractCatalog):
                 archive_flavors.extend(new_manifest.flavors)
     
             for flavor in archive_flavors:
-                tmp_tar_path = build_archive(
+                tmp_tar_path = _build_archive(
                         self, new_manifest, flavor=flavor)
-                self.write_archive(
+                self._write_archive(
                         bundle_name, new_manifest.version, 
                         tmp_tar_path, flavor=flavor)
                
@@ -363,7 +277,7 @@ class ZincCatalog(ZincAbstractCatalog):
 
         sha = sha1_for_path(src_path)
 
-        file_info = self.get_file_info(sha)
+        file_info = self._get_file_info(sha)
         if file_info is not None:
             return file_info
 
@@ -386,7 +300,7 @@ class ZincCatalog(ZincAbstractCatalog):
                 final_src_size = src_size
                 format = 'raw'
     
-            imported_path = self.write_file(
+            imported_path = self._write_file(
                     sha, final_src_path, format=format)
 
         file_info = {
@@ -407,6 +321,87 @@ class ZincCatalog(ZincAbstractCatalog):
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
         self._save()
+
+    @_lock
+    def delete_distribution(self, distribution_name, bundle_name):
+        self.index.delete_distribution(distribution_name, bundle_name)
+        self._save()
+
+    def verify(self):
+        
+        # TODO: fix private ref to _bundle_info_by_name
+        for (bundle_name, bundle_info) in self.index._bundle_info_by_name.iteritems():
+            for version in bundle_info['versions']:
+                manifest = self.manifest_for_bundle(bundle_name, version)
+                if manifest is None:
+                    raise Exception("manifest not found: %s-%d" % (bundle_name,
+                        version))
+                #for (file, sha) in manifest.files.iteritems():
+                #    print file, sha
+
+        results_by_file = dict()
+        #for version, manifest in self.manifests.items():
+        #    files = manifest.get("files")
+        #    for file, sha in files.items():
+        #        full_path = pjoin(self.path, self.path_for_file(file, version))
+        #        logging.debug("verifying %s" % full_path)
+        #        if not os.path.exists(full_path):
+        #            results_by_file[file] = ZincErrors.DOES_NOT_EXIST
+        #        elif sha1_for_path(full_path) != sha:
+        #            results_by_file[file] = ZincErrors.INCORRECT_SHA
+        #        else:
+        #            # everything is ok alarm
+        #            results_by_file[file] = ZincErrors.OK
+        return results_by_file
+
+    @_lock
+    def clean(self, dry_run=False):
+        bundle_descriptors = self.bundle_descriptors()
+        verb = 'Would remove' if dry_run else 'Removing'
+
+        ### 1. scan manifests for ones that aren't in index
+        for root, dirs, files in os.walk(self._manifests_url()):
+            for f in files:
+                remove = False
+                if not (f.endswith(".json") or f.endswith(".json.gz")):
+                    # remove stray files
+                    remove = True
+                else:
+                    bundle_descr = f.split(".")[0]
+                    if bundle_descr not in bundle_descriptors:
+                        remove = True
+                if remove:
+                    logging.info("%s %s" % (verb, pjoin(root, f)))
+                    if not dry_run: os.remove(pjoin(root, f))
+
+        ### 2. scan archives for ones that aren't in index
+        for root, dirs, files in os.walk(self._archives_dir()):
+            for f in files:
+                remove = False
+                if not (f.endswith(".tar")):
+                    # remove stray files
+                    remove = True
+                else:
+                    bundle_descr = f.split(".")[0]
+                    if bundle_descr not in bundle_descriptors:
+                        remove = True
+                if remove:
+                    logging.info("%s %s" % (verb, pjoin(root, f)))
+                    if not dry_run: os.remove(pjoin(root, f))
+
+        ### 3. clean objects
+        all_objects = set()
+        for bundle_desc in bundle_descriptors:
+            manifest = self.manifest_for_bundle_descriptor(bundle_desc)
+            for f, meta in manifest.files.iteritems():
+                all_objects.add(meta['sha'])
+        for root, dirs, files in os.walk(self._files_dir()):
+            for f in files:
+                basename = os.path.splitext(f)[0]
+                if basename not in all_objects:
+                    logging.info("%s %s" % (verb, pjoin(root, f)))
+                    if not dry_run: os.remove(pjoin(root, f))
+
 
 
 ################################################################################
