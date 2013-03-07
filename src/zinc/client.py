@@ -82,22 +82,22 @@ class ZincClientCatalog(ZincAbstractCatalog):
 
 ################################################################################
 
-class ZincClient(object):
-
-    def __init__(self, service):
-        assert service
-
-        self._service = service 
-
-    @property
-    def service(self):
-        return self._service
-
-    def catalog_index(self):
-        return self._service.get_index()
-
-    def get_catalog(self, id=None):
-        return ZincClientCatalog()
+#class ZincClient(object):
+#
+#    def __init__(self, service):
+#        assert service
+#
+#        self._service = service 
+#
+#    @property
+#    def service(self):
+#        return self._service
+#
+#    def catalog_index(self):
+#        return self._service.get_index()
+#
+#    def get_catalog(self, id=None):
+#        return ZincClientCatalog()
 
 ################################################################################
 
@@ -147,10 +147,12 @@ def connect(catalog_ref):
         from zinc.services.simple import SimpleService
         service = SimpleService(catalog_ref)
 
-    if service is not None:
-        return ZincClient(service)
+    #if service is not None:
+    #    return ZincClient(service)
 
-    # TODO: error, exception
-    return None
+    ## TODO: error, exception
+    #return None
+
+    return service
 
 

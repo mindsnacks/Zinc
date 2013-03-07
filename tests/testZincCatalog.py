@@ -5,10 +5,9 @@ from zinc.models import ZincIndex, ZincManifest, ZincFlavorSpec
 from zinc.catalog import ZincCatalogPathHelper
 from zinc.defaults import defaults
 from zinc.services import ZincCatalog
-from zinc.services.simple import SimpleService
 from zinc.storages import StorageBackend
 
-from zinc.client import create_bundle_version
+from zinc.client import connect, create_bundle_version
 
 from tests import *
 
@@ -27,7 +26,7 @@ class StorageBackendTestCase(unittest.TestCase):
         self.assertRaises(NotImplementedError, self.storage.put , 'foo', 'bar')
 
 def create_catalog_at_path(path, id):
-    service = SimpleService()
+    service = connect('/')
     service.create_catalog(id=id, loc=path)
     catalog = service.get_catalog(loc=path)
     return catalog
