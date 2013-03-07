@@ -1,5 +1,6 @@
 import os
 from urlparse import urlparse
+from atomicfile import AtomicFile
 
 from . import StorageBackend
 from zinc.utils import *
@@ -28,6 +29,6 @@ class FilesystemStorageBackend(StorageBackend):
     def put(self, subpath, fileobj):
         abs_path = self._abs_path(subpath)
         makedirs(os.path.dirname(abs_path))
-        with open(abs_path, 'w') as f:
+        with AtomicFile(abs_path, 'w') as f:
             f.write(fileobj.read())
 
