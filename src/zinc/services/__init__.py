@@ -55,7 +55,6 @@ class ZincCatalog(ZincAbstractCatalog):
             raise Exception("Incompatible format %s" % (self.index.format))
 
         self._read_config_file()
-        #self._loaded = True
 
     def __init__(self, coordinator=None, storage=None, 
             path_helper=None, **kwargs):
@@ -91,9 +90,6 @@ class ZincCatalog(ZincAbstractCatalog):
 
     def format(self):
         return self.index.format
-
-    #def is_loaded(self):
-    #    return self._loaded
 
     def _read_config_file(self):
         logging.warn('reimplement config loading')
@@ -200,11 +196,7 @@ class ZincCatalog(ZincAbstractCatalog):
 #                    if not dry_run: os.remove(pjoin(root, f))
 #
     def verify(self):
-#        if not self._loaded:
-#            raise Exception("not loaded")
-#            # TODO: better exception
-#            # TODO: wrap in decorator?
-#
+        
         # TODO: fix private ref to _bundle_info_by_name
         for (bundle_name, bundle_info) in self.index._bundle_info_by_name.iteritems():
             for version in bundle_info['versions']:
