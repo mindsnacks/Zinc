@@ -1,4 +1,4 @@
-from zinc.client import ZincClientConfig
+from zinc.client import *
 
 from tests import *
 
@@ -16,4 +16,10 @@ class TestZincClientConfigFromFile(unittest.TestCase):
         self.assertEquals(remote_loc, "http://foo.com/catalog/")
 
 
+class TestCatalogRefParsins(unittest.TestCase):
 
+    def test_web(self):
+        catalog_ref = 'http://localhost:5000/com.foo'
+        r = catalog_ref_split(catalog_ref)
+        self.assertEquals(r.service, 'http://localhost:5000/')
+        self.assertEquals(r.catalog_id, 'com.foo')

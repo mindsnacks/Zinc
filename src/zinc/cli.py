@@ -5,7 +5,7 @@ from os.path import join as pjoin
 
 from zinc import *
 from zinc.utils import *
-from zinc.client import connect, ZincClientConfig
+from zinc.client import connect, catalog_ref_split, ZincClientConfig
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
 DEFAULT_CONFIG_PATH='~/.zinc'
@@ -66,8 +66,9 @@ def catalog_list(catalog, distro=None, print_versions=True):
 
 
 def subcmd_catalog_list(args, config):
-    service = connect(args.catalog)
-    catalog = service.get_catalog()
+    r = catalog_ref_split(args.catalog)
+    service = connect(r.service)
+    catalog = service.get_catalog(id=r.catalog_id)
     distro = args.distro
     catalog_list(catalog, distro=distro, 
             print_versions=not args.no_versions)

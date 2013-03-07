@@ -1,6 +1,7 @@
 import ConfigParser
 import logging
 from urlparse import urlparse
+from collections import namedtuple
 
 from zinc.defaults import defaults
 from zinc.utils import *
@@ -116,9 +117,12 @@ def create_bundle_version(catalog, bundle_name, src_dir,
 ################################################################################
 
 def _catalog_connection_get_api_version(url):
+    import requests
     ZINC_VERSION_HEADER = 'x-zinc-api-version'
-    resp = requests.head(url)
+    resp = requests.head(url, allow_redirects=False) 
+    # TODO is preventing redirects what we want?
     api_version = resp.headers.get(ZINC_VERSION_HEADER)
+    print resp.headers
     if api_version is None:
         raise Exception("Unknown Zinc API - '%s' header not found" %
                 (ZINC_VERSION_HEADER))
@@ -133,19 +137,36 @@ def _catalog_connection_get_http(url):
         logging.debug("Found Zinc API %s" % (api_version))
 
 
-def connect(catalog_ref):
+def catalog_ref_split(catalog_ref):
+
+    CatalogRefSplitResult = namedtuple('CatalogRefSplitResult', 'service catalog_id')
     urlcomps = urlparse(catalog_ref)
+    
     if urlcomps.scheme in ('http', 'https'):
-        _catalog_connection_get_http(catalog_ref)           
+        catalog_id  = os.path.split(urlcomps.path)[-1]
+        service = catalog_ref[:-len(catalog_id)]
+        return CatalogRefSplitResult(service, catalog_id)
+
+    elif urlcomps.scheme in ('file', ''):
+        raise NotImplementedError()
+
+def connect(service_ref):
+    urlcomps = urlparse(service_ref)
+    if urlcomps.scheme in ('http', 'https'):
+        _catalog_connection_get_http(service_ref)           
+
+        from zinc.services.web import WebServiceConsumer
+        service = WebServiceConsumer(service_ref)
+
     elif urlcomps.scheme in ('file', ''):
         if urlcomps.scheme == '':
             # assume it's a path and convert a file URL
-            url = 'file://%s' % (canonical_path(catalog_ref))
+            url = 'file://%s' % (canonical_path(service_ref))
         else:
-            url = catalog_ref
+            url = service_ref
 
         from zinc.services.simple import SimpleServiceConsumer
-        service = SimpleServiceConsumer(catalog_ref)
+        service = SimpleServiceConsumer(service_ref)
 
     #if service is not None:
     #    return ZincClient(service)

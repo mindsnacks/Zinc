@@ -412,14 +412,6 @@ class ZincServiceProvider(object):
 
 class ZincServiceConsumer(object):
 
-    def __init__(self, provider):
-        assert provider
-        self._provider = provider
-
-    @property
-    def provider(self):
-        return self._provider
-
     def create_catalog(self, id=None, loc=None):
         raise NotImplementedError()
 
