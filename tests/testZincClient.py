@@ -16,7 +16,7 @@ class TestZincClientConfigFromFile(unittest.TestCase):
         self.assertEquals(remote_loc, "http://foo.com/catalog/")
 
 
-class TestCatalogRefParsins(unittest.TestCase):
+class TestCatalogRefParsing(unittest.TestCase):
 
     def test_web(self):
         catalog_ref = 'http://localhost:5000/com.foo'
