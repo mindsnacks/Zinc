@@ -312,24 +312,24 @@ class ZincCatalog(ZincAbstractCatalog):
         ## update catalog index
         
         self.index.add_version_for_bundle(bundle_name, version)
-        self.save()
+        self._save()
 
         return new_manifest
 
 
     def delete_bundle_version(self, bundle_name, version):
         self.index.delete_bundle_version(bundle_name, version)
-        self.save()
+        self._save()
 
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
-        self.save()
+        self._save()
 
     def delete_distribution(self, distribution_name, bundle_name):
         self.index.delete_distribution(distribution_name, bundle_name)
-        self.save()
+        self._save()
 
-    def save(self):
+    def _save(self):
         self._write_index_file()
 
     ### helpers
