@@ -74,17 +74,24 @@ def subcmd_catalog_list(args, config):
             print_versions=not args.no_versions)
     
 
-def cmd_bundle_list(args, config):
-    catalog = catalog_connect(args.catalog)
-    bundle_name = args.bundle
-    version = int(args.version)
+def bundle_list(catalog, bundle_name, version, print_sha=False):
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
     all_files = sorted(manifest.get_all_files())
     for f in all_files:
-        if args.sha:
+        if print_sha:
             print f, 'sha=%s' % (manifest.sha_for_file(f))
         else:
             print f
+
+def subcmd_bundle_list(args, config):
+    r = catalog_ref_split(args.catalog)
+    service = connect(r.service)
+    catalog = service.get_catalog(**r.catalog._asdict())
+    bundle_name = args.bundle
+    version = int(args.version)
+    print_sha = args.sha
+    bundle_list(catalog, bundle_name, version, print_sha=print_sha)
+
 
 def cmd_bundle_update(args, config):
     flavors = None
@@ -233,7 +240,7 @@ def main():
     parser_bundle_list.add_argument(
             '--sha', default=False, action='store_true', 
             help='Print file SHA hash.')
-    parser_bundle_list.set_defaults(func=cmd_bundle_list)
+    parser_bundle_list.set_defaults(func=subcmd_bundle_list)
 
     # bundle:update
     parser_bundle_update = subparsers.add_parser(
