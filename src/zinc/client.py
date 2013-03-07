@@ -34,74 +34,6 @@ class ZincClientConfig(object):
 
 ################################################################################
 
-class ZincClientCatalog(ZincAbstractCatalog):
-
-    def __init__(self, client=None, **kwags):
-        assert service
-
-        super(ZincCatalog, self).__init__(**kwargs)
-
-        self._client = client
-
-
-
-#    def get_index(self):
-#        """
-#        Returns an *immutable* copy of the catalog index.
-#        """
-#        pass
-#
-#    def get_manifest(self, bundle_name, version):
-#        """
-#        Returns an *immutable* copy of the manifest for the specified
-#        `bundle_name` and version`.
-#        """
-#        pass
-#    
-#    def update_bundle(self, bundle_name, filelist, skip_master_archive=False, force=False):
-#        pass
-# 
-#    # special
-#    def import_path(self, src_path):
-#        pass
-#   
-#    def delete_bundle_version(self, bundle_name, version):
-#        pass
-#    
-#    def update_distribution(self, distribution_name, bundle_name, bundle_version):
-#        pass
-#    
-#    def delete_distribution(self, distribution_name, bundle_name):
-#        pass
-#
-#    def verify(self):
-#        pass
-#
-#    def clean(self):
-#        pass
-
-
-################################################################################
-
-#class ZincClient(object):
-#
-#    def __init__(self, service):
-#        assert service
-#
-#        self._service = service 
-#
-#    @property
-#    def service(self):
-#        return self._service
-#
-#    def catalog_index(self):
-#        return self._service.get_index()
-#
-#    def get_catalog(self, id=None):
-#        return ZincClientCatalog()
-
-################################################################################
-
 def create_bundle_version(catalog, bundle_name, src_dir, 
         flavor_spec=None, force=False, skip_master_archive=False):
 
@@ -122,7 +54,6 @@ def _catalog_connection_get_api_version(url):
     resp = requests.head(url, allow_redirects=False) 
     # TODO is preventing redirects what we want?
     api_version = resp.headers.get(ZINC_VERSION_HEADER)
-    print resp.headers
     if api_version is None:
         raise Exception("Unknown Zinc API - '%s' header not found" %
                 (ZINC_VERSION_HEADER))
