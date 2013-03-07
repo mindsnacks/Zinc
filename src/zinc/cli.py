@@ -68,7 +68,7 @@ def catalog_list(catalog, distro=None, print_versions=True):
 def subcmd_catalog_list(args, config):
     r = catalog_ref_split(args.catalog)
     service = connect(r.service)
-    catalog = service.get_catalog(id=r.catalog_id)
+    catalog = service.get_catalog(**r.catalog._asdict())
     distro = args.distro
     catalog_list(catalog, distro=distro, 
             print_versions=not args.no_versions)

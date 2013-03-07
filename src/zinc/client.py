@@ -139,16 +139,18 @@ def _catalog_connection_get_http(url):
 
 def catalog_ref_split(catalog_ref):
 
-    CatalogRefSplitResult = namedtuple('CatalogRefSplitResult', 'service catalog_id')
+    CatalogRefSplitResult = namedtuple(
+            'CatalogRefSplitResult', 'service catalog')
+    CatalogInfo = namedtuple('CatalogInfo', 'id loc')
+
     urlcomps = urlparse(catalog_ref)
-    
     if urlcomps.scheme in ('http', 'https'):
         catalog_id  = os.path.split(urlcomps.path)[-1]
         service = catalog_ref[:-len(catalog_id)]
-        return CatalogRefSplitResult(service, catalog_id)
+        return CatalogRefSplitResult(service, CatalogInfo(catalog_id, None))
 
     elif urlcomps.scheme in ('file', ''):
-        raise NotImplementedError()
+        return CatalogRefSplitResult(catalog_ref, CatalogInfo(None, '.'))
 
 def connect(service_ref):
     urlcomps = urlparse(service_ref)

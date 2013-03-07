@@ -22,4 +22,13 @@ class TestCatalogRefParsins(unittest.TestCase):
         catalog_ref = 'http://localhost:5000/com.foo'
         r = catalog_ref_split(catalog_ref)
         self.assertEquals(r.service, 'http://localhost:5000/')
-        self.assertEquals(r.catalog_id, 'com.foo')
+        self.assertEquals(r.catalog.id, 'com.foo')
+        self.assertIsNone(r.catalog.loc)
+
+    def test_path(self):
+        catalog_ref = '/tmp/com.foo'
+        r = catalog_ref_split(catalog_ref)
+        self.assertEquals(r.service, catalog_ref)
+        self.assertEquals(r.catalog.loc, '.')
+        self.assertIsNone(r.catalog.id)
+        
