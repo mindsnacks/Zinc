@@ -4,6 +4,7 @@ from urlparse import urljoin
 from redis import Redis
 #from rq import Queue
 from flask import Flask, request, redirect, abort
+from boto.s3.connection import S3Connection
 
 from zinc.catalog import ZincCatalogPathHelper
 from zinc.services import ZincCatalog
@@ -16,6 +17,7 @@ from config import CONFIG
 API_VERSION = '1.0'
 REDIS_URL = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379')
 REDIS = Redis.from_url(REDIS_URL)
+S3 = S3Connection(CONFIG['aws_key'], CONFIG['aws_secret'])
 
 coordinator = RedisCatalogCoordinator(redis=REDIS)
 
@@ -27,8 +29,7 @@ def get_catalog(catalog_id):
     catalog = catalogs.get(catalog_id)
     if catalog is None:
         storage = S3StorageBackend(
-                key=CONFIG['aws_key'], 
-                secret=CONFIG['aws_secret'],
+                s3connection=S3,
                 bucket=CONFIG['s3_bucket'],
                 prefix=catalog_id)
         catalog = ZincCatalog(coordinator=coordinator, storage=storage)

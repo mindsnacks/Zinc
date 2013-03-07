@@ -1,18 +1,14 @@
 import os
 
-from boto.s3.connection import S3Connection
-from boto.s3.key import Key
-
 from . import StorageBackend
 
 class S3StorageBackend(StorageBackend):
 
-    def __init__(self, bucket=None, key=None, secret=None, prefix=None, **kwargs):
+    def __init__(self, s3connection=None, bucket=None, prefix=None, **kwargs):
+        assert s3connection
         assert bucket
-        assert key
-        assert secret
         super(S3StorageBackend, self).__init__(**kwargs)
-        self._conn = S3Connection(key, secret)
+        self._conn = s3connection
         self._bucket = self._conn.get_bucket(bucket)
         self._prefix = prefix
 
