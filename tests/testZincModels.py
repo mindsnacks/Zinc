@@ -76,7 +76,7 @@ class ZincIndexTestCase(TempDirTestCase):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
         index.update_distribution("live", "meep", 1)
-        self.assertTrue(index.version_for_bundle("meep", "live") == 1)
+        self.assertEquals(index.version_for_bundle("meep", "live"), 1)
 
     def test_distributions_for_bundle_by_version_unknown_bundle(self):
         """Tests that an exception is raised if called with an unknown bundle name"""

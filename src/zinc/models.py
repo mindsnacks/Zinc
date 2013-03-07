@@ -40,6 +40,11 @@ class ZincModel(object):
         with open(path, 'w') as f:
             f.write(self.to_bytes())
 
+    def clone(self, mutable=True):
+        d = self.to_dict()
+        o = self.__class__.from_dict(d, mutable=mutable)
+        return o
+
 
 ### ZincIndex ################################################################
 
@@ -55,7 +60,7 @@ class ZincIndex(ZincModel):
         if self.id is None:
             raise ValueError("catalog id is None") # TODO: better exception?
         return {
-               'id' : self.id,
+                'id' : self.id,
                 'bundles' : self._bundle_info_by_name,
                 'format' : self._format,
                 }
@@ -70,22 +75,29 @@ class ZincIndex(ZincModel):
 
     @classmethod
     def from_dict(cls, d, mutable=True):
-        index = cls(mutable=mutable)
-        index._id = d['id']
+        index = cls(
+                id=d['id'], 
+                mutable=mutable)
         index._format = d['format']
         index._bundle_info_by_name = d['bundles']
         return index
 
-    def _get_or_create_bundle_info(self, bundle_name):
+    def _get_bundle_info(self, bundle_name):
         info = self._bundle_info_by_name.get(bundle_name)
-        if info is None and self.is_mutable:
+        if info is not None and self.is_mutable:
+            if info.get('next-version'): # clean mispelled 'next_version' key
+                del info['next-version']
+        return info
+
+    @mutable_only
+    def _get_or_create_bundle_info(self, bundle_name):
+        info = self._get_bundle_info(bundle_name)
+        if info is None:
             info = self._bundle_info_by_name[bundle_name] = {
                     'versions':[],
                     'distributions':{},
                     'next_version':1,
                     }
-        if info.get('next-version'): # clean mispelled 'next_version' key
-            del info['next-version']
         return info
 
     @mutable_only
@@ -101,20 +113,20 @@ class ZincIndex(ZincModel):
             bundle_info['next_version'] = version + 1
 
     def versions_for_bundle(self, bundle_name):
-        return self._get_or_create_bundle_info(bundle_name).get('versions')
+        info = self._get_bundle_info(bundle_name)
+        return info.get('versions') if info is not None else list()
 
     def next_version_for_bundle(self, bundle_name):
-        bundle_info = self._get_or_create_bundle_info(bundle_name)
-
-        next_version = bundle_info.get('next_version')
+        bundle_info = self._get_bundle_info(bundle_name)
+        next_version = bundle_info.get('next_version') if bundle_info else None
         if next_version is None: # older index without next_version
             versions = self.versions_for_bundle(bundle_name)
             if len(versions) == 0:
                 next_version = 1
             else: 
                 next_version = versions[-1] + 1
-            bundle_info['next_version'] = next_version
-
+            if bundle_info and self.is_mutable:
+                bundle_info['next_version'] = next_version
         return next_version
       
     @mutable_only
@@ -154,7 +166,8 @@ class ZincIndex(ZincModel):
         return self._bundle_info_by_name.keys()
 
     def version_for_bundle(self, bundle_name, distro):
-        return self.distributions_for_bundle(bundle_name).get(distro)
+        info = self.distributions_for_bundle(bundle_name)
+        return info.get(distro) if info else None
 
     @mutable_only
     def update_distribution(self, distribution_name, bundle_name, bundle_version):

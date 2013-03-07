@@ -50,7 +50,7 @@ class ZincCatalog(ZincAbstractCatalog):
     def _reload(self):
         
         ## TODO: check format, just assume 1 for now
-        self.index = self.read_index()
+        self.index = self._read_index()
         if self.index.format != defaults['zinc_format']:
             raise Exception("Incompatible format %s" % (self.index.format))
 
@@ -101,34 +101,18 @@ class ZincCatalog(ZincAbstractCatalog):
         #config_path = pjoin(self.path, defaults['catalog_config_name'])
         #self.config = load_config(config_path)
 
-    ## server
     def _write_index_file(self):
         self.write_index(self.index)
 
-    ## server
-    def manifest_for_bundle(self, bundle_name, version=None):
-        """
-        Get a manifest for bundle. If version is not specified, it gets the
-        manifest with the highest version number.
-        """
-        all_versions = self.index.versions_for_bundle(bundle_name)
-        if version is None and len(all_versions) > 0:
-            version = all_versions[-1]
-        elif version not in all_versions:
-            return None # throw exception?
+    def get_index(self):
+        return self.index.clone(mutable=False)
+
+    def get_manifest(self, bundle_name, version):
         return self.read_manifest(bundle_name, version)
 
-    ## client
-    def manifest_for_bundle_descriptor(self, bundle_descriptor):
-        return self.manifest_for_bundle(
-            bundle_id_from_bundle_descriptor(bundle_descriptor),
-            bundle_version_from_bundle_descriptor(bundle_descriptor))
-    
-    ## server
     def _write_manifest(self, manifest):
         self.write_manifest(manifest, True)
 
-    ## server
     def import_path(self, src_path):
 
         sha = sha1_for_path(src_path)
@@ -246,7 +230,6 @@ class ZincCatalog(ZincAbstractCatalog):
         #            results_by_file[file] = ZincErrors.OK
         return results_by_file
 
-    ## server
     def _add_manifest(self, bundle_name, version=1):
         if version in self.index.versions_for_bundle(bundle_name):
             raise ValueError("Bundle already exists")
@@ -257,7 +240,6 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.add_version_for_bundle(bundle_name, version)
         return manifest
 
-    ## server
     def _lock(func):
         @wraps(func)
         def with_lock(*args, **kwargs):
@@ -269,7 +251,6 @@ class ZincCatalog(ZincAbstractCatalog):
             return output
         return with_lock
 
-    ## server
     @_lock
     def update_bundle(self, bundle_name, filelist, 
             skip_master_archive=False, force=False):
@@ -367,7 +348,7 @@ class ZincCatalog(ZincAbstractCatalog):
         if gzip:
             self._storage.puts(subpath+'.gz', gzip_bytes(bytes))
 
-    def read_index(self):
+    def _read_index(self):
         subpath = self._ph.path_for_index()
         bytes = self.get_path(subpath)
         return ZincIndex.from_bytes(bytes)

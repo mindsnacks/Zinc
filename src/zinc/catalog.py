@@ -88,7 +88,8 @@ class ZincAbstractCatalog(object):
         """
         raise NotImplementedError()
     
-    def update_bundle(self, bundle_name, filelist, skip_master_archive=False, force=False):
+    def update_bundle(self, bundle_name, filelist, 
+            skip_master_archive=False, force=False):
         raise NotImplementedError()
  
     # special
