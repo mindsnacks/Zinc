@@ -5,7 +5,7 @@ from urlparse import urljoin
 import os
 
 from zinc.catalog import ZincAbstractCatalog
-from zinc.models import ZincIndex
+from zinc.models import ZincIndex, ZincManifest
 from . import ZincServiceConsumer
 
 
@@ -26,10 +26,16 @@ class WebServiceZincCatalog(ZincAbstractCatalog):
         return requests.get(url)
 
     def get_index(self):
-        url = self._url_for_path(
-                os.path.join(self.id, 'index.json')) # TODO: improve this
+        path = self.id + '/index.json' # TODO: improve this
+        url = self._url_for_path(path)
         r = self._get_url(url)
         return ZincIndex.from_bytes(r.content, mutable=False)
+
+    def get_manifest(self, bundle_name, version):
+        path = self.id + '/' + bundle_name + '/' + str(version) # TODO: improve this
+        url = self._url_for_path(path)
+        r = self._get_url(url)
+        return ZincManifest.from_bytes(r.content, mutable=False)
 
 
 class WebServiceConsumer(ZincServiceConsumer):
