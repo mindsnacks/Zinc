@@ -3,7 +3,6 @@ from zinc.utils import *
 from zinc.helpers import *
 from zinc.defaults import defaults
 
-
 ################################################################################
 
 class ZincCatalogPathHelper(object):

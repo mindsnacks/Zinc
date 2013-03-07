@@ -18,4 +18,3 @@ class CatalogCoordinator(object):
     def get_index_lock(self):
         raise NotImplementedError()
 
-

@@ -104,11 +104,17 @@ class ZincCatalog(ZincAbstractCatalog):
     def _lock(func):
         @wraps(func)
         def with_lock(*args, **kwargs):
+
             self = args[0]
-            lock = self._coordinator.get_index_lock()
-            lock.acquire(timeout=self.lock_timeout)
-            output = func(*args, **kwargs)
-            lock.release()
+
+            #lock = self._coordinator.get_index_lock()
+            #lock.acquire(timeout=self.lock_timeout)
+            #output = func(*args, **kwargs)
+            #lock.release()
+
+            with self._coordinator.get_index_lock():
+                output = func(*args, **kwargs)
+
             return output
         return with_lock
     
@@ -396,14 +402,21 @@ class ZincCatalog(ZincAbstractCatalog):
 
 ################################################################################
 
-class ZincService(object):
-
+class ZincServiceProvider(object):
     pass
 
-    #@property
-    #def coordinator(self):
-    #    return self._coordinator
+class ZincServiceConsumer(object):
 
-    #@property
-    #def storage(self):
-    #    return self._storage
+    def __init__(self, provider):
+        assert provider
+        self._provider = provider
+
+    @property
+    def provider(self):
+        return self._provider
+
+    def create_catalog(self, id=None, loc=None):
+        raise NotImplementedError()
+
+    def get_catalog(self, loc=None, id=None):
+        raise NotImplementedError()

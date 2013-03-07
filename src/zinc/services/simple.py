@@ -3,7 +3,7 @@ from multiprocessing import Process, Pipe
 from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
 from zinc.storages.filesystem import FilesystemStorageBackend
 from zinc.models import ZincIndex, ZincCatalogConfig
-from . import ZincService, ZincCatalog
+from . import ZincServiceConsumer, ZincServiceProvider, ZincCatalog
 
 from zinc.defaults import defaults
 from zinc.utils import *
@@ -22,18 +22,8 @@ def _get_index(url, conn):
     conn.close()
 
 
-class SimpleClient(object):
 
-    def __init__(self):
-        pass
-
-    def get_catalog(self, id=None):
-        storage = FilesystemStorageBackend(url=url)
-        coordinator = FilesystemCatalogCoordinator(url=url)
-        return ZincCatalog(coordinator=coordinator, storage=storage)
-
-
-class SimpleService(ZincService):
+class SimpleServiceConsumer(ZincServiceConsumer):
 
     def __init__(self, root_path=None):
         self._root_path = root_path or '/'

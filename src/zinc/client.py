@@ -144,8 +144,8 @@ def connect(catalog_ref):
         else:
             url = catalog_ref
 
-        from zinc.services.simple import SimpleService
-        service = SimpleService(catalog_ref)
+        from zinc.services.simple import SimpleServiceConsumer
+        service = SimpleServiceConsumer(catalog_ref)
 
     #if service is not None:
     #    return ZincClient(service)
