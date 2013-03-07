@@ -6,7 +6,6 @@ from collections import namedtuple
 from zinc.defaults import defaults
 from zinc.utils import *
 from zinc.helpers import *
-from zinc.catalog import ZincAbstractCatalog
 
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 
