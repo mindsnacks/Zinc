@@ -10,8 +10,6 @@ from zinc.defaults import defaults
 from zinc.utils import *
 from zinc.helpers import *
 
-VALID_FORMATS = ('raw', 'gz') # TODO: relocate this
-
 
 ################# TEMP ######################
 
@@ -173,7 +171,7 @@ class ZincCatalog(ZincAbstractCatalog):
 
     def _write_file(self, sha, src_path, format=None):
         format = format or 'raw' # default to 'raw'
-        if format not in VALID_FORMATS:
+        if format not in defaults['catalog_valid_formats']:
             raise Exception("Invalid format '%s'." % (format))
         ext = format if format != 'raw' else None
         subpath = self._ph.path_for_file_with_sha(sha, ext)
