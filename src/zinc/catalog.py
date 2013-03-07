@@ -5,6 +5,7 @@ from zinc.defaults import defaults
 
 ################################################################################
 
+# TODO: rename to CatalogPathHelper?
 class ZincCatalogPathHelper(object):
 
     def __init__(self, format='1'):

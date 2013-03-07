@@ -7,6 +7,14 @@ from zinc.utils import *
 
 class FilesystemStorageBackend(StorageBackend):
 
+    def __init__(self, url=None):
+        assert url is not None
+        self._url = url
+
+    @property
+    def url(self):
+        return self._url
+
     def _root_abs_path(self):
         return urlparse(self.url).path
 

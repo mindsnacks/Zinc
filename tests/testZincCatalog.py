@@ -11,10 +11,11 @@ from zinc.client import connect, create_bundle_version
 
 from tests import *
 
+# TODO: relocate
 class StorageBackendTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.storage = StorageBackend(url='file:///tmp')
+        self.storage = StorageBackend()
 
     def test_get_raises(self):
         self.assertRaises(NotImplementedError, self.storage.get, 'foo')

@@ -103,14 +103,14 @@ class ZincCatalog(ZincAbstractCatalog):
         @wraps(func)
         def with_lock(*args, **kwargs):
 
-            self = args[0]
+            self = args[0] # TODO: fix this
 
             #lock = self._coordinator.get_index_lock()
             #lock.acquire(timeout=self.lock_timeout)
             #output = func(*args, **kwargs)
             #lock.release()
 
-            with self._coordinator.get_index_lock():
+            with self._coordinator.get_index_lock(prefix=self.id):
                 output = func(*args, **kwargs)
 
             return output

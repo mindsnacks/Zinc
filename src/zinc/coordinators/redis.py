@@ -72,13 +72,19 @@ class LockException(Exception):
 
 class RedisCatalogCoordinator(CatalogCoordinator):
 
-    def __init__(self, **kwargs):
+    def __init__(self, redis=None, **kwargs):
         super(RedisCatalogCoordinator, self).__init__(**kwargs)
-        u = urlparse(self.url)
-        self._redis = Redis(host=u.hostname, port=u.port)
+        assert self.url or redis
+        if redis is not None:
+            self._redis = redis
+        else:
+            u = urlparse(self.url)
+            self._redis = Redis(host=u.hostname, port=u.port)
 
-    def get_index_lock(self):
-        return Lock('index', redis=self._redis)
+    def get_index_lock(self, prefix=None):
+        name = 'index'
+        if prefix: name = '%s.%s' (prefix, name)
+        return Lock(name, redis=self._redis)
     
     @classmethod
     def validate_url(cls, url):

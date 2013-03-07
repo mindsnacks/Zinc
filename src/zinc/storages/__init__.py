@@ -2,14 +2,6 @@ from StringIO import StringIO
 
 class StorageBackend(object):
 
-    def __init__(self, url=None):
-        assert url is not None
-        self._url = url
-
-    @property
-    def url(self):
-        return self._url
-
     def puts(self, subpath, bytes):
         """Write string 'bytes' to subpath."""
         fileobj = StringIO(bytes)

@@ -6,7 +6,7 @@ import os
 
 from zinc.catalog import ZincAbstractCatalog
 from zinc.models import ZincIndex, ZincManifest
-from . import ZincServiceConsumer
+from zinc.services import ZincServiceConsumer
 
 
 class WebServiceZincCatalog(ZincAbstractCatalog):
