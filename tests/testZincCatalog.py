@@ -31,6 +31,7 @@ def create_catalog_at_path(path, id):
     catalog = service.get_catalog(loc=path)
     return catalog
 
+
 class ZincCatalogTestCase(TempDirTestCase):
 
     def setUp(self):
@@ -54,17 +55,6 @@ class ZincCatalogTestCase(TempDirTestCase):
         self.assertTrue(len(catalog.index.bundle_names()) == 0)
         self.assertTrue(catalog.format() == defaults['zinc_format'])
 
-    def test_catalog_create_manifest(self):
-        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        manifest = catalog._add_manifest("beep")
-        self.assertTrue(manifest is not None)
- 
-    def test_catalog_create_duplicate_manifest(self):
-        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        manifest1 = catalog._add_manifest("beep")
-        self.assertTrue(manifest1 is not None)
-        self.assertRaises(ValueError, catalog._add_manifest, "beep")
-
     def test_catalog_read_invalid_format(self):
         create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         index_path = os.path.join(self.catalog_dir, defaults['catalog_index_name'])
@@ -81,13 +71,6 @@ class ZincCatalogTestCase(TempDirTestCase):
     def test_bundle_names_with_no_bundles(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         self.assertTrue(len(catalog.index.bundle_names()) == 0)
-
-    def test_version_for_bundle(self):
-        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        catalog._add_manifest("meep", 1)
-        versions = catalog.index.versions_for_bundle("meep")
-        self.assertTrue(1 in versions)
-        self.assertTrue(len(versions) == 1)
 
     def test_versions_for_nonexistant_bundle(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')

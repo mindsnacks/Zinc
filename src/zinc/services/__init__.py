@@ -115,16 +115,6 @@ class ZincCatalog(ZincAbstractCatalog):
     def _save(self):
         self._write_index(self.index)
 
-    def _add_manifest(self, bundle_name, version=1):
-        if version in self.index.versions_for_bundle(bundle_name):
-            raise ValueError("Bundle already exists")
-            return None
-
-        manifest = ZincManifest(self.index.id, bundle_name, version)
-        self._write_manifest(manifest)
-        self.index.add_version_for_bundle(bundle_name, version)
-        return manifest
-
     ### I/O Helpers ###
 
     def _read(self, rel_path):
