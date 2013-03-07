@@ -47,15 +47,6 @@ def build_archive(catalog_coordinator, manifest, flavor=None):
 
 class ZincCatalog(ZincAbstractCatalog):
 
-    def _reload(self):
-        
-        ## TODO: check format, just assume 1 for now
-        self.index = self._read_index()
-        if self.index.format != defaults['zinc_format']:
-            raise Exception("Incompatible format %s" % (self.index.format))
-
-        self._read_config_file()
-
     def __init__(self, coordinator=None, storage=None, 
             path_helper=None, **kwargs):
         assert coordinator
@@ -71,6 +62,8 @@ class ZincCatalog(ZincAbstractCatalog):
         self._reload()
         
         self.lock_timeout = defaults['catalog_lock_timeout']
+
+    ### Properties ###
 
     @property
     def url(self):
@@ -91,62 +84,40 @@ class ZincCatalog(ZincAbstractCatalog):
     def format(self):
         return self.index.format
 
+    ### General Internal Methods ###
+
+    def _reload(self):
+        
+        ## TODO: check format, just assume 1 for now
+        self.index = self._read_index()
+        if self.index.format != defaults['zinc_format']:
+            raise Exception("Incompatible format %s" % (self.index.format))
+
+        self._read_config_file()
+
     def _read_config_file(self):
         logging.warn('reimplement config loading')
         self.config = ZincCatalogConfig()
         #config_path = pjoin(self.path, defaults['catalog_config_name'])
         #self.config = load_config(config_path)
 
+    def _lock(func):
+        @wraps(func)
+        def with_lock(self, *args, **kwargs):
+            lock = self._coordinator.get_index_lock()
+            lock.acquire(timeout=self.lock_timeout)
+            output = func(*args, **kwargs)
+            self._save()
+            lock.release()
+            return output
+        return with_lock
+
     def _write_index_file(self):
         self.write_index(self.index)
-
-    def get_index(self):
-        return self.index.clone(mutable=False)
-
-    def get_manifest(self, bundle_name, version):
-        return self.read_manifest(bundle_name, version)
 
     def _write_manifest(self, manifest):
         self.write_manifest(manifest, True)
 
-    def import_path(self, src_path):
-
-        sha = sha1_for_path(src_path)
-
-        file_info = self.get_file_info(sha)
-        if file_info is not None:
-            return file_info
-
-        # gzip the file first, and see if it passes the compression threshhold
-        # TODO: this is stupid inefficient
-        with tempfile.NamedTemporaryFile() as tmp_file:
-            src_path_gz = tmp_file.name
-            with open(src_path) as src_file:
-                tmp_file.write(gzip_bytes(src_file.read()))
-            tmp_file.flush()
-
-            src_size = os.path.getsize(src_path)
-            src_gz_size = os.path.getsize(src_path_gz)
-            if src_size > 0 and float(src_gz_size) / src_size <= self.config.gzip_threshhold:
-                final_src_path = src_path_gz 
-                final_src_size = src_gz_size
-                format = 'gz'
-            else:
-                final_src_path = src_path
-                final_src_size = src_size
-                format = 'raw'
-    
-            imported_path = self.write_file(
-                    sha, final_src_path, format=format)
-
-        file_info = {
-                'sha' :  sha,
-                'size' : final_src_size,
-                'format' : format
-                }
-        logging.info("Imported %s --> %s" % (src_path, file_info))
-        logging.debug("Imported path: %s" % imported_path)
-        return  file_info
 
 #    def clean(self, dry_run=False):
 #        bundle_descriptors = self.bundle_descriptors()
@@ -232,98 +203,6 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.add_version_for_bundle(bundle_name, version)
         return manifest
 
-    def _lock(func):
-        @wraps(func)
-        def with_lock(*args, **kwargs):
-            self = args[0]
-            lock = self._coordinator.get_index_lock()
-            lock.acquire(timeout=self.lock_timeout)
-            output = func(*args, **kwargs)
-            lock.release()
-            return output
-        return with_lock
-
-    @_lock
-    def update_bundle(self, bundle_name, filelist, 
-            skip_master_archive=False, force=False):
-
-        assert bundle_name
-        assert filelist
-
-        ## Check if it matches the newest version
-        ## TODO: optionally check it if matches any existing versions?
-   
-        if not force:
-            existing_manifest = self.manifest_for_bundle(bundle_name)
-            if existing_manifest is not None and existing_manifest.files == filelist:
-                logging.info("Found existing version with same contents.")
-                return existing_manifest
-    
-        ## verify all files in the filelist exist in the repo
-        
-        missing_shas = list()
-    
-        for path in filelist.keys():
-            sha = filelist.sha_for_file(path)
-            file_info = self.get_file_info(sha)
-            if file_info is None:
-                missing_shas.append(sha)
-    
-        if len(missing_shas) > 0:
-            # TODO: better error
-            raise Exception("Missing shas: %s" % (missing_shas))
-    
-        ## build manifest
-        
-        version = self.index.next_version_for_bundle(bundle_name)
-        new_manifest = ZincManifest(self.id, bundle_name, version)
-        new_manifest.files = filelist
-    
-        ## Handle archives
-    
-        should_create_archives = len(filelist) > 1
-        if should_create_archives:
-            
-            archive_flavors = list()
-    
-            # should create master archive?
-            if len(new_manifest.flavors) == 0 or not skip_master_archive:
-                # None is the appropriate flavor for the master archive
-                archive_flavors.append(None) 
-    
-            # should create archives for flavors?
-            if new_manifest.flavors is not None:
-                archive_flavors.extend(new_manifest.flavors)
-    
-            for flavor in archive_flavors:
-                tmp_tar_path = build_archive(
-                        self, new_manifest, flavor=flavor)
-                self.write_archive(
-                        bundle_name, new_manifest.version, 
-                        tmp_tar_path, flavor=flavor)
-               
-                # TODO: remove remove?
-                os.remove(tmp_tar_path)
-    
-        ## write manifest
-    
-        self._write_manifest(new_manifest)
-        
-        ## update catalog index
-        
-        self.index.add_version_for_bundle(bundle_name, version)
-        self._save()
-
-        return new_manifest
-
-
-    def delete_bundle_version(self, bundle_name, version):
-        self.index.delete_bundle_version(bundle_name, version)
-        self._save()
-
-    def update_distribution(self, distribution_name, bundle_name, bundle_version):
-        self.index.update_distribution(distribution_name, bundle_name, bundle_version)
-        self._save()
 
     def delete_distribution(self, distribution_name, bundle_name):
         self.index.delete_distribution(distribution_name, bundle_name)
@@ -398,6 +277,136 @@ class ZincCatalog(ZincAbstractCatalog):
         with open(src_path, 'r') as src_file:
             self._storage.put(subpath, src_file)
         return subpath
+
+    ### "Public" Methods
+
+    def get_index(self):
+        return self.index.clone(mutable=False)
+
+    def get_manifest(self, bundle_name, version):
+        return self.read_manifest(bundle_name, version)
+
+    @_lock
+    def update_bundle(self, bundle_name, filelist, 
+            skip_master_archive=False, force=False):
+
+        assert bundle_name
+        assert filelist
+
+        ## Check if it matches the newest version
+        ## TODO: optionally check it if matches any existing versions?
+   
+        if not force:
+            existing_manifest = self.manifest_for_bundle(bundle_name)
+            if existing_manifest is not None and existing_manifest.files == filelist:
+                logging.info("Found existing version with same contents.")
+                return existing_manifest
+    
+        ## verify all files in the filelist exist in the repo
+        
+        missing_shas = list()
+    
+        for path in filelist.keys():
+            sha = filelist.sha_for_file(path)
+            file_info = self.get_file_info(sha)
+            if file_info is None:
+                missing_shas.append(sha)
+    
+        if len(missing_shas) > 0:
+            # TODO: better error
+            raise Exception("Missing shas: %s" % (missing_shas))
+    
+        ## build manifest
+        
+        version = self.index.next_version_for_bundle(bundle_name)
+        new_manifest = ZincManifest(self.id, bundle_name, version)
+        new_manifest.files = filelist
+    
+        ## Handle archives
+    
+        should_create_archives = len(filelist) > 1
+        if should_create_archives:
+            
+            archive_flavors = list()
+    
+            # should create master archive?
+            if len(new_manifest.flavors) == 0 or not skip_master_archive:
+                # None is the appropriate flavor for the master archive
+                archive_flavors.append(None) 
+    
+            # should create archives for flavors?
+            if new_manifest.flavors is not None:
+                archive_flavors.extend(new_manifest.flavors)
+    
+            for flavor in archive_flavors:
+                tmp_tar_path = build_archive(
+                        self, new_manifest, flavor=flavor)
+                self.write_archive(
+                        bundle_name, new_manifest.version, 
+                        tmp_tar_path, flavor=flavor)
+               
+                # TODO: remove remove?
+                os.remove(tmp_tar_path)
+    
+        ## write manifest
+    
+        self._write_manifest(new_manifest)
+        
+        ## update catalog index
+        
+        self.index.add_version_for_bundle(bundle_name, version)
+        self._save()
+
+        return new_manifest
+
+    def import_path(self, src_path):
+
+        sha = sha1_for_path(src_path)
+
+        file_info = self.get_file_info(sha)
+        if file_info is not None:
+            return file_info
+
+        # gzip the file first, and see if it passes the compression threshhold
+        # TODO: this is stupid inefficient
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            src_path_gz = tmp_file.name
+            with open(src_path) as src_file:
+                tmp_file.write(gzip_bytes(src_file.read()))
+            tmp_file.flush()
+
+            src_size = os.path.getsize(src_path)
+            src_gz_size = os.path.getsize(src_path_gz)
+            if src_size > 0 and float(src_gz_size) / src_size <= self.config.gzip_threshhold:
+                final_src_path = src_path_gz 
+                final_src_size = src_gz_size
+                format = 'gz'
+            else:
+                final_src_path = src_path
+                final_src_size = src_size
+                format = 'raw'
+    
+            imported_path = self.write_file(
+                    sha, final_src_path, format=format)
+
+        file_info = {
+                'sha' :  sha,
+                'size' : final_src_size,
+                'format' : format
+                }
+        logging.info("Imported %s --> %s" % (src_path, file_info))
+        logging.debug("Imported path: %s" % imported_path)
+        return  file_info
+
+    @_lock
+    def delete_bundle_version(self, bundle_name, version):
+        self.index.delete_bundle_version(bundle_name, version)
+        self._save()
+
+    @_lock
+    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+        self.index.update_distribution(distribution_name, bundle_name, bundle_version)
+        self._save()
 
 
 ################################################################################
