@@ -5,8 +5,7 @@ from os.path import join as pjoin
 
 from zinc import *
 from zinc.utils import *
-from zinc.client import connect, ZincClient, ZincClientConfig
-from zinc.catalog import catalog_connect
+from zinc.client import connect, ZincClientConfig
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
 DEFAULT_CONFIG_PATH='~/.zinc'
@@ -44,8 +43,8 @@ def cmd_catalog_clean(args, config):
     catalog.clean(dry_run=not args.force)
 
 
-def catalog_list(client, distro=None, print_versions=True):
-    index = client.catalog_index()
+def catalog_list(catalog, distro=None, print_versions=True):
+    index = catalog.get_index()
     for bundle_name in index.bundle_names():
         if distro and distro not in index.distributions_for_bundle(bundle_name):
             continue
@@ -67,9 +66,10 @@ def catalog_list(client, distro=None, print_versions=True):
 
 
 def subcmd_catalog_list(args, config):
-    client = connect(args.catalog)
+    service = connect(args.catalog)
+    catalog = service.get_catalog()
     distro = args.distro
-    catalog_list(client, distro=distro, 
+    catalog_list(catalog, distro=distro, 
             print_versions=not args.no_versions)
     
 

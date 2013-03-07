@@ -32,8 +32,8 @@ class SimpleServiceConsumer(ZincServiceConsumer):
         return os.path.join(canonical_path(self._root_path), subpath)
 
     def create_catalog(self, id=None, loc=None):
-        assert loc
         assert id
+        loc = loc or '.'
 
         path = self._abs_path(loc)
         makedirs(path)
@@ -45,7 +45,7 @@ class SimpleServiceConsumer(ZincServiceConsumer):
         ZincIndex(id).write(index_path)
 
     def get_catalog(self, loc=None, id=None):
-        assert loc
+        loc = loc or '.'
         url = file_url(os.path.join(self._root_path, loc))
         storage = FilesystemStorageBackend(url=url)
         coordinator = FilesystemCatalogCoordinator(url=url)
