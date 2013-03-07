@@ -12,12 +12,12 @@ from zinc.helpers import *
 
 VALID_FORMATS = ('raw', 'gz') # TODO: relocate this
 
-# tmp?
-import tarfile
 
 ################# TEMP ######################
 
 def _build_archive(catalog, manifest, flavor=None):
+
+    import tarfile
 
     archive_filename = catalog.path_helper.archive_name(
             manifest.bundle_name, manifest.version, flavor=flavor)
@@ -196,7 +196,6 @@ class ZincCatalog(ZincAbstractCatalog):
     def get_manifest(self, bundle_name, version):
         return self._read_manifest(bundle_name, version)
 
-    @_lock
     def update_bundle(self, bundle_name, filelist, 
             skip_master_archive=False, force=False):
 
@@ -264,8 +263,7 @@ class ZincCatalog(ZincAbstractCatalog):
         
         ## update catalog index
         
-        self.index.add_version_for_bundle(bundle_name, version)
-        self._save()
+        self._add_version_for_bundle(bundle_name, version)
 
         return new_manifest
 
@@ -309,17 +307,26 @@ class ZincCatalog(ZincAbstractCatalog):
         return  file_info
 
     @_lock
+    def _add_version_for_bundle(self, bundle_name, version):
+        self._reload()
+        self.index.add_version_for_bundle(bundle_name, version)
+        self._save()
+
+    @_lock
     def delete_bundle_version(self, bundle_name, version):
+        self._reload()
         self.index.delete_bundle_version(bundle_name, version)
         self._save()
 
     @_lock
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
+        self._reload()
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
         self._save()
 
     @_lock
     def delete_distribution(self, distribution_name, bundle_name):
+        self._reload()
         self.index.delete_distribution(distribution_name, bundle_name)
         self._save()
 
