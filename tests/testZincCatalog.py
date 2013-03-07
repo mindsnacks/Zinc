@@ -2,12 +2,13 @@ import os.path
 import logging
 
 from zinc.models import ZincIndex, ZincManifest, ZincFlavorSpec
-from zinc.catalog import (create_catalog_at_path, ZincCatalogPathHelper)
+from zinc.catalog import ZincCatalogPathHelper
 from zinc.defaults import defaults
 from zinc.services import ZincCatalog
+from zinc.services.simple import SimpleService
 from zinc.storages import StorageBackend
 
-from zinc.client import ZincClient, connect
+from zinc.client import create_bundle_version
 
 from tests import *
 
@@ -25,6 +26,11 @@ class StorageBackendTestCase(unittest.TestCase):
     def test_put_raises(self):
         self.assertRaises(NotImplementedError, self.storage.put , 'foo', 'bar')
 
+def create_catalog_at_path(path, id):
+    service = SimpleService()
+    service.create_catalog(id=id, loc=path)
+    catalog = service.get_catalog(loc=path)
+    return catalog
 
 class ZincCatalogTestCase(TempDirTestCase):
 
@@ -93,16 +99,14 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         create_random_file(self.scratch_dir)
         create_random_file(self.scratch_dir)
-        client = connect(self.catalog_dir)
-        client.create_bundle_version("meep", self.scratch_dir)
+        create_bundle_version(catalog, "meep", self.scratch_dir)
         catalog._reload() # TODO: fix/remove/something
         return catalog
 
     def test_create_bundle_version(self):
         catalog = self._build_test_catalog()
-        client = connect(self.catalog_dir)
-        self.assertTrue("meep" in client.catalog_index().bundle_names())
-        self.assertTrue(1 in client.catalog_index().versions_for_bundle("meep"))
+        self.assertTrue("meep" in catalog.get_index().bundle_names())
+        self.assertTrue(1 in catalog.get_index().versions_for_bundle("meep"))
         manifest = catalog.manifest_for_bundle("meep", 1)
         self.assertTrue(manifest is not None)
         for (file, props) in manifest.files.items():
@@ -126,16 +130,15 @@ class ZincCatalogTestCase(TempDirTestCase):
         one_dir = os.mkdir(os.path.join(self.scratch_dir, "one"))
         create_random_file(one_dir)
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        ZincClient(catalog). create_bundle_version("meep", self.scratch_dir)
+        create_bundle_version(catalog, "meep", self.scratch_dir)
         results = catalog.verify()
         
     def test_create_second_bundle_version(self):
         catalog = self._build_test_catalog()
         # add a file
         create_random_file(self.scratch_dir)
-        client = connect(self.catalog_dir)
-        client.create_bundle_version("meep", self.scratch_dir)
-        self.assertTrue(2 in client.catalog_index().versions_for_bundle("meep"))
+        create_bundle_version(catalog, "meep", self.scratch_dir)
+        self.assertTrue(2 in catalog.get_index().versions_for_bundle("meep"))
         new_index = ZincIndex.from_path(os.path.join(catalog.path, defaults['catalog_index_name']))
         self.assertTrue(1 in new_index.versions_for_bundle("meep"))
         self.assertTrue(2 in new_index.versions_for_bundle("meep"))
@@ -145,11 +148,10 @@ class ZincCatalogTestCase(TempDirTestCase):
         # add a file
         create_random_file(self.scratch_dir)
         # create first version
-        client = connect(self.catalog_dir)
-        manifest1 = client.create_bundle_version("meep", self.scratch_dir)
-        self.assertTrue(2 in client.catalog_index().versions_for_bundle("meep"))
+        manifest1 = create_bundle_version(catalog, "meep", self.scratch_dir)
+        self.assertTrue(2 in catalog.get_index().versions_for_bundle("meep"))
         # attempt to create same version again
-        manifest2 = client.create_bundle_version("meep", self.scratch_dir)
+        manifest2 = create_bundle_version(catalog, "meep", self.scratch_dir)
         self.assertEquals(manifest1.version, manifest2.version)
 
     def test_create_duplicate_bundle_version_with_force(self):
@@ -157,20 +159,17 @@ class ZincCatalogTestCase(TempDirTestCase):
         # add a file
         create_random_file(self.scratch_dir)
         # create first version
-        client = connect(self.catalog_dir)
-        manifest1 = client.create_bundle_version("meep", self.scratch_dir)
-        self.assertTrue(2 in client.catalog_index().versions_for_bundle("meep"))
+        manifest1 = create_bundle_version(catalog, "meep", self.scratch_dir)
+        self.assertTrue(2 in catalog.get_index().versions_for_bundle("meep"))
         # attempt to create same version again, with force
-        manifest2 = client.create_bundle_version(
+        manifest2 = create_bundle_version(catalog,
                 "meep", self.scratch_dir, force=True)
         self.assertNotEquals(manifest1.version, manifest2.version)
 
-
     def test_create_identical_bundle_version(self):
         catalog = self._build_test_catalog()
-        client = connect(self.catalog_dir)
-        client.create_bundle_version("meep", self.scratch_dir)
-        self.assertEquals(len(client.catalog_index().versions_for_bundle("meep")), 1)
+        create_bundle_version(catalog, "meep", self.scratch_dir)
+        self.assertEquals(len(catalog.get_index().versions_for_bundle("meep")), 1)
 
     def test_catalog_verify(self):
         catalog = self._build_test_catalog()
@@ -186,7 +185,7 @@ class ZincCatalogTestCase(TempDirTestCase):
     def test_single_file_bundle_does_not_create_archive(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         create_random_file(self.scratch_dir)
-        ZincClient(catalog).create_bundle_version("meep", self.scratch_dir)
+        create_bundle_version(catalog, "meep", self.scratch_dir)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1)
         self.assertFalse(self.path_exists_in_catalog(archive_path))
 
@@ -194,7 +193,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         create_random_file(self.scratch_dir)
         create_random_file(self.scratch_dir)
-        ZincClient(catalog).create_bundle_version("meep", self.scratch_dir)
+        create_bundle_version(catalog, "meep", self.scratch_dir)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1)
         self.assertTrue(self.path_exists_in_catalog(archive_path))
 
@@ -202,7 +201,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         create_random_file(self.scratch_dir)
         flavor_spec = ZincFlavorSpec.from_dict({'dummy': ['+ *']})
-        ZincClient(catalog).create_bundle_version("meep", self.scratch_dir,
+        create_bundle_version(catalog, "meep", self.scratch_dir,
                 flavor_spec=flavor_spec)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1,
                 flavor='dummy')
@@ -212,7 +211,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         create_random_file(self.scratch_dir)
         create_random_file(self.scratch_dir)
-        ZincClient(catalog).create_bundle_version(
+        create_bundle_version(catalog,
                 "meep", self.scratch_dir, skip_master_archive=True)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1)
         self.assertTrue(self.path_exists_in_catalog(archive_path))
@@ -222,7 +221,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         create_random_file(self.scratch_dir)
         create_random_file(self.scratch_dir)
         flavor_spec = ZincFlavorSpec.from_dict({'dummy': ['+ *']})
-        ZincClient(catalog).create_bundle_version(
+        create_bundle_version(catalog,
                 "meep", self.scratch_dir, flavor_spec=flavor_spec, skip_master_archive=True)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1)
         self.assertFalse(self.path_exists_in_catalog(archive_path))
@@ -230,9 +229,8 @@ class ZincCatalogTestCase(TempDirTestCase):
     def test_next_version_is_2_for_new_bundle(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         create_random_file(self.scratch_dir)
-        client = connect(self.catalog_dir)
-        client.create_bundle_version("meep", self.scratch_dir)
-        next_version = client.catalog_index().next_version_for_bundle("meep")
+        create_bundle_version(catalog, "meep", self.scratch_dir)
+        next_version = catalog.get_index().next_version_for_bundle("meep")
         self.assertEquals(next_version, 2)
 
     ## covered by ZincIndexTestCase

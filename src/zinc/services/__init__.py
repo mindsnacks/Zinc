@@ -57,8 +57,8 @@ class ZincCatalog(ZincAbstractCatalog):
         self._read_config_file()
         #self._loaded = True
 
-    def __init__(self, coordinator=None, storage=None, path_helper=None,
-            **kwargs):
+    def __init__(self, coordinator=None, storage=None, 
+            path_helper=None, **kwargs):
         assert coordinator
         assert storage
 

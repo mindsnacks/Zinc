@@ -64,4 +64,5 @@ def filename_with_ext(filename, ext):
         return '%s.%s' % (filename, ext)
     return filename
 
-
+def file_url(path):
+    return 'file://%s' % (canonical_path(path))

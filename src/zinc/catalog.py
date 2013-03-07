@@ -146,28 +146,3 @@ class ZincAbstractCatalog(object):
                             (bundle_name, version, flavor))
         return bundle_descriptors
 
-
-
-# TODO: revamp this:
-def create_catalog_at_path(path, id):
-
-    from zinc.models import ZincCatalogConfig, ZincIndex
-    from zinc.services import ZincCatalog
-   
-    makedirs(path)
-
-    config_path = os.path.join(path, defaults['catalog_config_name'])
-    ZincCatalogConfig().write(config_path)
-
-    index_path = os.path.join(path, defaults['catalog_index_name'])
-    ZincIndex(id).write(index_path)
-
-    # TODO: check exceptions?
-
-    from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
-    from zinc.storages.filesystem import FilesystemStorageBackend
-    url = 'file://%s' % (path)
-    storage = FilesystemStorageBackend(url=url)
-    coord = FilesystemCatalogCoordinator(url=url)
-    return ZincCatalog(storage=storage, coordinator=coord)
-

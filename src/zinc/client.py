@@ -35,7 +35,14 @@ class ZincClientConfig(object):
 
 class ZincClientCatalog(ZincAbstractCatalog):
 
-    pass
+    def __init__(self, client=None, **kwags):
+        assert service
+
+        super(ZincCatalog, self).__init__(**kwargs)
+
+        self._client = client
+
+
 
 #    def get_index(self):
 #        """
@@ -92,28 +99,19 @@ class ZincClient(object):
     def get_catalog(self, id=None):
         return ZincClientCatalog()
 
+################################################################################
 
-    def create_bundle_version(self, bundle_name, src_dir, 
-            flavor_spec=None, force=False, skip_master_archive=False):
+def create_bundle_version(catalog, bundle_name, src_dir, 
+        flavor_spec=None, force=False, skip_master_archive=False):
 
-        from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
-        from zinc.storages.filesystem import FilesystemStorageBackend
-        from zinc.services import ZincCatalog
-
-        # TODO: colossal hack here...
-        url = self.service.url
-        storage = FilesystemStorageBackend(url=url)
-        coordinator = FilesystemCatalogCoordinator(url=url)
-        catalog = ZincCatalog(storage=storage, coordinator=coordinator)
-    
-        task = ZincBundleUpdateTask()
-        task.catalog = catalog
-        task.bundle_name = bundle_name
-        task.src_dir = src_dir
-        task.flavor_spec = flavor_spec
-        task.skip_master_archive = skip_master_archive
-        task.force = force
-        return task.run()
+    task = ZincBundleUpdateTask()
+    task.catalog = catalog
+    task.bundle_name = bundle_name
+    task.src_dir = src_dir
+    task.flavor_spec = flavor_spec
+    task.skip_master_archive = skip_master_archive
+    task.force = force
+    return task.run()
 
 ################################################################################
 
