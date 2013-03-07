@@ -37,10 +37,6 @@ class SimpleService(ZincService):
 
     def __init__(self, root_path=None):
         self._root_path = root_path or '/'
-        #self.url = 'file://%s' % (canonical_path(path))
-        #storage = FilesystemStorageBackend(url=url)
-        #coordinator = FilesystemCatalogCoordinator(url=url)
-        #self._catalog = ZincCatalog(coordinator=coordinator, storage=storage)
 
     def _abs_path(self, subpath):
         return os.path.join(canonical_path(self._root_path), subpath)

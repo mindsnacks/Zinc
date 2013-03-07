@@ -233,27 +233,3 @@ class ZincCatalogTestCase(TempDirTestCase):
         next_version = catalog.get_index().next_version_for_bundle("meep")
         self.assertEquals(next_version, 2)
 
-    ## covered by ZincIndexTestCase
-    #def test_next_version_is_added_if_missing(self):
-    #    catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-
-    #    client = connect(self.catalog_dir)
-    #   
-    #    # create v1
-    #    create_random_file(self.scratch_dir)
-    #    client.create_bundle_version("meep", self.scratch_dir)
-
-    #    client = None
-    #    
-    #    # remove the 'next_version' key
-    #    del catalog.index._bundle_info_by_name["meep"]["next_version"]
-    #   
-    #    # create v2
-    #    create_random_file(self.scratch_dir)
-    #    client.create_bundle_version("meep", self.scratch_dir)
-
-    #    # check
-    #    next_version = catalog.index.next_version_for_bundle("meep")
-    #    self.assertEquals(next_version, 3)
-
-
