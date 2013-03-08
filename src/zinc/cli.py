@@ -30,18 +30,8 @@ def load_config(path):
     return ZincClientConfig.from_path(path)
 
 
-### Commands #################################################################
-
-def cmd_catalog_create(args, config):
-    dest = args.catalog
-    if dest is None:
-        dest = './%s' % (args.catalog_id)
-    create_catalog_at_path(dest, args.catalog_id)
-
-def cmd_catalog_clean(args, config):
-    catalog = ZincCatalog(args.catalog)
-    catalog.clean(dry_run=not args.force)
-
+### Client Commands #################################################################
+# TODO: move to zinc.client ?
 
 def catalog_list(catalog, distro=None, print_versions=True):
     index = catalog.get_index()
@@ -64,15 +54,16 @@ def catalog_list(catalog, distro=None, print_versions=True):
         else:
             print "%s" % (bundle_name)
 
-
-def subcmd_catalog_list(args, config):
-    r = catalog_ref_split(args.catalog)
-    service = connect(r.service)
-    catalog = service.get_catalog(**r.catalog._asdict())
-    distro = args.distro
-    catalog_list(catalog, distro=distro, 
-            print_versions=not args.no_versions)
-    
+def distro_update(catalog, bundle_name, distro_name, version_name):
+    if version_name == "latest":
+        bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
+    elif version_name.startswith('@'):
+        source_distro = version_name[1:]
+        bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
+    else:
+        bundle_version = int(version_name)
+    catalog.update_distribution(
+            distro_name, bundle_name, bundle_version)
 
 def bundle_list(catalog, bundle_name, version, print_sha=False):
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
@@ -83,6 +74,27 @@ def bundle_list(catalog, bundle_name, version, print_sha=False):
         else:
             print f
 
+### Subcommand Parsing #################################################################
+
+def subcmd_catalog_list(args, config):
+    r = catalog_ref_split(args.catalog)
+    service = connect(r.service)
+    catalog = service.get_catalog(**r.catalog._asdict())
+    distro = args.distro
+    catalog_list(catalog, distro=distro, 
+            print_versions=not args.no_versions)
+ 
+def cmd_catalog_create(args, config):
+    dest = args.catalog
+    if dest is None:
+        dest = './%s' % (args.catalog_id)
+    create_catalog_at_path(dest, args.catalog_id)
+
+def cmd_catalog_clean(args, config):
+    catalog = ZincCatalog(args.catalog)
+    catalog.clean(dry_run=not args.force)
+
+
 def subcmd_bundle_list(args, config):
     r = catalog_ref_split(args.catalog)
     service = connect(r.service)
@@ -91,7 +103,6 @@ def subcmd_bundle_list(args, config):
     version = int(args.version)
     print_sha = args.sha
     bundle_list(catalog, bundle_name, version, print_sha=print_sha)
-
 
 def cmd_bundle_update(args, config):
     flavors = None
@@ -147,20 +158,14 @@ def cmd_bundle_delete(args, confg):
         for v in versions_to_delete:
             catalog.delete_bundle_version(bundle_name, int(v))
 
-def cmd_distro_update(args, config):
-    catalog = catalog_connect(args.catalog)
+def subcmd_distro_update(args, config):
+    r = catalog_ref_split(args.catalog)
+    service = connect(r.service)
+    catalog = service.get_catalog(**r.catalog._asdict())
     bundle_name = args.bundle
     distro_name = args.distro
-    bundle_version_arg = args.version
-    if bundle_version_arg == "latest":
-        bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
-    elif bundle_version_arg.startswith('@'):
-        source_distro = bundle_version_arg[1:]
-        bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
-    else:
-        bundle_version = int(bundle_version_arg)
-    catalog.update_distribution(
-            distro_name, bundle_name, bundle_version)
+    version_name = args.version
+    distro_update(catalog, bundle_name, distro_name, version_name)
 
 def cmd_distro_delete(args, config):
     catalog = catalog_connect(args.catalog)
@@ -291,7 +296,7 @@ def main():
     add_bundle_arg(parser_distro_update)
     add_version_arg(parser_distro_update)
     add_distro_arg(parser_distro_update)
-    parser_distro_update.set_defaults(func=cmd_distro_update)
+    parser_distro_update.set_defaults(func=subcmd_distro_update)
 
     # distro:delete
     parser_distro_delete = subparsers.add_parser(
