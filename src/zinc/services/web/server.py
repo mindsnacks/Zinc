@@ -1,9 +1,8 @@
 import os
-from urlparse import urljoin
 
 from redis import Redis
 #from rq import Queue
-from flask import Flask, request, redirect, abort, make_response
+from flask import Flask, request, abort, make_response
 from boto.s3.connection import S3Connection
 
 from zinc.catalog import ZincCatalogPathHelper
