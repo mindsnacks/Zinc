@@ -24,6 +24,14 @@ class S3StorageBackend(StorageBackend):
         return self._bucket.get_key(
                 self._get_keyname(subpath))
 
+    def get_meta(self, subpath):
+        key = self._bucket.lookup(
+                self._get_keyname(subpath))
+        if key is None: return None
+        meta = dict()
+        meta['size'] = key.size
+        return meta
+
     def put(self, subpath, fileobj):
         k = Key(self._bucket)
         k.key = self._get_keyname(subpath)
