@@ -43,6 +43,13 @@ class WebServiceZincCatalog(ZincAbstractCatalog):
         if r.status_code / 100 != 2:
             raise Exception("didn't work!")
 
+    def delete_distribution(self, distribution_name, bundle_name):
+        path = self.id + '/' + bundle_name + '/tags/' + distribution_name
+        url = self._url_for_path(path)
+        r = requests.delete(url)
+        # TODO: real error
+        if r.status_code / 100 != 2:
+            raise Exception("didn't work!")
 
 class WebServiceConsumer(ZincServiceConsumer):
 

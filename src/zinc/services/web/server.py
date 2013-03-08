@@ -65,15 +65,21 @@ def manifest(catalog_id, bundle, version=None):
 
         #return job.id
 
-@app.route('/<catalog_id>/<bundle>/tags/<tag>', methods=['PUT'])
+@app.route('/<catalog_id>/<bundle>/tags/<tag>', methods=['PUT', 'DELETE'])
 def tag(catalog_id, bundle, tag):
+
     if request.method == 'PUT':
         catalog = get_catalog(catalog_id)
         version = int(request.form['version'])
         catalog.update_distribution(tag, bundle, version)
-        response = make_response()
-        response.status_code = 200
-        return response
+
+    if request.method == 'DELETE':
+        catalog = get_catalog(catalog_id)
+        catalog.delete_distribution(tag, bundle)
+    
+    response = make_response()
+    response.status_code = 200
+    return response
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

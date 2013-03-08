@@ -54,6 +54,15 @@ def catalog_list(catalog, distro=None, print_versions=True):
         else:
             print "%s" % (bundle_name)
 
+def bundle_list(catalog, bundle_name, version, print_sha=False):
+    manifest = catalog.manifest_for_bundle(bundle_name, version=version)
+    all_files = sorted(manifest.get_all_files())
+    for f in all_files:
+        if print_sha:
+            print f, 'sha=%s' % (manifest.sha_for_file(f))
+        else:
+            print f
+
 def distro_update(catalog, bundle_name, distro_name, version_name):
     if version_name == "latest":
         bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
@@ -65,14 +74,9 @@ def distro_update(catalog, bundle_name, distro_name, version_name):
     catalog.update_distribution(
             distro_name, bundle_name, bundle_version)
 
-def bundle_list(catalog, bundle_name, version, print_sha=False):
-    manifest = catalog.manifest_for_bundle(bundle_name, version=version)
-    all_files = sorted(manifest.get_all_files())
-    for f in all_files:
-        if print_sha:
-            print f, 'sha=%s' % (manifest.sha_for_file(f))
-        else:
-            print f
+def distro_delete(catalog, distro_name, bundle_name):
+    catalog.delete_distribution(distro_name, bundle_name)
+
 
 ### Subcommand Parsing #################################################################
 
@@ -167,11 +171,13 @@ def subcmd_distro_update(args, config):
     version_name = args.version
     distro_update(catalog, bundle_name, distro_name, version_name)
 
-def cmd_distro_delete(args, config):
-    catalog = catalog_connect(args.catalog)
+def subcmd_distro_delete(args, config):
+    r = catalog_ref_split(args.catalog)
+    service = connect(r.service)
+    catalog = service.get_catalog(**r.catalog._asdict())
     bundle_name = args.bundle
     distro_name = args.distro
-    catalog.delete_distribution(distro_name, bundle_name)
+    distro_delete(catalog, distro_name, bundle_name)
 
 ## TODO: replace this
 #def _cmd_verify(path):
@@ -304,7 +310,7 @@ def main():
     add_catalog_arg(parser_distro_delete)
     add_bundle_arg(parser_distro_delete)
     add_distro_arg(parser_distro_delete)
-    parser_distro_delete.set_defaults(func=cmd_distro_delete)
+    parser_distro_delete.set_defaults(func=subcmd_distro_delete)
 
     args = parser.parse_args()
     config = load_config(args.config)
