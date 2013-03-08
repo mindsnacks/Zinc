@@ -22,20 +22,26 @@ class WebServiceZincCatalog(ZincAbstractCatalog):
     def _url_for_path(self, path):
         return urljoin(self._service_consumer.url, path)
 
-    def _get_url(self, url):
-        return requests.get(url)
-
     def get_index(self):
-        path = self.id + '/index.json' # TODO: improve this
+        path = self.id #+ '/index.json' # TODO: improve this
         url = self._url_for_path(path)
-        r = self._get_url(url)
+        r = requests.get(url)
         return ZincIndex.from_bytes(r.content, mutable=False)
 
     def get_manifest(self, bundle_name, version):
         path = self.id + '/' + bundle_name + '/' + str(version) # TODO: improve this
         url = self._url_for_path(path)
-        r = self._get_url(url)
+        r = requests.get(url)
         return ZincManifest.from_bytes(r.content, mutable=False)
+    
+    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+        path = self.id + '/' + bundle_name + '/tags/' + distribution_name
+        url = self._url_for_path(path)
+        data = {'version': int(bundle_version)}
+        r = requests.put(url, data=data)
+        # TODO: real error
+        if r.status_code / 100 != 2:
+            raise Exception("didn't work!")
 
 
 class WebServiceConsumer(ZincServiceConsumer):

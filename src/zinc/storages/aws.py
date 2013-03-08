@@ -1,5 +1,7 @@
 import os
 
+from boto.s3.key import Key
+
 from . import StorageBackend
 
 class S3StorageBackend(StorageBackend):
@@ -12,10 +14,18 @@ class S3StorageBackend(StorageBackend):
         self._bucket = self._conn.get_bucket(bucket)
         self._prefix = prefix
 
-    def get(self, subpath):
+    def _get_keyname(self, subpath):
         if self._prefix:
-            key = os.path.join(self._prefix, subpath)
+            return os.path.join(self._prefix, subpath)
         else:
-            key = subpath
-        return self._bucket.get_key(key)
+            return subpath
+
+    def get(self, subpath):
+        return self._bucket.get_key(
+                self._get_keyname(subpath))
+
+    def put(self, subpath, fileobj):
+        k = Key(self._bucket)
+        k.key = self._get_keyname(subpath)
+        k.set_contents_from_file(fileobj)
 

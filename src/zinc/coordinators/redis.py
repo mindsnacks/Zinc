@@ -83,7 +83,7 @@ class RedisCatalogCoordinator(CatalogCoordinator):
 
     def get_index_lock(self, prefix=None):
         name = 'index'
-        if prefix: name = '%s.%s' (prefix, name)
+        if prefix: name = '%s.%s' % (prefix, name)
         return Lock(name, redis=self._redis)
     
     @classmethod

@@ -3,7 +3,7 @@ from urlparse import urljoin
 
 from redis import Redis
 #from rq import Queue
-from flask import Flask, request, redirect, abort
+from flask import Flask, request, redirect, abort, make_response
 from boto.s3.connection import S3Connection
 
 from zinc.catalog import ZincCatalogPathHelper
@@ -64,6 +64,16 @@ def manifest(catalog_id, bundle, version=None):
         #Jobs[job.id] = job
 
         #return job.id
+
+@app.route('/<catalog_id>/<bundle>/tags/<tag>', methods=['PUT'])
+def tag(catalog_id, bundle, tag):
+    if request.method == 'PUT':
+        catalog = get_catalog(catalog_id)
+        version = int(request.form['version'])
+        catalog.update_distribution(tag, bundle, version)
+        response = make_response()
+        response.status_code = 200
+        return response
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
