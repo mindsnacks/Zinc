@@ -5,7 +5,7 @@ from os.path import join as pjoin
 
 from zinc import *
 from zinc.utils import *
-from zinc.client import connect, catalog_ref_split, ZincClientConfig
+from zinc.client import *
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
 DEFAULT_CONFIG_PATH='~/.zinc'
@@ -115,13 +115,14 @@ def cmd_bundle_update(args, config):
             flavors_dict = json.load(f)
             flavors = ZincFlavorSpec.from_dict(flavors_dict)
 
-    catalog = catalog_connect(args.catalog)
-    client = ZincClient(catalog)
+    r = catalog_ref_split(args.catalog)
+    service = connect(r.service)
+    catalog = service.get_catalog(**r.catalog._asdict())
     bundle_name = args.bundle
     path = args.path
     force = args.force
     skip_master_archive = args.skip_master_archive
-    manifest = client.create_bundle_version(
+    manifest = create_bundle_version(catalog,
             bundle_name, path, flavor_spec=flavors, force=force,
             skip_master_archive=skip_master_archive)
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
