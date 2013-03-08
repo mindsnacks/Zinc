@@ -33,7 +33,15 @@ class WebServiceZincCatalog(ZincAbstractCatalog):
         url = self._url_for_path(path)
         r = requests.get(url)
         return ZincManifest.from_bytes(r.content, mutable=False)
-    
+
+    def update_bundle(self, bundle_name, filelist, 
+            skip_master_archive=False, force=False):
+        # TODO: implement flags
+        path = self.id + '/' + bundle_name + '/' # TODO: improve this
+        url = self._url_for_path(path)
+        data = { 'files' : filelist.to_bytes()}
+        requests.post(url, data=data)
+
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
         path = self.id + '/' + bundle_name + '/tags/' + distribution_name
         url = self._url_for_path(path)
