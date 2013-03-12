@@ -187,9 +187,7 @@ def cmd_bundle_delete(args, confg):
 
 
 def subcmd_distro_update(args, config):
-    r = catalog_ref_split(args.catalog)
-    service = connect(r.service)
-    catalog = service.get_catalog(**r.catalog._asdict())
+    catalog = get_catalog(args, config)
     bundle_name = args.bundle
     distro_name = args.distro
     version_name = args.version
