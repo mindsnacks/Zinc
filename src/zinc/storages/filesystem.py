@@ -8,9 +8,14 @@ from zinc.utils import *
 
 class FilesystemStorageBackend(StorageBackend):
 
-    def __init__(self, url=None):
+    def __init__(self, url=None, **kwargs):
+        super(FilesystemStorageBackend, self).__init__(**kwargs)
         assert url is not None
         self._url = url
+
+    @classmethod
+    def valid_url(cls, url):
+        return urlparse(url).scheme in ('file')
 
     @property
     def url(self):

@@ -30,6 +30,14 @@ def load_config(path):
     return ZincClientConfig.from_path(path)
 
 
+def catalog_from_config(config, catalog_ref):
+
+    if config.bookmarks.get(catalog_ref):
+        catalog_id = config.bookmarks[catalog_ref]['catalog_id']
+        service_info = config.services[config.bookmarks[catalog_ref]['service']]
+        return catalog_id, service_info
+
+
 ### Client Commands #################################################################
 # TODO: move to zinc.client ?
 
@@ -83,9 +91,15 @@ def distro_delete(catalog, distro_name, bundle_name):
 ### Subcommand Parsing #################################################################
 
 def subcmd_catalog_list(args, config):
-    r = catalog_ref_split(args.catalog)
-    service = connect(r.service)
-    catalog = service.get_catalog(**r.catalog._asdict())
+    catalog_id, service_info = catalog_from_config(config, args.catalog)
+    if service_info is not None:
+        service = connect(**service_info)
+        catalog = service.get_catalog(id=catalog_id)
+    else:
+        r = catalog_ref_split(args.catalog)
+        service = connect(r.service)
+        catalog = service.get_catalog(**r.catalog._asdict())
+
     distro = args.distro
     catalog_list(catalog, distro=distro, print_versions=not args.no_versions)
 

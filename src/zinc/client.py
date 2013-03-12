@@ -8,6 +8,8 @@ from zinc.utils import *
 from zinc.helpers import *
 from zinc.models import ZincModel
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
+from zinc.coordinators import coordinator_for_url
+from zinc.storages import storage_for_url
 
 
 class ZincClientConfig(ZincModel):
@@ -45,11 +47,16 @@ class ZincClientConfig(ZincModel):
         return outdict
 
     @property
-    def bookmarks(self):
-        return self._d.get('bookmarks')
-
     def vars(self):
         return self._d.get('vars')
+
+    @property
+    def services(self):
+        return self._d.get('services')
+
+    @property
+    def bookmarks(self):
+        return self._d.get('bookmarks')
 
 
 ################################################################################
@@ -105,30 +112,38 @@ def catalog_ref_split(catalog_ref):
     elif urlcomps.scheme in ('file', ''):
         return CatalogRefSplitResult(catalog_ref, CatalogInfo(None, '.'))
 
-def connect(service_ref):
-    urlcomps = urlparse(service_ref)
-    if urlcomps.scheme in ('http', 'https'):
-        _catalog_connection_get_http(service_ref)
 
-        from zinc.services.web import WebServiceConsumer
-        service = WebServiceConsumer(service_ref)
+def connect(service_url=None, coordinator_url=None, storage_url=None, **kwargs):
 
-    elif urlcomps.scheme in ('file', ''):
-        if urlcomps.scheme == '':
-            # assume it's a path and convert a file URL
-            url = 'file://%s' % (canonical_path(service_ref))
-        else:
-            url = service_ref
+    if service_url is not None:
 
-        from zinc.services.simple import SimpleServiceConsumer
-        service = SimpleServiceConsumer(service_ref)
+        urlcomps = urlparse(service_url)
+        if urlcomps.scheme in ('http', 'https'):
+            _catalog_connection_get_http(service_url)
 
-    #if service is not None:
-    #    return ZincClient(service)
+            from zinc.services.web import WebServiceConsumer
+            return WebServiceConsumer(service_url)
 
-    ## TODO: error, exception
-    #return None
+        elif urlcomps.scheme in ('file', ''):
+            if urlcomps.scheme == '':
+                # assume it's a path and convert a file URL
+                file_url = 'file://%s' % (canonical_path(service_url))
+            else:
+                file_url = service_url
 
-    return service
+            from zinc.services.simple import SimpleServiceConsumer
+            return SimpleServiceConsumer(file_url)
+
+    elif coordinator_url is not None and storage_url is not None:
+
+        coord_class = coordinator_for_url(coordinator_url)
+        coord = coord_class(url=coordinator_url, **kwargs)
+
+        storage_class = storage_for_url(storage_url)
+        storage = storage_class(url=storage_url, **kwargs)
+
+        from zinc.services import CustomServiceConsumer
+        return CustomServiceConsumer(coordinator=coord, storage=storage)
+
 
 

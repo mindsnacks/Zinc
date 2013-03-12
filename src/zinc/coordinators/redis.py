@@ -90,6 +90,5 @@ class RedisCatalogCoordinator(CatalogCoordinator):
         return Lock(name, redis=self._redis)
 
     @classmethod
-    def validate_url(cls, url):
+    def valid_url(cls, url):
         return urlparse(url).scheme in ('redis')
-

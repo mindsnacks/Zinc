@@ -20,7 +20,6 @@ class FilesystemCatalogCoordinator(CatalogCoordinator):
         return urlparse(self.url).path
 
     @classmethod
-    def validate_url(cls, url):
+    def valid_url(cls, url):
         urlcomps = urlparse(url)
         return urlcomps.scheme == 'file'
-
