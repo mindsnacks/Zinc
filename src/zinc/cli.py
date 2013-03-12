@@ -85,6 +85,14 @@ def bundle_list(catalog, bundle_name, version, print_sha=False):
             print f
 
 
+def bundle_update(catalog, bundle_name, path, flavors=None, force=False,
+                  skip_master_archive=True):
+    manifest = create_bundle_version(catalog, bundle_name, path,
+                                     flavor_spec=flavors, force=force,
+                                     skip_master_archive=skip_master_archive)
+    print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+
+
 def distro_update(catalog, bundle_name, distro_name, version_name):
     if version_name == "latest":
         bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
@@ -131,25 +139,22 @@ def subcmd_bundle_list(config, args):
     bundle_list(catalog, bundle_name, version, print_sha=print_sha)
 
 
-# TODO: fix
-def cmd_bundle_update(args, config):
+def subcmd_bundle_update(config, args):
+    catalog = get_catalog(config, args)
+
     flavors = None
     if args.flavors is not None:
         with open(args.flavors) as f:
             flavors_dict = json.load(f)
             flavors = ZincFlavorSpec.from_dict(flavors_dict)
 
-    r = catalog_ref_split(args.catalog)
-    service = connect(r.service)
-    catalog = service.get_catalog(**r.catalog._asdict())
     bundle_name = args.bundle
     path = args.path
     force = args.force
     skip_master_archive = args.skip_master_archive
-    manifest = create_bundle_version(catalog, bundle_name, path,
-                                     flavor_spec=flavors, force=force,
-                                     skip_master_archive=skip_master_archive)
-    print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+
+    bundle_update(catalog, bundle_name, path, flavors=flavors, force=force,
+            skip_master_archive=skip_master_archive)
 
 
 # TODO: fix
@@ -296,7 +301,7 @@ def main():
     parser_bundle_update.add_argument(
             '-f', '--force', default=False, action='store_true',
             help='Update bundle even if no files changed.')
-    parser_bundle_update.set_defaults(func=cmd_bundle_update)
+    parser_bundle_update.set_defaults(func=subcmd_bundle_update)
 
     # bundle:clone
     parser_bundle_clone = subparsers.add_parser(
