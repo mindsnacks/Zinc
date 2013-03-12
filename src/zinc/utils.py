@@ -10,10 +10,11 @@ This module provides utility functions that are used within Zinc.
 
 import hashlib
 import gzip
+import zlib
 import os
 
 def sha1_for_path(path):
-    """Returns the SHA1 hash as a string for the given path"""
+    """Returns the SHA1 hash as a string for the given path."""
     sha1 = hashlib.sha1()
     f = open(path, 'rb')
     try:
@@ -29,6 +30,7 @@ def canonical_path(path):
     return path
 
 def makedirs(path):
+    """Convenience method that ignores errors if directory already exists."""
     try:
         os.makedirs(path)
     except OSError, e:
@@ -37,18 +39,30 @@ def makedirs(path):
         else:
             raise e
 
-def mygzip(src_path, dst_path):
+def gzip_path(src_path, dst_path):
+    """Convenience method for gzipping a file."""
     f_in = open(src_path, 'rb')
     f_out = gzip.open(dst_path, 'wb')
     f_out.writelines(f_in)
     f_out.close()
     f_in.close()
 
-def gunzip(src_path, dst_path):
+def gunzip_path(src_path, dst_path):
+    """Convenience method for un-gzipping a file."""
     f_in = gzip.open(src_path, 'rb')
     f_out = open(dst_path, 'wb')
     f_out.writelines(f_in)
     f_out.close()
     f_in.close()
 
+def gzip_bytes(bytes):
+    """Convenience method for gzipping bytes in memory."""
+    return zlib.compress(bytes)
 
+def filename_with_ext(filename, ext):
+    if ext is not None:
+        return '%s.%s' % (filename, ext)
+    return filename
+
+def file_url(path):
+    return 'file://%s' % (canonical_path(path))

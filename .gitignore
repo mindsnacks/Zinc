@@ -12,6 +12,8 @@ var
 sdist
 develop-eggs
 .installed.cfg
+.venv
+config.py
 
 # Installer logs
 pip-log.txt
