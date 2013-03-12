@@ -99,21 +99,23 @@ class ZincCatalog(ZincAbstractCatalog):
         #config_path = pjoin(self.path, defaults['catalog_config_name'])
         #self.config = load_config(config_path)
 
-    def _lock(func):
+    def _lock_index(func):
         @wraps(func)
-        def with_lock(self, *args, **kwargs):
+        def with_lock_index(self, *args, **kwargs):
 
-            #lock = self._coordinator.get_index_lock()
+            #lock = self._coordinator.get_index_lock_index()
             #lock.acquire(timeout=self.lock_timeout)
             #output = func(*args, **kwargs)
             #lock.release()
 
             with self._coordinator.get_index_lock(prefix=self.id):
+                self._reload()
                 output = func(self, *args, **kwargs)
+                self._save()
 
             return output
-        return with_lock
-    
+        return with_lock_index
+
     def _save(self):
         self._write_index(self.index)
 
@@ -302,32 +304,24 @@ class ZincCatalog(ZincAbstractCatalog):
         logging.debug("Imported path: %s" % imported_path)
         return  file_info
 
-    @_lock
+    @_lock_index
     def _add_version_for_bundle(self, bundle_name, version):
-        self._reload()
         self.index.add_version_for_bundle(bundle_name, version)
-        self._save()
 
-    @_lock
+    @_lock_index
     def delete_bundle_version(self, bundle_name, version):
-        self._reload()
         self.index.delete_bundle_version(bundle_name, version)
-        self._save()
 
-    @_lock
+    @_lock_index
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
-        self._reload()
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
-        self._save()
 
-    @_lock
+    @_lock_index
     def delete_distribution(self, distribution_name, bundle_name):
-        self._reload()
         self.index.delete_distribution(distribution_name, bundle_name)
-        self._save()
 
     def verify(self):
-        
+
         # TODO: fix private ref to _bundle_info_by_name
         for (bundle_name, bundle_info) in self.index._bundle_info_by_name.iteritems():
             for version in bundle_info['versions']:
@@ -353,7 +347,7 @@ class ZincCatalog(ZincAbstractCatalog):
         #            results_by_file[file] = ZincErrors.OK
         return results_by_file
 
-    @_lock
+    @_lock_index
     def clean(self, dry_run=False):
         bundle_descriptors = self.bundle_descriptors()
         verb = 'Would remove' if dry_run else 'Removing'
