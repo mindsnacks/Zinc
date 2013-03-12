@@ -29,6 +29,10 @@ class ZincModel(object):
         return json.dumps(self.to_dict())
 
     @classmethod
+    def from_dict(cls, d, mutable=True):
+        raise NotImplementedError()
+
+    @classmethod
     def from_bytes(cls, b, mutable=True):
         d = json.loads(b)
         return cls.from_dict(d, mutable=mutable)
