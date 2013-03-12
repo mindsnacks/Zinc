@@ -194,23 +194,23 @@ class ZincCatalog(ZincAbstractCatalog):
     def get_manifest(self, bundle_name, version):
         return self._read_manifest(bundle_name, version)
 
-    def update_bundle(self, bundle_name, filelist, 
-            skip_master_archive=False, force=False):
+    def update_bundle(self, bundle_name, filelist,
+                      skip_master_archive=False, force=False):
 
         assert bundle_name
         assert filelist
 
         ## Check if it matches the newest version
         ## TODO: optionally check it if matches any existing versions?
-   
+
         if not force:
             existing_manifest = self.manifest_for_bundle(bundle_name)
             if existing_manifest is not None and existing_manifest.files == filelist:
                 logging.info("Found existing version with same contents.")
                 return existing_manifest
-    
+
         ## verify all files in the filelist exist in the repo
-        
+
         missing_shas = list()
     
         for path in filelist.keys():
@@ -222,45 +222,45 @@ class ZincCatalog(ZincAbstractCatalog):
         if len(missing_shas) > 0:
             # TODO: better error
             raise Exception("Missing shas: %s" % (missing_shas))
-    
+
         ## build manifest
-        
+
         version = self.index.next_version_for_bundle(bundle_name)
         new_manifest = ZincManifest(self.id, bundle_name, version)
         new_manifest.files = filelist
     
         ## Handle archives
-    
+
         should_create_archives = len(filelist) > 1
         if should_create_archives:
-            
+
             archive_flavors = list()
-    
+
             # should create master archive?
             if len(new_manifest.flavors) == 0 or not skip_master_archive:
                 # None is the appropriate flavor for the master archive
-                archive_flavors.append(None) 
-    
+                archive_flavors.append(None)
+
             # should create archives for flavors?
             if new_manifest.flavors is not None:
                 archive_flavors.extend(new_manifest.flavors)
-    
+
             for flavor in archive_flavors:
                 tmp_tar_path = _build_archive(
                         self, new_manifest, flavor=flavor)
                 self._write_archive(
                         bundle_name, new_manifest.version, 
                         tmp_tar_path, flavor=flavor)
-               
+
                 # TODO: remove remove?
                 os.remove(tmp_tar_path)
-    
+
         ## write manifest
-    
+
         self._write_manifest(new_manifest)
-        
+
         ## update catalog index
-        
+
         self._add_version_for_bundle(bundle_name, version)
 
         return new_manifest
