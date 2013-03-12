@@ -1,4 +1,4 @@
-import ConfigParser
+import toml
 import logging
 from urlparse import urlparse
 from collections import namedtuple
@@ -6,29 +6,50 @@ from collections import namedtuple
 from zinc.defaults import defaults
 from zinc.utils import *
 from zinc.helpers import *
-
+from zinc.models import ZincModel
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 
-class ZincClientConfig(object):
 
-    def __init__(self, bookmarks=None):
-        self._bookmarks = bookmarks or dict()
+class ZincClientConfig(ZincModel):
+
+    VARS = 'vars'
+
+    def __init__(self, d=None, **kwargs):
+        super(ZincClientConfig, self).__init__(**kwargs)
+        self._d = d
+
+    @classmethod
+    def from_bytes(cls, b, mutable=True):
+        d = toml.loads(b)
+        return cls.from_dict(d, mutable=mutable)
+
+    @classmethod
+    def from_dict(cls, d, mutable=True):
+        replaced = cls._replace_vars(d, d[cls.VARS])
+        zincConfig = cls(replaced, mutable=mutable)
+        return zincConfig
+
+    @classmethod
+    def _replace_vars(cls, indict, vars):
+        # TODO: this could probably be a filter or something
+        outdict = dict()
+        for key, value in indict.iteritems():
+            if isinstance(value, dict):
+                outdict[key] = cls._replace_vars(value, vars)
+            elif isinstance(value, basestring) and value.startswith(cls.VARS + '.'):
+                varname = value[len(cls.VARS) + 1:]
+                var = vars[varname]
+                outdict[key] = var
+            else:
+                outdict[key] = value
+        return outdict
 
     @property
     def bookmarks(self):
-        return self._bookmarks
+        return self._d.get('bookmarks')
 
-    @classmethod
-    def from_path(cls, path):
-        config = ConfigParser.ConfigParser()
-        config.read(path)
-
-        bookmarks = dict(config.items('bookmarks'))
-
-        zincConfig = ZincClientConfig(
-                bookmarks=bookmarks)
-
-        return zincConfig
+    def vars(self):
+        return self._d.get('vars')
 
 
 ################################################################################

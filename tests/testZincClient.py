@@ -12,8 +12,14 @@ class TestZincClientConfigFromFile(unittest.TestCase):
         self.assertTrue(self.config is not None)
 
     def test_load_bookmark(self):
-        remote_loc = self.config.bookmarks["remote"]
-        self.assertEquals(remote_loc, "http://foo.com/catalog/")
+        remote = self.config.bookmarks["remote"]
+        self.assertEquals(remote['ref'], "http://foo.com/catalog/")
+
+    def test_replace_vars(self):
+        local = self.config.bookmarks["local"]
+        print local
+        print local['password']
+        self.assertEquals(local['password'], "abc123")
 
 
 class TestCatalogRefParsing(unittest.TestCase):
@@ -31,4 +37,4 @@ class TestCatalogRefParsing(unittest.TestCase):
         self.assertEquals(r.service, catalog_ref)
         self.assertEquals(r.catalog.loc, '.')
         self.assertIsNone(r.catalog.id)
-        
+
