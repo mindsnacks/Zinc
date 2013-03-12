@@ -5,6 +5,7 @@ from atomicfile import AtomicFile
 from . import StorageBackend
 from zinc.utils import *
 
+
 class FilesystemStorageBackend(StorageBackend):
 
     def __init__(self, url=None):
@@ -23,7 +24,7 @@ class FilesystemStorageBackend(StorageBackend):
 
     def get(self, subpath):
         abs_path = self._abs_path(subpath)
-        f =  open(abs_path, 'r')
+        f = open(abs_path, 'r')
         return f
 
     def get_meta(self, subpath):
@@ -39,4 +40,3 @@ class FilesystemStorageBackend(StorageBackend):
         makedirs(os.path.dirname(abs_path))
         with AtomicFile(abs_path, 'w') as f:
             f.write(fileobj.read())
-

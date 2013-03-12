@@ -68,6 +68,7 @@ def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
 
 ################################################################################
 
+
 def _catalog_connection_get_api_version(url):
     import requests
     ZINC_VERSION_HEADER = 'x-zinc-api-version'
@@ -78,6 +79,7 @@ def _catalog_connection_get_api_version(url):
         raise Exception("Unknown Zinc API - '%s' header not found" %
                 (ZINC_VERSION_HEADER))
     return api_version
+
 
 def _catalog_connection_get_http(url):
     ZINC_SUPPORTED_API_VERSIONS = ('1.0')
@@ -96,7 +98,7 @@ def catalog_ref_split(catalog_ref):
 
     urlcomps = urlparse(catalog_ref)
     if urlcomps.scheme in ('http', 'https'):
-        catalog_id  = os.path.split(urlcomps.path)[-1]
+        catalog_id = os.path.split(urlcomps.path)[-1]
         service = catalog_ref[:-len(catalog_id)]
         return CatalogRefSplitResult(service, CatalogInfo(catalog_id, None))
 

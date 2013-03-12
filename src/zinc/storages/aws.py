@@ -4,6 +4,7 @@ from boto.s3.key import Key
 
 from . import StorageBackend
 
+
 class S3StorageBackend(StorageBackend):
 
     def __init__(self, s3connection=None, bucket=None, prefix=None, **kwargs):
@@ -21,13 +22,12 @@ class S3StorageBackend(StorageBackend):
             return subpath
 
     def get(self, subpath):
-        return self._bucket.get_key(
-                self._get_keyname(subpath))
+        return self._bucket.get_key(self._get_keyname(subpath))
 
     def get_meta(self, subpath):
-        key = self._bucket.lookup(
-                self._get_keyname(subpath))
-        if key is None: return None
+        key = self._bucket.lookup(self._get_keyname(subpath))
+        if key is None:
+            return None
         meta = dict()
         meta['size'] = key.size
         return meta
@@ -36,4 +36,3 @@ class S3StorageBackend(StorageBackend):
         k = Key(self._bucket)
         k.key = self._get_keyname(subpath)
         k.set_contents_from_file(fileobj)
-

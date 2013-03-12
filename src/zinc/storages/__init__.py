@@ -1,4 +1,5 @@
-from StringIO import StringIO 
+from StringIO import StringIO
+
 
 class StorageBackend(object):
 
@@ -8,11 +9,11 @@ class StorageBackend(object):
         self.put(subpath, fileobj)
 
     ## Methods to override
-    
+
     def get(self, subpath):
         """Return file-like object at subpath."""
         raise NotImplementedError()
-    
+
     def get_meta(self, subpath):
         """
         Return dictionary of metadata for item at subpath or None if subpath

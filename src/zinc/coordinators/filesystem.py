@@ -5,6 +5,7 @@ from lockfile import FileLock
 from . import CatalogCoordinator
 from zinc.utils import *
 
+
 class FilesystemCatalogCoordinator(CatalogCoordinator):
 
     def _index_lock_path(self):

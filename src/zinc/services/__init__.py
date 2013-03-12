@@ -410,8 +410,10 @@ class ZincCatalog(ZincAbstractCatalog):
 
 ################################################################################
 
+
 class ZincServiceProvider(object):
     pass
+
 
 class ZincServiceConsumer(object):
 
