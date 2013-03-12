@@ -97,7 +97,7 @@ class ZincIndexTestCase(TempDirTestCase):
         index.add_version_for_bundle("meep", 1)
         index.update_distribution("master", "meep", 1)
         distros = index.distributions_for_bundle_by_version("meep")
-        self.assertEquals(distros[1], ["master",])
+        self.assertEquals(distros[1], ["master"])
 
     def test_distributions_for_bundle_by_version_multiple_distros(self):
         """Tests that the result is correct if there is one distro associated
@@ -230,10 +230,9 @@ class ZincManifestTestCase(TempDirTestCase):
     def test_immutable(self):
         manifest = ZincManifest('com.foo', 'stuff', 1, mutable=False)
         # TODO: test files setter
-        self.assertRaises(
-                TypeError, manifest.add_file, '/tmp/hi', '123')
-        self.assertRaises(
-                TypeError, manifest.add_format_for_file, '/tmp/hi', 'gz', 123)
+        self.assertRaises(TypeError, manifest.add_file, '/tmp/hi', '123')
+        self.assertRaises(TypeError, manifest.add_format_for_file, '/tmp/hi',
+                          'gz', 123)
 
     def test_immutable_from_dict(self):
         manifest = ZincManifest('com.foo', 'stuff', 1)
@@ -245,7 +244,7 @@ class ZincManifestTestCase(TempDirTestCase):
 class ZincFlavorSpecTestCase(unittest.TestCase):
 
     def test_load_from_dict_1(self):
-        d = {'small' : ['+ 50x50'], 'large' : ['+ 100x100']}
+        d = {'small': ['+ 50x50'], 'large': ['+ 100x100']}
         spec = ZincFlavorSpec.from_dict(d)
         self.assertTrue(spec is not None)
         self.assertEquals(len(spec.flavors), 2)
