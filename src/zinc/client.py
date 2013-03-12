@@ -33,8 +33,8 @@ class ZincClientConfig(object):
 
 ################################################################################
 
-def create_bundle_version(catalog, bundle_name, src_dir, 
-        flavor_spec=None, force=False, skip_master_archive=False):
+def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
+                          force=False, skip_master_archive=False):
 
     task = ZincBundleUpdateTask()
     task.catalog = catalog
@@ -50,7 +50,7 @@ def create_bundle_version(catalog, bundle_name, src_dir,
 def _catalog_connection_get_api_version(url):
     import requests
     ZINC_VERSION_HEADER = 'x-zinc-api-version'
-    resp = requests.head(url, allow_redirects=False) 
+    resp = requests.head(url, allow_redirects=False)
     # TODO is preventing redirects what we want?
     api_version = resp.headers.get(ZINC_VERSION_HEADER)
     if api_version is None:
@@ -85,7 +85,7 @@ def catalog_ref_split(catalog_ref):
 def connect(service_ref):
     urlcomps = urlparse(service_ref)
     if urlcomps.scheme in ('http', 'https'):
-        _catalog_connection_get_http(service_ref)           
+        _catalog_connection_get_http(service_ref)
 
         from zinc.services.web import WebServiceConsumer
         service = WebServiceConsumer(service_ref)
