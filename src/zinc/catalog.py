@@ -21,11 +21,11 @@ class ZincCatalogPathHelper(object):
     def manifests_dir(self):
         return "manifests"
 
-    @property 
+    @property
     def archives_dir(self):
         return "archives"
 
-    @property 
+    @property
     def objects_dir(self):
         return "objects"
 
@@ -87,21 +87,21 @@ class ZincAbstractCatalog(object):
         `bundle_name` and version`.
         """
         raise NotImplementedError()
-    
-    def update_bundle(self, bundle_name, filelist, 
+
+    def update_bundle(self, bundle_name, filelist,
             skip_master_archive=False, force=False):
         raise NotImplementedError()
- 
+
     # special
     def import_path(self, src_path):
         raise NotImplementedError()
-   
+
     def delete_bundle_version(self, bundle_name, version):
         raise NotImplementedError()
-    
+
     def update_distribution(self, distribution_name, bundle_name, bundle_version):
         raise NotImplementedError()
-    
+
     def delete_distribution(self, distribution_name, bundle_name):
         raise NotImplementedError()
 
@@ -142,7 +142,7 @@ class ZincAbstractCatalog(object):
                 bundle_descriptors.append("%s-%d" % (bundle_name, version))
                 manifest = self.manifest_for_bundle(bundle_name, version)
                 for flavor in manifest.flavors:
-                    bundle_descriptors.append("%s-%d~%s" % 
+                    bundle_descriptors.append("%s-%d~%s" %
                             (bundle_name, version, flavor))
         return bundle_descriptors
 
