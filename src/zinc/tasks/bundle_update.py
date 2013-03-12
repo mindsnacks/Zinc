@@ -49,8 +49,6 @@ class ZincBundleUpdateTask(object):
                 file_info = self.catalog.import_path(full_path)
                 if file_info is not None:
                     filelist.add_file(rel_path, file_info['sha'])
-                    filelist.add_format_for_file(
-                            rel_path, file_info['format'], file_info['size'])
 
                     if flavor_spec is not None:
                         for flavor in flavor_spec.flavors:

@@ -225,29 +225,6 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
         return self._files.get(path).get('sha')
 
     @mutable_only
-    def add_format_for_file(self, path, format, size):
-        props = self._files[path]
-        formats = props.get('formats') or {}
-        formats[format] = {'size' : size}
-        props['formats'] = formats
-
-    def formats_for_file(self, path):
-        props = self._files[path]
-        formats = props.get('formats')
-        return formats
-
-    def get_format_info_for_file(self, path, preferred_formats=None):
-
-        if preferred_formats is None:
-            preferred_formats = defaults['catalog_preferred_formats']
-        for format in preferred_formats:
-            format_info = self.formats_for_file(path).get(format)
-            if format_info is not None:
-                return (format, format_info)
-
-        return (None, None)
-
-    @mutable_only
     def add_flavor_for_file(self, path, flavor):
         props = self._files[path]
         flavors = props.get('flavors') or []
@@ -265,6 +242,31 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
             return all_files
         else:
             return [f for f in all_files if flavor in self.flavors_for_file(f)]
+
+    def contents_are_equalivalent(self, other_filelist):
+        """
+        Checks if the *contents* of two FileLists are equivalent. This checks
+        the file paths, sha, and flavors, but skips things like formats. This is
+        a looser equality than what `__eq__` provides.
+        """
+        if len(self) != len(other_filelist):
+            return False
+
+        for path in other_filelist.keys():
+            my_sha = self.sha_for_file(path)
+            if my_sha is None:
+                return False
+
+            other_sha = other_filelist.sha_for_file(path)
+            if other_sha != my_sha:
+                return False
+
+            my_flavors = self.flavors_for_file(path)
+            other_flavors = other_filelist.flavors_for_file(path)
+            if other_flavors != my_flavors:
+                return False
+
+        return True
 
 
 ### ZincManifest #############################################################

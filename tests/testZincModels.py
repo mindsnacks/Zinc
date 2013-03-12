@@ -167,8 +167,6 @@ class ZincFileListTestCase(unittest.TestCase):
         filelist = ZincFileList(mutable=False)
         self.assertFalse(filelist.is_mutable)
         self.assertRaises(TypeError, filelist.add_file, "/tmp/foo", "123")
-        self.assertRaises(
-                TypeError, filelist.add_format_for_file, "/tmp/foo", "gz", 123)
         self.assertRaises(TypeError, filelist.add_flavor_for_file, "/tmp/foo",
                           "small")
 

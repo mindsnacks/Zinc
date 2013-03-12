@@ -205,20 +205,24 @@ class ZincCatalog(ZincAbstractCatalog):
 
         if not force:
             existing_manifest = self.manifest_for_bundle(bundle_name)
-            if existing_manifest is not None and existing_manifest.files == filelist:
+            if existing_manifest is not None \
+               and existing_manifest.files.contents_are_equalivalent(filelist):
                 logging.info("Found existing version with same contents.")
                 return existing_manifest
 
         ## verify all files in the filelist exist in the repo
 
         missing_shas = list()
-    
+        info_by_path = dict()
+
         for path in filelist.keys():
             sha = filelist.sha_for_file(path)
             file_info = self._get_file_info(sha)
             if file_info is None:
                 missing_shas.append(sha)
-    
+            else:
+                info_by_path[path] = file_info
+
         if len(missing_shas) > 0:
             # TODO: better error
             raise Exception("Missing shas: %s" % (missing_shas))
@@ -227,8 +231,15 @@ class ZincCatalog(ZincAbstractCatalog):
 
         version = self.index.next_version_for_bundle(bundle_name)
         new_manifest = ZincManifest(self.id, bundle_name, version)
-        new_manifest.files = filelist
-    
+        new_manifest.files = filelist.clone(mutable=True)
+        # TODO move into setter?
+
+        for path, info in info_by_path.iteritems():
+            format = info['format']
+            size = info['size']
+            new_manifest.add_format_for_file(
+                    path, format, size)
+
         ## Handle archives
 
         should_create_archives = len(filelist) > 1
@@ -249,7 +260,7 @@ class ZincCatalog(ZincAbstractCatalog):
                 tmp_tar_path = _build_archive(
                         self, new_manifest, flavor=flavor)
                 self._write_archive(
-                        bundle_name, new_manifest.version, 
+                        bundle_name, new_manifest.version,
                         tmp_tar_path, flavor=flavor)
 
                 # TODO: remove remove?
