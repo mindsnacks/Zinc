@@ -8,7 +8,7 @@ from zinc.utils import *
 from zinc.client import *
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
-DEFAULT_CONFIG_PATH='~/.zinc'
+DEFAULT_CONFIG_PATH = '~/.zinc'
 
 
 ### Helpers ##################################################################
@@ -48,11 +48,12 @@ def catalog_list(catalog, distro=None, print_versions=True):
                 version_string += '=' + distro_string
             version_strings.append(version_string)
 
-        final_version_string =  "[%s]" %(", ".join(version_strings))
+        final_version_string = "[%s]" %(", ".join(version_strings))
         if print_versions:
             print "%s %s" % (bundle_name, final_version_string)
         else:
             print "%s" % (bundle_name)
+
 
 def bundle_list(catalog, bundle_name, version, print_sha=False):
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
@@ -63,6 +64,7 @@ def bundle_list(catalog, bundle_name, version, print_sha=False):
         else:
             print f
 
+
 def distro_update(catalog, bundle_name, distro_name, version_name):
     if version_name == "latest":
         bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
@@ -71,8 +73,8 @@ def distro_update(catalog, bundle_name, distro_name, version_name):
         bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
     else:
         bundle_version = int(version_name)
-    catalog.update_distribution(
-            distro_name, bundle_name, bundle_version)
+    catalog.update_distribution(distro_name, bundle_name, bundle_version)
+
 
 def distro_delete(catalog, distro_name, bundle_name):
     catalog.delete_distribution(distro_name, bundle_name)
@@ -85,14 +87,15 @@ def subcmd_catalog_list(args, config):
     service = connect(r.service)
     catalog = service.get_catalog(**r.catalog._asdict())
     distro = args.distro
-    catalog_list(catalog, distro=distro, 
-            print_versions=not args.no_versions)
- 
+    catalog_list(catalog, distro=distro, print_versions=not args.no_versions)
+
+
 def cmd_catalog_create(args, config):
     dest = args.catalog
     if dest is None:
         dest = './%s' % (args.catalog_id)
     create_catalog_at_path(dest, args.catalog_id)
+
 
 def cmd_catalog_clean(args, config):
     catalog = ZincCatalog(args.catalog)
@@ -108,6 +111,7 @@ def subcmd_bundle_list(args, config):
     print_sha = args.sha
     bundle_list(catalog, bundle_name, version, print_sha=print_sha)
 
+
 def cmd_bundle_update(args, config):
     flavors = None
     if args.flavors is not None:
@@ -122,10 +126,11 @@ def cmd_bundle_update(args, config):
     path = args.path
     force = args.force
     skip_master_archive = args.skip_master_archive
-    manifest = create_bundle_version(catalog,
-            bundle_name, path, flavor_spec=flavors, force=force,
-            skip_master_archive=skip_master_archive)
+    manifest = create_bundle_version(catalog, bundle_name, path,
+                                     flavor_spec=flavors, force=force,
+                                     skip_master_archive=skip_master_archive)
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+
 
 def cmd_bundle_clone(args, config):
 
@@ -138,6 +143,7 @@ def cmd_bundle_clone(args, config):
     task.output_path = args.path
 
     task.run()
+
 
 def cmd_bundle_delete(args, confg):
     bundle_name = args.bundle
@@ -163,6 +169,7 @@ def cmd_bundle_delete(args, confg):
         for v in versions_to_delete:
             catalog.delete_bundle_version(bundle_name, int(v))
 
+
 def subcmd_distro_update(args, config):
     r = catalog_ref_split(args.catalog)
     service = connect(r.service)
@@ -171,6 +178,7 @@ def subcmd_distro_update(args, config):
     distro_name = args.distro
     version_name = args.version
     distro_update(catalog, bundle_name, distro_name, version_name)
+
 
 def subcmd_distro_delete(args, config):
     r = catalog_ref_split(args.catalog)
@@ -228,7 +236,7 @@ def main():
             'catalog:clean', help='catalog:clean help')
     add_catalog_arg(parser_catalog_clean)
     parser_catalog_clean.add_argument(
-            '-f', '--force', default=False, action='store_true', 
+            '-f', '--force', default=False, action='store_true',
             help='This command does a dry run by default. Specifying this flag '
             'will cause files to actually be removed.')
     parser_catalog_clean.set_defaults(func=cmd_catalog_clean)
@@ -239,7 +247,7 @@ def main():
     add_catalog_arg(parser_catalog_list)
     add_distro_arg(parser_catalog_list, required=False)
     parser_catalog_list.add_argument(
-            '--no-versions', default=False, action='store_true', 
+            '--no-versions', default=False, action='store_true',
             help='Omit version information for bundles.')
     parser_catalog_list.set_defaults(func=subcmd_catalog_list)
 
@@ -250,7 +258,7 @@ def main():
     add_bundle_arg(parser_bundle_list)
     add_version_arg(parser_bundle_list)
     parser_bundle_list.add_argument(
-            '--sha', default=False, action='store_true', 
+            '--sha', default=False, action='store_true',
             help='Print file SHA hash.')
     parser_bundle_list.set_defaults(func=subcmd_bundle_list)
 
@@ -265,10 +273,10 @@ def main():
     parser_bundle_update.add_argument(
             '--flavors', help='Flavor spec path. Should be JSON.')
     parser_bundle_update.add_argument(
-            '--skip-master-archive', default=False, action='store_true', 
+            '--skip-master-archive', default=False, action='store_true',
             help='Skips creating master archive if flavors are specified.')
     parser_bundle_update.add_argument(
-            '-f', '--force', default=False, action='store_true', 
+            '-f', '--force', default=False, action='store_true',
             help='Update bundle even if no files changed.')
     parser_bundle_update.set_defaults(func=cmd_bundle_update)
 
@@ -292,7 +300,7 @@ def main():
     add_bundle_arg(parser_bundle_delete)
     add_version_arg(parser_bundle_delete)
     parser_bundle_delete.add_argument(
-            '-n', '--dry-run', default=False, action='store_true', 
+            '-n', '--dry-run', default=False, action='store_true',
             help='Dry run. Don\' actually delete anything.')
     parser_bundle_delete.set_defaults(func=cmd_bundle_delete)
 
