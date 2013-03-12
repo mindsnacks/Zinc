@@ -113,10 +113,10 @@ class ZincIndexTestCase(TempDirTestCase):
     def test_next_version_for_bundle_from_old_index(self):
         p = abs_path_for_fixture("index-pre-next_version.json")
         index = ZincIndex.from_path(p)
-       
+
         bundle_name = "meep"
         expected_next_version = 2
-       
+
         # ensure it returns the right value
         next_version = index.next_version_for_bundle(bundle_name)
         self.assertEquals(next_version, expected_next_version)
@@ -131,7 +131,7 @@ class ZincIndexTestCase(TempDirTestCase):
 
         bundle_name = "meep"
         expected_next_version = 2
-       
+
         # ensure it returns the right value
         next_version = index.next_version_for_bundle(bundle_name)
         self.assertEquals(next_version, expected_next_version)
@@ -151,7 +151,7 @@ class ZincIndexTestCase(TempDirTestCase):
         self.assertRaises(TypeError, index.delete_bundle_version, "meep", 1)
         self.assertRaises(TypeError, index.update_distribution, "master", "meep", 1)
         self.assertRaises(TypeError, index.delete_distribution, "master", "meep")
-    
+
     def test_immutable_from_dict(self):
         index = ZincIndex(id='com.foo')
         index.add_version_for_bundle("meep", 1)
@@ -169,9 +169,9 @@ class ZincFileListTestCase(unittest.TestCase):
         self.assertRaises(TypeError, filelist.add_file, "/tmp/foo", "123")
         self.assertRaises(
                 TypeError, filelist.add_format_for_file, "/tmp/foo", "gz", 123)
-        self.assertRaises(
-                TypeError, filelist.add_flavor_for_file, "/tmp/foo", "small")
-        
+        self.assertRaises(TypeError, filelist.add_flavor_for_file, "/tmp/foo",
+                          "small")
+
     def test_immutable_from_dict(self):
         filelist = ZincFileList()
         filelist.add_file('/tmp/foo', '123')
@@ -179,20 +179,21 @@ class ZincFileListTestCase(unittest.TestCase):
         immutable_filelist = ZincFileList.from_dict(d, mutable=False)
         self.assertFalse(immutable_filelist.is_mutable)
 
+
 class ZincManifestTestCase(TempDirTestCase):
 
     def test_save_and_load_with_files(self):
         manifest1 = ZincManifest('com.mindsnacks.test', 'meep', 1)
         manifest1.files = {
-                'a': {
-                    'sha': 'ea502a7bbd407872e50b9328956277d0228272d4',
-                    'formats': { 
-                        'raw' : {
-                            'size': 123
-                            }
-                        }
+            'a': {
+                'sha': 'ea502a7bbd407872e50b9328956277d0228272d4',
+                'formats': {
+                    'raw': {
+                        'size': 123
                     }
                 }
+            }
+        }
         path = os.path.join(self.dir, "manifest.json")
         manifest1.write(path)
         manifest2 = ZincManifest.from_path(path)
@@ -235,7 +236,7 @@ class ZincManifestTestCase(TempDirTestCase):
                 TypeError, manifest.add_file, '/tmp/hi', '123')
         self.assertRaises(
                 TypeError, manifest.add_format_for_file, '/tmp/hi', 'gz', 123)
-    
+
     def test_immutable_from_dict(self):
         manifest = ZincManifest('com.foo', 'stuff', 1)
         d = manifest.to_dict()
@@ -264,7 +265,7 @@ class BundleDescriptorTestCase(unittest.TestCase):
         descriptor = 'com.foo.bar-1'
         bundle_id = 'com.foo.bar'
         self.assertEquals(bundle_id, bundle_id_from_bundle_descriptor(descriptor))
-        
+
     def test_bundle_id_from_descriptor_with_flavor(self):
         descriptor = 'com.foo.bar-1~green'
         bundle_id = 'com.foo.bar'

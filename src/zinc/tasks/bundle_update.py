@@ -9,12 +9,12 @@ IGNORE = ['.DS_Store']
 
 class ZincBundleUpdateTask(object):
 
-    def __init__(self, 
+    def __init__(self,
             catalog=None,
-            bundle_name=None, 
+            bundle_name=None,
             src_dir=None,
-            flavor_spec=None, 
-            force=False, 
+            flavor_spec=None,
+            force=False,
             skip_master_archive=False):
 
         self.catalog = catalog
@@ -31,7 +31,7 @@ class ZincBundleUpdateTask(object):
 
     @src_dir.setter
     def src_dir(self, val):
-        if val is not None: 
+        if val is not None:
             val = canonical_path(val)
         self._src_dir = val
 

@@ -21,21 +21,21 @@ def _build_archive(catalog, manifest, flavor=None):
             manifest.bundle_name, manifest.version, flavor=flavor)
     archive_path = os.path.join(
             tempfile.mkdtemp(), archive_filename)
-   
+
     files = manifest.get_all_files(flavor=flavor)
-    
+
     with tarfile.open(archive_path, 'w') as tar:
         for f in files:
             format, format_info = manifest.get_format_info_for_file(f)
             sha = manifest.sha_for_file(f)
             ext = file_extension_for_format(format)
-           
+
             fileobj = catalog._read_file(sha, ext=ext)
 
             tarinfo = tar.tarinfo()
             tarinfo.name = filename_with_ext(sha, ext)
             tarinfo.size = format_info['size']
-            
+
             tar.addfile(tarinfo, fileobj)
 
     return archive_path
@@ -45,7 +45,7 @@ def _build_archive(catalog, manifest, flavor=None):
 
 class ZincCatalog(ZincAbstractCatalog):
 
-    def __init__(self, coordinator=None, storage=None, 
+    def __init__(self, coordinator=None, storage=None,
             path_helper=None, **kwargs):
         assert coordinator
         assert storage
@@ -58,7 +58,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self._ph = path_helper or ZincCatalogPathHelper()
         self._manifests = {}
         self._reload()
-        
+
         self.lock_timeout = defaults['catalog_lock_timeout']
 
     ### Properties ###
@@ -75,7 +75,7 @@ class ZincCatalog(ZincAbstractCatalog):
     def id(self):
         return self.index.id
 
-    @property 
+    @property
     def path_helper(self):
         return self._ph
 
@@ -85,7 +85,7 @@ class ZincCatalog(ZincAbstractCatalog):
     ### General Internal Methods ###
 
     def _reload(self):
-        
+
         ## TODO: check format, just assume 1 for now
         self.index = self._read_index()
         if self.index.format != defaults['zinc_format']:
@@ -282,14 +282,14 @@ class ZincCatalog(ZincAbstractCatalog):
             src_size = os.path.getsize(src_path)
             src_gz_size = os.path.getsize(src_path_gz)
             if src_size > 0 and float(src_gz_size) / src_size <= self.config.gzip_threshhold:
-                final_src_path = src_path_gz 
+                final_src_path = src_path_gz
                 final_src_size = src_gz_size
                 format = 'gz'
             else:
                 final_src_path = src_path
                 final_src_size = src_size
                 format = 'raw'
-    
+
             imported_path = self._write_file(
                     sha, final_src_path, format=format)
 

@@ -6,6 +6,7 @@ from zinc.utils import *
 from zinc.defaults import defaults
 from zinc.pathfilter import PathFilter
 
+
 def mutable_only(f):
     @wraps(f)
     def func(self, *args, **kwargs):
@@ -13,6 +14,7 @@ def mutable_only(f):
             raise TypeError("Can't modify immutable instance")
         return f(self, *args, **kwargs)
     return func
+
 
 class ZincModel(object):
 
@@ -58,7 +60,7 @@ class ZincIndex(ZincModel):
 
     def to_dict(self):
         if self.id is None:
-            raise ValueError("catalog id is None") # TODO: better exception?
+            raise ValueError("catalog id is None")  # TODO: better exception?
         return {
                 'id' : self.id,
                 'bundles' : self._bundle_info_by_name,
@@ -76,7 +78,7 @@ class ZincIndex(ZincModel):
     @classmethod
     def from_dict(cls, d, mutable=True):
         index = cls(
-                id=d['id'], 
+                id=d['id'],
                 mutable=mutable)
         index._format = d['format']
         index._bundle_info_by_name = d['bundles']
@@ -85,7 +87,7 @@ class ZincIndex(ZincModel):
     def _get_bundle_info(self, bundle_name):
         info = self._bundle_info_by_name.get(bundle_name)
         if info is not None and self.is_mutable:
-            if info.get('next-version'): # clean mispelled 'next_version' key
+            if info.get('next-version'):  # clean mispelled 'next_version' key
                 del info['next-version']
         return info
 
@@ -104,9 +106,9 @@ class ZincIndex(ZincModel):
     def add_version_for_bundle(self, bundle_name, version):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
         if version not in bundle_info['versions']:
-            next_version = self.next_version_for_bundle(bundle_name) 
+            next_version = self.next_version_for_bundle(bundle_name)
             if version != next_version:
-                raise Exception("Expected next bundle version %d, got version %d" 
+                raise Exception("Expected next bundle version %d, got version %d"
                         % (verison, next_version))
             bundle_info['versions'].append(version)
             bundle_info['versions'] = sorted(bundle_info['versions'])
@@ -123,12 +125,12 @@ class ZincIndex(ZincModel):
             versions = self.versions_for_bundle(bundle_name)
             if len(versions) == 0:
                 next_version = 1
-            else: 
+            else:
                 next_version = versions[-1] + 1
             if bundle_info and self.is_mutable:
                 bundle_info['next_version'] = next_version
         return next_version
-      
+
     @mutable_only
     def delete_bundle_version(self, bundle_name, bundle_version):
         assert bundle_version == int(bundle_version)
@@ -137,7 +139,7 @@ class ZincIndex(ZincModel):
             raise Exception("Unknown bundle %s" % (bundle_name))
         for distro_name, distro_version in bundle_info['distributions'].iteritems():
             if distro_version == bundle_version:
-                raise Exception("bundle '%s' v%d is referenced by the distribution '%s'" 
+                raise Exception("bundle '%s' v%d is referenced by the distribution '%s'"
                         % (bundle_name, bundle_version, distro_name))
         versions = bundle_info['versions']
         if bundle_version in versions:
@@ -146,7 +148,7 @@ class ZincIndex(ZincModel):
             del self._bundle_info_by_name[bundle_name]
         else:
             bundle_info['versions'] = versions
-        
+
     def distributions_for_bundle(self, bundle_name):
         bundle_info = self._bundle_info_by_name.get(bundle_name)
         if bundle_info is None:
@@ -191,7 +193,7 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
     def __init__(self, **kwargs):
         super(ZincFileList, self).__init__(**kwargs)
         self._files = dict()
-    
+
     @classmethod
     def from_dict(cls, d, mutable=True):
         obj = cls(mutable=mutable)
@@ -211,13 +213,13 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
 
     def keys(self):
         return self._files.keys()
-    
+
     def to_dict(self):
         return self._files
 
     @mutable_only
     def add_file(self, path, sha):
-        self._files[path] = {'sha' : sha}
+        self._files[path] = {'sha': sha}
 
     def sha_for_file(self, path):
         return self._files.get(path).get('sha')
@@ -282,10 +284,10 @@ class ZincManifest(ZincModel):
         catalog_id = d['catalog']
         bundle_name = d['bundle']
         version = int(d['version'])
-        manifest = ZincManifest(catalog_id, bundle_name, version,
-                mutable=mutable)
+        manifest = ZincManifest(catalog_id, bundle_name,
+                                version, mutable=mutable)
         manifest._files = ZincFileList.from_dict(d['files'])
-        manifest._flavors = d.get('flavors') or [] # to support legacy
+        manifest._flavors = d.get('flavors') or []  # to support legacy
         return manifest
 
     @property
@@ -332,14 +334,26 @@ class ZincManifest(ZincModel):
 
     @mutable_only
     def add_format_for_file(self, path, format, size):
-        self._files.add_format_for_file(path, format, size)
+        props = self._files[path]
+        formats = props.get('formats') or {}
+        formats[format] = {'size': size}
+        props['formats'] = formats
 
     def formats_for_file(self, path):
-        return self._files.formats_for_file(path)
-        
+        props = self._files[path]
+        formats = props.get('formats')
+        return formats
+
     def get_format_info_for_file(self, path, preferred_formats=None):
-        return self._files.get_format_info_for_file(
-                path, preferred_formats=preferred_formats)
+
+        if preferred_formats is None:
+            preferred_formats = defaults['catalog_preferred_formats']
+        for format in preferred_formats:
+            format_info = self.formats_for_file(path).get(format)
+            if format_info is not None:
+                return (format, format_info)
+
+        return (None, None)
 
     @mutable_only
     def add_flavor_for_file(self, path, flavor):
@@ -356,12 +370,12 @@ class ZincManifest(ZincModel):
 
     def to_dict(self):
         return {
-                'catalog' : self._catalog_id,
-                'bundle' : self._bundle_name,
-                'version' : self._version,
-                'flavors' : self._flavors,
-                'files' : self._files.to_dict(),
-                }
+            'catalog': self._catalog_id,
+            'bundle': self._bundle_name,
+            'version': self._version,
+            'flavors': self._flavors,
+            'files': self._files.to_dict(),
+        }
 
     def __eq__(self, other):
         return self._version == other.version \
@@ -418,4 +432,3 @@ class ZincCatalogConfig(ZincModel):
         return {
                 'gzip_threshold' : self.gzip_threshhold
                 }
-
