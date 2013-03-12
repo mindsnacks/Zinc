@@ -62,10 +62,10 @@ class ZincIndex(ZincModel):
         if self.id is None:
             raise ValueError("catalog id is None")  # TODO: better exception?
         return {
-                'id' : self.id,
-                'bundles' : self._bundle_info_by_name,
-                'format' : self._format,
-                }
+            'id': self.id,
+            'bundles': self._bundle_info_by_name,
+            'format': self._format,
+        }
 
     @property
     def id(self):
@@ -77,9 +77,7 @@ class ZincIndex(ZincModel):
 
     @classmethod
     def from_dict(cls, d, mutable=True):
-        index = cls(
-                id=d['id'],
-                mutable=mutable)
+        index = cls(id=d['id'], mutable=mutable)
         index._format = d['format']
         index._bundle_info_by_name = d['bundles']
         return index
@@ -109,7 +107,7 @@ class ZincIndex(ZincModel):
             next_version = self.next_version_for_bundle(bundle_name)
             if version != next_version:
                 raise Exception("Expected next bundle version %d, got version %d"
-                        % (verison, next_version))
+                                % (verison, next_version))
             bundle_info['versions'].append(version)
             bundle_info['versions'] = sorted(bundle_info['versions'])
             bundle_info['next_version'] = version + 1
@@ -121,7 +119,7 @@ class ZincIndex(ZincModel):
     def next_version_for_bundle(self, bundle_name):
         bundle_info = self._get_bundle_info(bundle_name)
         next_version = bundle_info.get('next_version') if bundle_info else None
-        if next_version is None: # older index without next_version
+        if next_version is None:  # older index without next_version
             versions = self.versions_for_bundle(bundle_name)
             if len(versions) == 0:
                 next_version = 1
@@ -140,11 +138,11 @@ class ZincIndex(ZincModel):
         for distro_name, distro_version in bundle_info['distributions'].iteritems():
             if distro_version == bundle_version:
                 raise Exception("bundle '%s' v%d is referenced by the distribution '%s'"
-                        % (bundle_name, bundle_version, distro_name))
+                                % (bundle_name, bundle_version, distro_name))
         versions = bundle_info['versions']
         if bundle_version in versions:
             versions.remove(bundle_version)
-        if len(versions) == 0: # remove info if no more versions
+        if len(versions) == 0:  # remove info if no more versions
             del self._bundle_info_by_name[bundle_name]
         else:
             bundle_info['versions'] = versions
@@ -159,7 +157,7 @@ class ZincIndex(ZincModel):
         distros = self.distributions_for_bundle(bundle_name)
         distros_by_version = dict()
         for distro, version in distros.iteritems():
-            if distros_by_version.get(version) == None:
+            if distros_by_version.get(version) is None:
                 distros_by_version[version] = list()
             distros_by_version[version].append(distro)
         return distros_by_version
@@ -432,5 +430,5 @@ class ZincCatalogConfig(ZincModel):
 
     def to_dict(self):
         return {
-                'gzip_threshold' : self.gzip_threshhold
-                }
+            'gzip_threshold': self.gzip_threshhold
+        }
