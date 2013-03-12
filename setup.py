@@ -32,6 +32,6 @@ setup(name='zinc',
     install_requires=install_requires,
     entry_points={
         'console_scripts':
-            ['zinc=zinc:main']
+            ['zinc=zinc.cli:main']
     }
 )
