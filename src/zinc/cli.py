@@ -90,7 +90,7 @@ def distro_delete(catalog, distro_name, bundle_name):
 
 ### Subcommand Parsing #################################################################
 
-def subcmd_catalog_list(args, config):
+def get_catalog(args, config):
     catalog_id, service_info = catalog_from_config(config, args.catalog)
     if service_info is not None:
         service = connect(**service_info)
@@ -99,7 +99,11 @@ def subcmd_catalog_list(args, config):
         r = catalog_ref_split(args.catalog)
         service = connect(r.service)
         catalog = service.get_catalog(**r.catalog._asdict())
+    return catalog
 
+
+def subcmd_catalog_list(args, config):
+    catalog = get_catalog(args, config)
     distro = args.distro
     catalog_list(catalog, distro=distro, print_versions=not args.no_versions)
 
@@ -117,9 +121,7 @@ def cmd_catalog_clean(args, config):
 
 
 def subcmd_bundle_list(args, config):
-    r = catalog_ref_split(args.catalog)
-    service = connect(r.service)
-    catalog = service.get_catalog(**r.catalog._asdict())
+    catalog = get_catalog(args, config)
     bundle_name = args.bundle
     version = int(args.version)
     print_sha = args.sha
