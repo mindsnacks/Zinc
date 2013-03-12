@@ -93,9 +93,33 @@ def bundle_update(catalog, bundle_name, path, flavors=None, force=False,
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 
+def bundle_delete(catalog, bundle_name, version_name, dry_run=False):
+    if version_name == 'all':
+        index = catalog.get_index()
+        versions_to_delete = index.versions_for_bundle(bundle_name)
+    elif version_name == 'unreferenced':
+        index = catalog.get_index()
+        all_versions = index.versions_for_bundle(bundle_name)
+        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
+        versions_to_delete = [v for v in all_versions if v not in referenced_versions]
+    else:
+        versions_to_delete = [int(version_name)]
+
+    if len(versions_to_delete) == 0:
+        print 'Nothing to do'
+    else:
+        verb = 'Would remove' if dry_run else 'Removing'
+        print "%s versions %s" % (verb, versions_to_delete)
+
+    if not dry_run:
+        for v in versions_to_delete:
+            catalog.delete_bundle_version(bundle_name, int(v))
+
+
 def distro_update(catalog, bundle_name, distro_name, version_name):
     if version_name == "latest":
-        bundle_version = catalog.versions_for_bundle(bundle_name)[-1]
+        index = catalog.get_index()
+        bundle_version = index.versions_for_bundle(bundle_name)[-1]
     elif version_name.startswith('@'):
         source_distro = version_name[1:]
         bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
@@ -171,30 +195,12 @@ def cmd_bundle_clone(args, config):
     task.run()
 
 
-# TODO: fix
-def cmd_bundle_delete(args, confg):
+def subcmd_bundle_delete(config, args):
+    catalog = get_catalog(config, args)
     bundle_name = args.bundle
-    version = args.version
-    catalog = catalog_connect(args.catalog)
+    version_name = args.version
     dry_run = args.dry_run
-    if version == 'all':
-        versions_to_delete = catalog.versions_for_bundle(bundle_name)
-    elif version == 'unreferenced':
-        all_versions = catalog.versions_for_bundle(bundle_name)
-        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
-        versions_to_delete = [v for v in all_versions if v not in referenced_versions]
-    else:
-        versions_to_delete = [version]
-
-    if len(versions_to_delete) == 0:
-        print 'Nothing to do'
-    elif len(versions_to_delete) > 1:
-        verb = 'Would remove' if dry_run else 'Removing'
-        print "%s versions %s" % (verb, versions_to_delete)
-
-    if not dry_run:
-        for v in versions_to_delete:
-            catalog.delete_bundle_version(bundle_name, int(v))
+    bundle_delete(catalog, bundle_name, version_name, dry_run=dry_run)
 
 
 def subcmd_distro_update(config, args):
@@ -325,7 +331,7 @@ def main():
     parser_bundle_delete.add_argument(
             '-n', '--dry-run', default=False, action='store_true',
             help='Dry run. Don\' actually delete anything.')
-    parser_bundle_delete.set_defaults(func=cmd_bundle_delete)
+    parser_bundle_delete.set_defaults(func=subcmd_bundle_delete)
 
     # distro:update
     parser_distro_update = subparsers.add_parser(
