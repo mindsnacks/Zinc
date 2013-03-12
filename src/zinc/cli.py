@@ -38,6 +38,18 @@ def catalog_from_config(config, catalog_ref):
         return catalog_id, service_info
 
 
+def get_catalog(config, args):
+    catalog_id, service_info = catalog_from_config(config, args.catalog)
+    if service_info is not None:
+        service = connect(**service_info)
+        catalog = service.get_catalog(id=catalog_id)
+    else:
+        r = catalog_ref_split(args.catalog)
+        service = connect(r.service)
+        catalog = service.get_catalog(**r.catalog._asdict())
+    return catalog
+
+
 ### Client Commands #################################################################
 # TODO: move to zinc.client ?
 
@@ -90,24 +102,14 @@ def distro_delete(catalog, distro_name, bundle_name):
 
 ### Subcommand Parsing #################################################################
 
-def get_catalog(args, config):
-    catalog_id, service_info = catalog_from_config(config, args.catalog)
-    if service_info is not None:
-        service = connect(**service_info)
-        catalog = service.get_catalog(id=catalog_id)
-    else:
-        r = catalog_ref_split(args.catalog)
-        service = connect(r.service)
-        catalog = service.get_catalog(**r.catalog._asdict())
-    return catalog
 
-
-def subcmd_catalog_list(args, config):
-    catalog = get_catalog(args, config)
+def subcmd_catalog_list(config, args):
+    catalog = get_catalog(config, args)
     distro = args.distro
     catalog_list(catalog, distro=distro, print_versions=not args.no_versions)
 
 
+# TODO: fix
 def cmd_catalog_create(args, config):
     dest = args.catalog
     if dest is None:
@@ -115,19 +117,21 @@ def cmd_catalog_create(args, config):
     create_catalog_at_path(dest, args.catalog_id)
 
 
+# TODO: fix
 def cmd_catalog_clean(args, config):
     catalog = ZincCatalog(args.catalog)
     catalog.clean(dry_run=not args.force)
 
 
-def subcmd_bundle_list(args, config):
-    catalog = get_catalog(args, config)
+def subcmd_bundle_list(config, args):
+    catalog = get_catalog(config, args)
     bundle_name = args.bundle
     version = int(args.version)
     print_sha = args.sha
     bundle_list(catalog, bundle_name, version, print_sha=print_sha)
 
 
+# TODO: fix
 def cmd_bundle_update(args, config):
     flavors = None
     if args.flavors is not None:
@@ -148,6 +152,7 @@ def cmd_bundle_update(args, config):
     print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
 
 
+# TODO: fix
 def cmd_bundle_clone(args, config):
 
     catalog = catalog_connect(args.catalog)
@@ -161,6 +166,7 @@ def cmd_bundle_clone(args, config):
     task.run()
 
 
+# TODO: fix
 def cmd_bundle_delete(args, confg):
     bundle_name = args.bundle
     version = args.version
@@ -186,16 +192,16 @@ def cmd_bundle_delete(args, confg):
             catalog.delete_bundle_version(bundle_name, int(v))
 
 
-def subcmd_distro_update(args, config):
-    catalog = get_catalog(args, config)
+def subcmd_distro_update(config, args):
+    catalog = get_catalog(config, args)
     bundle_name = args.bundle
     distro_name = args.distro
     version_name = args.version
     distro_update(catalog, bundle_name, distro_name, version_name)
 
 
-def subcmd_distro_delete(args, config):
-    catalog = get_catalog(args, config)
+def subcmd_distro_delete(config, args):
+    catalog = get_catalog(config, args)
     bundle_name = args.bundle
     distro_name = args.distro
     distro_delete(catalog, distro_name, bundle_name)
@@ -335,7 +341,7 @@ def main():
 
     args = parser.parse_args()
     config = load_config(args.config)
-    args.func(args, config)
+    args.func(config, args)
 
 if __name__ == "__main__":
     main()
