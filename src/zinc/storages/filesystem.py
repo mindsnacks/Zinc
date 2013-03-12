@@ -1,10 +1,19 @@
 import os
 from urlparse import urlparse
+from atomicfile import AtomicFile
 
-from zinc.catalog import StorageBackend
+from . import StorageBackend
 from zinc.utils import *
 
 class FilesystemStorageBackend(StorageBackend):
+
+    def __init__(self, url=None):
+        assert url is not None
+        self._url = url
+
+    @property
+    def url(self):
+        return self._url
 
     def _root_abs_path(self):
         return urlparse(self.url).path
@@ -14,14 +23,20 @@ class FilesystemStorageBackend(StorageBackend):
 
     def get(self, subpath):
         abs_path = self._abs_path(subpath)
-        with open(abs_path, 'r') as f:
-            d = f.read()
-        return d
+        f =  open(abs_path, 'r')
+        return f
 
-    def put(self, subpath, bytes):
+    def get_meta(self, subpath):
+        abs_path = self._abs_path(subpath)
+        if not os.path.exists(abs_path):
+            return None
+        meta = dict()
+        meta['size'] = os.path.getsize(abs_path)
+        return meta
+
+    def put(self, subpath, fileobj):
         abs_path = self._abs_path(subpath)
         makedirs(os.path.dirname(abs_path))
-        with open(abs_path, 'w') as f:
-            f.write(bytes)
-
+        with AtomicFile(abs_path, 'w') as f:
+            f.write(fileobj.read())
 

@@ -30,4 +30,7 @@ def bundle_version_from_bundle_descriptor(bundle_descriptor):
     version = int(version_flavor.split('~')[0])
     return version
 
+def file_extension_for_format(format_name):
+    if format_name == 'raw': return None
+    return format_name
 

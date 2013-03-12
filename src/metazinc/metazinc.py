@@ -11,6 +11,7 @@ from flask import Flask, request, redirect, abort
 from config import ZINC_CONFIG
 
 REDIS = Redis.from_url(os.environ.get('REDISTOGO_URL', 'redis://localhost:6379'))
+API_VERSION = '1.0'
 
 def catalog_index_url(catalog):
 	return ZINC_CONFIG["url"] + '/' + catalog + '/index.json'
@@ -39,6 +40,7 @@ def file_path(manifest, path):
 
 def format_from_info(file_info):
 	return file_info.get('formats').items()[0][0]
+
 def file_extension(file_info):
 	format = format_from_info(file_info)
 	return ('.' + format if format != 'raw' else '')
@@ -75,7 +77,6 @@ def process_manifest(manifest):
 	zindex.add_version_for_bundle(bundle, next_version)
 
 	manifest.files = request.json['files']
-	manifest.determine_flavors_from_files()
 
 	# verify files
 	if not process_files(manifest):	
@@ -90,6 +91,12 @@ Q = Queue(connection=REDIS)
 Jobs = {}
 
 app = Flask(__name__)
+
+@app.after_request
+def after_request(response):
+    response.headers.add('X-Zinc-API-Version', API_VERSION)
+    return response
+
 @app.route('/')
 def root():
     return 'Metazinc!'

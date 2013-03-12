@@ -31,4 +31,3 @@ class TestZincHelpers(unittest.TestCase):
                 Exception,
                 make_bundle_descriptor, 'com.foo.bundle', None) 
 
-

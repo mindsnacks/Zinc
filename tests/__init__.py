@@ -10,7 +10,7 @@ class TempDirTestCase(unittest.TestCase):
 
     def setUp(self):
         self.dir = tempfile.mkdtemp()
-        print self.dir
+        #print self.dir
     
     def tearDown(self):
         #shutil.rmtree(self.dir)
