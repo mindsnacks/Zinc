@@ -1,9 +1,7 @@
 import argparse
 import os
 import json
-from os.path import join as pjoin
 
-from zinc import *
 from zinc.utils import *
 from zinc.client import *
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
