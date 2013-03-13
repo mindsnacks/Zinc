@@ -52,7 +52,6 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         self.assertTrue(catalog is not None)
         #self.assertTrue(catalog.is_loaded() == True) #TODO: replace?
-        self.assertTrue(len(catalog.verify()) == 0)
         self.assertTrue(len(catalog.index.bundle_names()) == 0)
         self.assertTrue(catalog.format() == defaults['zinc_format'])
 
@@ -114,8 +113,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         create_random_file(one_dir)
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         create_bundle_version(catalog, "meep", self.scratch_dir)
-        results = catalog.verify()
-        
+
     def test_create_second_bundle_version(self):
         catalog = self._build_test_catalog()
         # add a file
@@ -153,10 +151,6 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog = self._build_test_catalog()
         create_bundle_version(catalog, "meep", self.scratch_dir)
         self.assertEquals(len(catalog.get_index().versions_for_bundle("meep")), 1)
-
-    def test_catalog_verify(self):
-        catalog = self._build_test_catalog()
-        results = catalog.verify()
 
     def test_path_for_manifest_with_name_version(self):
         catalog = self._build_test_catalog()

@@ -331,33 +331,6 @@ class ZincCatalog(ZincAbstractCatalog):
     def delete_distribution(self, distribution_name, bundle_name):
         self.index.delete_distribution(distribution_name, bundle_name)
 
-    def verify(self):
-
-        # TODO: fix private ref to _bundle_info_by_name
-        for (bundle_name, bundle_info) in self.index._bundle_info_by_name.iteritems():
-            for version in bundle_info['versions']:
-                manifest = self.manifest_for_bundle(bundle_name, version)
-                if manifest is None:
-                    raise Exception("manifest not found: %s-%d" % (bundle_name,
-                        version))
-                #for (file, sha) in manifest.files.iteritems():
-                #    print file, sha
-
-        results_by_file = dict()
-        #for version, manifest in self.manifests.items():
-        #    files = manifest.get("files")
-        #    for file, sha in files.items():
-        #        full_path = pjoin(self.path, self.path_for_file(file, version))
-        #        logging.debug("verifying %s" % full_path)
-        #        if not os.path.exists(full_path):
-        #            results_by_file[file] = ZincErrors.DOES_NOT_EXIST
-        #        elif sha1_for_path(full_path) != sha:
-        #            results_by_file[file] = ZincErrors.INCORRECT_SHA
-        #        else:
-        #            # everything is ok alarm
-        #            results_by_file[file] = ZincErrors.OK
-        return results_by_file
-
     @_lock_index
     def clean(self, dry_run=False):
         bundle_descriptors = self.bundle_descriptors()

@@ -75,6 +75,57 @@ def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
 
 ################################################################################
 
+def verify(catalog):
+
+    errors = []
+    index = catalog.get_index()
+    manifests = []
+    ph = catalog.path_helper  # TODO: this isn't in abstract base class
+
+    # TODO: fix private ref to _bundle_info_by_name
+    for (bundle_name, bundle_info) in index._bundle_info_by_name.iteritems():
+        for version in bundle_info['versions']:
+            manifest_name = ph.manifest_name(bundle_name, version)
+            print "Loading %s" % (manifest_name)
+            manifest = catalog.get_manifest(bundle_name, version)
+            if manifest is None:
+                errors.append("manifest not found: %s" % (manifest_name))
+                continue
+            manifests.append(manifest)
+
+    checked_shas = set()
+
+    for manifest in manifests:
+
+        ## TODO: check archives
+
+        ## check files
+        for path, info in manifest.files.iteritems():
+            sha = manifest.sha_for_file(path)
+            if sha not in checked_shas:
+                print "Checking file %s" % (sha)
+                meta = catalog._get_file_info(sha)
+                if meta is None:
+                    errors.append((sha, ZincErrors.DOES_NOT_EXIST))
+                    continue
+
+                format = meta['format']
+                meta_size = meta['size']
+                manifest_size = info['formats'][format]['size']
+                print "  format=%s meta_size=%s manifest_size=%s" % (format, meta_size, manifest_size)
+                if  meta_size != manifest_size:
+                    errors.append((sha, 'Wrong size'))
+
+                # TODO: sha hash verification
+                #ext = file_extension_for_format(meta['format'])
+                ## TODO: private ref to _read_file
+                #with catalog._read_file(sha, ext=ext) as f:
+                #    digest = hashlist.sha1(f.read()).hexdigest()
+                #    if digest != sha:
+                #        errors.append(sha, ZincErrors.INCORRECT_SHA)
+
+    return errors
+
 
 def _catalog_connection_get_api_version(url):
     import requests

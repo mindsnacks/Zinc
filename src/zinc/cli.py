@@ -215,17 +215,15 @@ def subcmd_distro_delete(config, args):
     distro_name = args.distro
     distro_delete(catalog, distro_name, bundle_name)
 
-## TODO: replace this
-#def _cmd_verify(path):
-#    catalog = ZincCatalog(path)
-#    results = catalog.verify()
-#    error_count = total_count = 0
-#    for (file, error) in results.items():
-#        if error.code != ZincErrors.OK.code:
-#            print error.message + " : " + file
-#            error_count = error_count + 1
-#        total_count = total_count + 1
-#    print "Verified %d files, %d errors" % (total_count, error_count)
+
+def subcmd_catalog_verify(config, args):
+    catalog = get_catalog(config, args)
+    results = verify(catalog)
+    if len(results) == 0:
+        print 'All ok!'
+    else:
+        print results
+
 
 
 ### Main #####################################################################
@@ -267,6 +265,12 @@ def main():
             help='This command does a dry run by default. Specifying this flag '
             'will cause files to actually be removed.')
     parser_catalog_clean.set_defaults(func=cmd_catalog_clean)
+
+    # catalog:verify
+    parser_catalog_verify = subparsers.add_parser(
+            'catalog:verify', help='catalog:verify help')
+    add_catalog_arg(parser_catalog_verify)
+    parser_catalog_verify.set_defaults(func=subcmd_catalog_verify)
 
     # catalog:list
     parser_catalog_list = subparsers.add_parser(
