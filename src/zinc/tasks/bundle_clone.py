@@ -1,9 +1,12 @@
 import os
 from shutil import copyfile
+import logging
 
 import zinc
 from zinc.utils import *
 from zinc.helpers import *
+
+log = logging.getLogger(__name__)
 
 ## TODO: this is broken and needs to be tested too
 
@@ -74,7 +77,7 @@ class ZincBundleCloneTask(object):
                 src_path = self.catalog._path_for_file_with_sha(sha, ext='gz')
                 gunzip(src_path, dst_path)
 
-            zinc.log.info("Exported %s --> %s" % (src_path, dst_path))
+            log.info("Exported %s --> %s" % (src_path, dst_path))
 
-        zinc.log.info("Exported %d files to '%s'" % (len(all_files), root_dir))
+        log.info("Exported %d files to '%s'" % (len(all_files), root_dir))
 
