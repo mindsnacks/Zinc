@@ -3,7 +3,6 @@ import os
 import json
 import logging
 
-import zinc
 from zinc.utils import *
 from zinc.client import *
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
