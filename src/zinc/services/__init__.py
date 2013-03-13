@@ -5,6 +5,7 @@ import tempfile
 
 from zinc.models import ZincIndex, ZincManifest, ZincCatalogConfig
 from zinc.catalog import ZincAbstractCatalog, ZincCatalogPathHelper
+from zinc.formats import Formats
 
 from zinc.defaults import defaults
 from zinc.utils import *
@@ -170,10 +171,10 @@ class ZincCatalog(ZincAbstractCatalog):
         return self._storage.get(subpath)
 
     def _write_file(self, sha, src_path, format=None):
-        format = format or 'raw' # default to 'raw'
+        format = format or Formats.RAW # default to RAW
         if format not in defaults['catalog_valid_formats']:
             raise Exception("Invalid format '%s'." % (format))
-        ext = format if format != 'raw' else None
+        ext = format if format != Formats.RAW else None
         subpath = self._ph.path_for_file_with_sha(sha, ext)
         with open(src_path, 'r') as src_file:
             self._storage.put(subpath, src_file)
@@ -297,11 +298,11 @@ class ZincCatalog(ZincAbstractCatalog):
             if src_size > 0 and float(src_gz_size) / src_size <= self.config.gzip_threshhold:
                 final_src_path = src_path_gz
                 final_src_size = src_gz_size
-                format = 'gz'
+                format = Formats.GZ
             else:
                 final_src_path = src_path
                 final_src_size = src_size
-                format = 'raw'
+                format = Formats.RAW
 
             imported_path = self._write_file(
                     sha, final_src_path, format=format)
