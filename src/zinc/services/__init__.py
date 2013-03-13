@@ -1,8 +1,8 @@
-import logging
 from urlparse import urlparse
 from functools import wraps
 import tempfile
 
+import zinc
 from zinc.models import ZincIndex, ZincManifest, ZincCatalogConfig
 from zinc.catalog import ZincAbstractCatalog, ZincCatalogPathHelper
 
@@ -94,7 +94,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self._read_config_file()
 
     def _read_config_file(self):
-        logging.warn('reimplement config loading')
+        zinc.log.warn('reimplement config loading')
         self.config = ZincCatalogConfig()
         #config_path = pjoin(self.path, defaults['catalog_config_name'])
         #self.config = load_config(config_path)
@@ -207,7 +207,7 @@ class ZincCatalog(ZincAbstractCatalog):
             existing_manifest = self.manifest_for_bundle(bundle_name)
             if existing_manifest is not None \
                and existing_manifest.files.contents_are_equalivalent(filelist):
-                logging.info("Found existing version with same contents.")
+                zinc.log.info("Found existing version with same contents.")
                 return existing_manifest
 
         ## verify all files in the filelist exist in the repo
@@ -311,8 +311,8 @@ class ZincCatalog(ZincAbstractCatalog):
                 'size' : final_src_size,
                 'format' : format
                 }
-        logging.info("Imported %s --> %s" % (src_path, file_info))
-        logging.debug("Imported path: %s" % imported_path)
+        zinc.log.info("Imported %s --> %s" % (src_path, file_info))
+        zinc.log.debug("Imported path: %s" % imported_path)
         return  file_info
 
     @_lock_index
@@ -375,7 +375,7 @@ class ZincCatalog(ZincAbstractCatalog):
                     if bundle_descr not in bundle_descriptors:
                         remove = True
                 if remove:
-                    logging.info("%s %s" % (verb, pjoin(root, f)))
+                    zinc.log.info("%s %s" % (verb, pjoin(root, f)))
                     if not dry_run: os.remove(pjoin(root, f))
 
         ### 2. scan archives for ones that aren't in index
@@ -390,7 +390,7 @@ class ZincCatalog(ZincAbstractCatalog):
                     if bundle_descr not in bundle_descriptors:
                         remove = True
                 if remove:
-                    logging.info("%s %s" % (verb, pjoin(root, f)))
+                    zinc.log.info("%s %s" % (verb, pjoin(root, f)))
                     if not dry_run: os.remove(pjoin(root, f))
 
         ### 3. clean objects
@@ -403,7 +403,7 @@ class ZincCatalog(ZincAbstractCatalog):
             for f in files:
                 basename = os.path.splitext(f)[0]
                 if basename not in all_objects:
-                    logging.info("%s %s" % (verb, pjoin(root, f)))
+                    zinc.log.info("%s %s" % (verb, pjoin(root, f)))
                     if not dry_run: os.remove(pjoin(root, f))
 
 

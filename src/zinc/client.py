@@ -1,8 +1,8 @@
 import toml
-import logging
 from urlparse import urlparse
 from collections import namedtuple
 
+import zinc
 from zinc.defaults import defaults
 from zinc.utils import *
 from zinc.helpers import *
@@ -94,7 +94,7 @@ def _catalog_connection_get_http(url):
     if api_version not in ZINC_SUPPORTED_API_VERSIONS:
         raise Exception("Unsupported Zinc API version '%s'" % (api_version))
     else:
-        logging.debug("Found Zinc API %s" % (api_version))
+        zinc.log.debug("Found Zinc API %s" % (api_version))
 
 
 def catalog_ref_split(catalog_ref):
