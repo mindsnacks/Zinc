@@ -1,9 +1,12 @@
 import argparse
-import os
 import json
+import os
+import sys
 
-from zinc.utils import *
-from zinc.client import *
+from zinc.utils import canonical_path
+from zinc.client import (connect, catalog_ref_split, create_bundle_version,
+        ZincClientConfig)
+from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
 DEFAULT_CONFIG_PATH = '~/.zinc'
