@@ -97,9 +97,9 @@ class ZincIndex(ZincModel):
         info = self._get_bundle_info(bundle_name)
         if info is None:
             info = self._bundle_info_by_name[bundle_name] = {
-                'versions':[],
-                'distributions':{},
-                'next_version':1,
+                'versions': [],
+                'distributions': {},
+                'next_version': 1,
             }
         return info
 
