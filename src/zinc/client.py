@@ -1,15 +1,16 @@
 import toml
-import logging
 from urlparse import urlparse
 from collections import namedtuple
+import logging
 
-from zinc.defaults import defaults
 from zinc.utils import *
 from zinc.helpers import *
 from zinc.models import ZincModel
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 from zinc.coordinators import coordinator_for_url
 from zinc.storages import storage_for_url
+
+log = logging.getLogger(__name__)
 
 
 class ZincClientConfig(ZincModel):
@@ -94,7 +95,7 @@ def _catalog_connection_get_http(url):
     if api_version not in ZINC_SUPPORTED_API_VERSIONS:
         raise Exception("Unsupported Zinc API version '%s'" % (api_version))
     else:
-        logging.debug("Found Zinc API %s" % (api_version))
+        log.debug("Found Zinc API %s" % (api_version))
 
 
 def catalog_ref_split(catalog_ref):

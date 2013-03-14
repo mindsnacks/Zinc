@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import sys
 
@@ -29,6 +30,18 @@ def load_config(path):
         sys.exit("File not found: %s" % (path))
 
     return ZincClientConfig.from_path(path)
+
+
+def set_loglevel(args):
+    # TODO: this could be a lot cleaner
+
+    if args.loglevel == 'info':
+        logging.basicConfig(level=logging.INFO)
+    elif args.loglevel == 'debug':
+        logging.basicConfig(level=logging.DEBUG,
+                            format='%(asctime)s %(levelname)s [%(name)s] %(message)s')
+    else:
+        logging.basicConfig(level=logging.ERROR)
 
 
 def catalog_from_config(config, catalog_ref):
@@ -239,6 +252,11 @@ def main():
     parser.add_argument('-C', '--config', default=DEFAULT_CONFIG_PATH,
             help='Config file path. Defaults to \'%s\'.' % (DEFAULT_CONFIG_PATH))
 
+    # TODO: embetter this
+    parser.add_argument('--loglevel', default='error',
+                        choices=('error', 'info', 'debug'),
+                        help='Log level.')
+
     subparsers = parser.add_subparsers(
             title='subcommands',
             description='valid subcommands',
@@ -353,6 +371,7 @@ def main():
 
     args = parser.parse_args()
     config = load_config(args.config)
+    set_loglevel(args)
     args.func(config, args)
 
 if __name__ == "__main__":
