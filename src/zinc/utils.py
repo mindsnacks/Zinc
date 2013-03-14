@@ -13,6 +13,9 @@ import gzip
 import zlib
 import os
 
+def enum(**enums):
+    return type('Enum', (), enums)
+
 def sha1_for_path(path):
     """Returns the SHA1 hash as a string for the given path."""
     sha1 = hashlib.sha1()
