@@ -2,7 +2,7 @@ import os
 from shutil import copyfile
 import logging
 
-import zinc
+from zinc.formats import Formats
 from zinc.utils import *
 from zinc.helpers import *
 
@@ -70,10 +70,10 @@ class ZincBundleCloneTask(object):
 
             makedirs(os.path.dirname(dst_path))
 
-            if formats.get('raw') is not None:
+            if formats.get(Formats.RAW) is not None:
                 src_path = self.catalog._path_for_file_with_sha(sha)
                 copyfile(src_path, dst_path)
-            elif formats.get('gz') is not None:
+            elif formats.get(Formats.GZ) is not None:
                 src_path = self.catalog._path_for_file_with_sha(sha, ext='gz')
                 gunzip(src_path, dst_path)
 
