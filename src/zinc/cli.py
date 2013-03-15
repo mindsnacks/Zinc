@@ -47,14 +47,15 @@ def catalog_from_config(config, catalog_ref):
 
     if config.bookmarks.get(catalog_ref):
         catalog_id = config.bookmarks[catalog_ref]['catalog_id']
-        service_info = config.services[config.bookmarks[catalog_ref]['service']]
-        return catalog_id, service_info
+        coordinator_info = config.coordinators[config.bookmarks[catalog_ref]['coordinator']]
+        storage_info = config.storages[config.bookmarks[catalog_ref]['storage']]
+        return catalog_id, coordinator_info, storage_info
 
 
 def get_catalog(config, args):
-    catalog_id, service_info = catalog_from_config(config, args.catalog)
-    if service_info is not None:
-        service = connect(**service_info)
+    catalog_id, coordinator_info, storage_info = catalog_from_config(config, args.catalog)
+    if coordinator_info is not None and storage_info is not None:
+        service = connect(coordinator_info=coordinator_info, storage_info=storage_info)
         catalog = service.get_catalog(id=catalog_id)
     else:
         r = catalog_ref_split(args.catalog)

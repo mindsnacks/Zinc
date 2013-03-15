@@ -74,14 +74,14 @@ class LockException(Exception):
 
 class RedisCatalogCoordinator(CatalogCoordinator):
 
-    def __init__(self, redis=None, **kwargs):
+    def __init__(self, redis=None, redis_password=None, **kwargs):
         super(RedisCatalogCoordinator, self).__init__(**kwargs)
         assert self.url or redis
         if redis is not None:
             self._redis = redis
         else:
             u = urlparse(self.url)
-            self._redis = Redis(host=u.hostname, port=u.port)
+            self._redis = Redis(host=u.hostname, port=u.port, password=redis_password)
 
     def get_index_lock(self, prefix=None):
         name = 'index'

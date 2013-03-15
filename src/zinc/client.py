@@ -1,7 +1,5 @@
 import os
-import hashlib
 import logging
-import tarfile
 from collections import namedtuple
 from urlparse import urlparse
 
@@ -14,6 +12,7 @@ from zinc.models import ZincModel
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 from zinc.coordinators import coordinator_for_url
 from zinc.storages import storage_for_url
+from zinc.utils import canonical_path
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class ZincClientConfig(ZincModel):
 
     @classmethod
     def from_dict(cls, d, mutable=True):
-        replaced = cls._replace_vars(d, d[cls.VARS])
+        replaced = cls._replace_vars(d, d.get(cls.VARS))
         zincConfig = cls(replaced, mutable=mutable)
         return zincConfig
 
@@ -57,12 +56,16 @@ class ZincClientConfig(ZincModel):
         return self._d.get('vars')
 
     @property
-    def services(self):
-        return self._d.get('services')
+    def bookmarks(self):
+        return self._d.get('bookmark')
 
     @property
-    def bookmarks(self):
-        return self._d.get('bookmarks')
+    def coordinators(self):
+        return self._d.get('coordinator')
+
+    @property
+    def storages(self):
+        return self._d.get('storage')
 
 
 ################################################################################
@@ -232,7 +235,7 @@ def catalog_ref_split(catalog_ref):
         return CatalogRefSplitResult(catalog_ref, CatalogInfo(None, '.'))
 
 
-def connect(service_url=None, coordinator_url=None, storage_url=None, **kwargs):
+def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs):
 
     if service_url is not None:
 
@@ -253,16 +256,13 @@ def connect(service_url=None, coordinator_url=None, storage_url=None, **kwargs):
             from zinc.services.simple import SimpleServiceConsumer
             return SimpleServiceConsumer(file_url)
 
-    elif coordinator_url is not None and storage_url is not None:
+    elif coordinator_info is not None and storage_info is not None:
 
-        coord_class = coordinator_for_url(coordinator_url)
-        coord = coord_class(url=coordinator_url, **kwargs)
+        coord_class = coordinator_for_url(coordinator_info['url'])
+        coord = coord_class(**coordinator_info)
 
-        storage_class = storage_for_url(storage_url)
-        storage = storage_class(url=storage_url, **kwargs)
+        storage_class = storage_for_url(storage_info['url'])
+        storage = storage_class(**storage_info)
 
         from zinc.services import CustomServiceConsumer
         return CustomServiceConsumer(coordinator=coord, storage=storage)
-
-
-
