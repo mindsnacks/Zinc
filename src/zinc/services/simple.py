@@ -9,6 +9,7 @@ from zinc.defaults import defaults
 from zinc.utils import *
 from zinc.helpers import *
 
+
 def f(service, conn, command):
     conn.send("fart")
     conn.close()
@@ -20,7 +21,6 @@ def _get_index(url, conn):
     catalog = ZincCatalog(coordinator=coordinator, storage=storage)
     conn.send(catalog.get_index())
     conn.close()
-
 
 
 class SimpleServiceConsumer(ZincServiceConsumer):
@@ -37,7 +37,7 @@ class SimpleServiceConsumer(ZincServiceConsumer):
 
         path = self._abs_path(loc)
         makedirs(path)
-        
+
         config_path = os.path.join(path, defaults['catalog_config_name'])
         ZincCatalogConfig().write(config_path)
 

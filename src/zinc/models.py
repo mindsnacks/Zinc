@@ -2,7 +2,6 @@ import json
 import UserDict
 from functools import wraps
 
-from zinc.utils import *
 from zinc.defaults import defaults
 from zinc.pathfilter import PathFilter
 
@@ -98,10 +97,10 @@ class ZincIndex(ZincModel):
         info = self._get_bundle_info(bundle_name)
         if info is None:
             info = self._bundle_info_by_name[bundle_name] = {
-                    'versions':[],
-                    'distributions':{},
-                    'next_version':1,
-                    }
+                'versions': [],
+                'distributions': {},
+                'next_version': 1,
+            }
         return info
 
     @mutable_only
@@ -111,7 +110,7 @@ class ZincIndex(ZincModel):
             next_version = self.next_version_for_bundle(bundle_name)
             if version != next_version:
                 raise Exception("Expected next bundle version %d, got version %d"
-                                % (verison, next_version))
+                                % (version, next_version))
             bundle_info['versions'].append(version)
             bundle_info['versions'] = sorted(bundle_info['versions'])
             bundle_info['next_version'] = version + 1

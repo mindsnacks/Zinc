@@ -24,7 +24,8 @@ class StorageBackendTestCase(unittest.TestCase):
         self.assertRaises(NotImplementedError, self.storage.get_meta, 'foo')
 
     def test_put_raises(self):
-        self.assertRaises(NotImplementedError, self.storage.put , 'foo', 'bar')
+        self.assertRaises(NotImplementedError, self.storage.put, 'foo', 'bar')
+
 
 def create_catalog_at_path(path, id):
     service = connect('/')
@@ -83,7 +84,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         create_random_file(self.scratch_dir)
         create_random_file(self.scratch_dir)
         create_bundle_version(catalog, "meep", self.scratch_dir)
-        catalog._reload() # TODO: fix/remove/something
+        catalog._reload()  # TODO: fix/remove/something
         return catalog
 
     def test_create_bundle_version(self):
@@ -145,8 +146,8 @@ class ZincCatalogTestCase(TempDirTestCase):
         manifest1 = create_bundle_version(catalog, "meep", self.scratch_dir)
         self.assertTrue(2 in catalog.get_index().versions_for_bundle("meep"))
         # attempt to create same version again, with force
-        manifest2 = create_bundle_version(catalog,
-                "meep", self.scratch_dir, force=True)
+        manifest2 = create_bundle_version(catalog, "meep", self.scratch_dir,
+                                          force=True)
         self.assertNotEquals(manifest1.version, manifest2.version)
 
     def test_create_identical_bundle_version(self):

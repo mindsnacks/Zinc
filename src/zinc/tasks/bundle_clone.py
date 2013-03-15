@@ -1,16 +1,19 @@
 import os
-import logging
 from shutil import copyfile
+import logging
 
+from zinc.formats import Formats
 from zinc.utils import *
 from zinc.helpers import *
+
+log = logging.getLogger(__name__)
 
 ## TODO: this is broken and needs to be tested too
 
 class ZincBundleCloneTask(object):
 
-    def __init__(self, 
-            catalog=None, 
+    def __init__(self,
+            catalog=None,
             bundle_name=None,
             version=None,
             output_path=None,
@@ -38,12 +41,12 @@ class ZincBundleCloneTask(object):
         assert self.bundle_name
         assert self.version
         assert self.output_path
-    
+
         manifest = self.catalog.manifest_for_bundle(
                 self.bundle_name, self.version)
 
         if manifest is None:
-            raise Exception("manifest not found: %s-%d" % 
+            raise Exception("manifest not found: %s-%d" %
                     (self.bundle_name, self.version))
 
         if self.flavor is not None and self.flavor not in manifest.flavors:
@@ -66,15 +69,15 @@ class ZincBundleCloneTask(object):
             sha = manifest.sha_for_file(file)
 
             makedirs(os.path.dirname(dst_path))
-            
-            if formats.get('raw') is not None:
+
+            if formats.get(Formats.RAW) is not None:
                 src_path = self.catalog._path_for_file_with_sha(sha)
                 copyfile(src_path, dst_path)
-            elif formats.get('gz') is not None:
+            elif formats.get(Formats.GZ) is not None:
                 src_path = self.catalog._path_for_file_with_sha(sha, ext='gz')
                 gunzip(src_path, dst_path)
 
-            logging.info("Exported %s --> %s" % (src_path, dst_path))
+            log.info("Exported %s --> %s" % (src_path, dst_path))
 
-        logging.info("Exported %d files to '%s'" % (len(all_files), root_dir))
+        log.info("Exported %d files to '%s'" % (len(all_files), root_dir))
 

@@ -38,7 +38,7 @@ class Lock(object):
         if not redis:
             redis = Redis()
         self.redis = redis
-        self.token = str(time.time()*random.random())
+        self.token = str(time.time() * random.random())
 
     def __enter__(self):
         redis = self.redis
@@ -65,28 +65,30 @@ class Lock(object):
 
 ################################################################################
 
+
 class LockException(Exception):
     pass
 
 ################################################################################
 
+
 class RedisCatalogCoordinator(CatalogCoordinator):
 
-    def __init__(self, redis=None, **kwargs):
+    def __init__(self, redis=None, redis_password=None, **kwargs):
         super(RedisCatalogCoordinator, self).__init__(**kwargs)
         assert self.url or redis
         if redis is not None:
             self._redis = redis
         else:
             u = urlparse(self.url)
-            self._redis = Redis(host=u.hostname, port=u.port)
+            self._redis = Redis(host=u.hostname, port=u.port, password=redis_password)
 
     def get_index_lock(self, prefix=None):
         name = 'index'
-        if prefix: name = '%s.%s' % (prefix, name)
+        if prefix:
+            name = '%s.%s' % (prefix, name)
         return Lock(name, redis=self._redis)
-    
-    @classmethod
-    def validate_url(cls, url):
-        return urlparse(url).scheme in ('redis')
 
+    @classmethod
+    def valid_url(cls, url):
+        return urlparse(url).scheme in ('redis')
