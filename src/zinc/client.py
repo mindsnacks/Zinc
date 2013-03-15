@@ -1,13 +1,17 @@
-import toml
-import logging
+import os
 from urlparse import urlparse
 from collections import namedtuple
+import logging
 
-from zinc.defaults import defaults
-from zinc.utils import *
-from zinc.helpers import *
+import toml
+
 from zinc.models import ZincModel
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
+from zinc.coordinators import coordinator_for_url
+from zinc.storages import storage_for_url
+from zinc.utils import canonical_path
+
+log = logging.getLogger(__name__)
 
 
 class ZincClientConfig(ZincModel):
@@ -25,7 +29,7 @@ class ZincClientConfig(ZincModel):
 
     @classmethod
     def from_dict(cls, d, mutable=True):
-        replaced = cls._replace_vars(d, d[cls.VARS])
+        replaced = cls._replace_vars(d, d.get(cls.VARS))
         zincConfig = cls(replaced, mutable=mutable)
         return zincConfig
 
@@ -45,11 +49,20 @@ class ZincClientConfig(ZincModel):
         return outdict
 
     @property
-    def bookmarks(self):
-        return self._d.get('bookmarks')
-
     def vars(self):
         return self._d.get('vars')
+
+    @property
+    def bookmarks(self):
+        return self._d.get('bookmark')
+
+    @property
+    def coordinators(self):
+        return self._d.get('coordinator')
+
+    @property
+    def storages(self):
+        return self._d.get('storage')
 
 
 ################################################################################
@@ -68,6 +81,7 @@ def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
 
 ################################################################################
 
+
 def _catalog_connection_get_api_version(url):
     import requests
     ZINC_VERSION_HEADER = 'x-zinc-api-version'
@@ -79,13 +93,14 @@ def _catalog_connection_get_api_version(url):
                 (ZINC_VERSION_HEADER))
     return api_version
 
+
 def _catalog_connection_get_http(url):
     ZINC_SUPPORTED_API_VERSIONS = ('1.0')
     api_version = _catalog_connection_get_api_version(url)
     if api_version not in ZINC_SUPPORTED_API_VERSIONS:
         raise Exception("Unsupported Zinc API version '%s'" % (api_version))
     else:
-        logging.debug("Found Zinc API %s" % (api_version))
+        log.debug("Found Zinc API %s" % (api_version))
 
 
 def catalog_ref_split(catalog_ref):
@@ -96,37 +111,42 @@ def catalog_ref_split(catalog_ref):
 
     urlcomps = urlparse(catalog_ref)
     if urlcomps.scheme in ('http', 'https'):
-        catalog_id  = os.path.split(urlcomps.path)[-1]
+        catalog_id = os.path.split(urlcomps.path)[-1]
         service = catalog_ref[:-len(catalog_id)]
         return CatalogRefSplitResult(service, CatalogInfo(catalog_id, None))
 
     elif urlcomps.scheme in ('file', ''):
         return CatalogRefSplitResult(catalog_ref, CatalogInfo(None, '.'))
 
-def connect(service_ref):
-    urlcomps = urlparse(service_ref)
-    if urlcomps.scheme in ('http', 'https'):
-        _catalog_connection_get_http(service_ref)
 
-        from zinc.services.web import WebServiceConsumer
-        service = WebServiceConsumer(service_ref)
+def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs):
 
-    elif urlcomps.scheme in ('file', ''):
-        if urlcomps.scheme == '':
-            # assume it's a path and convert a file URL
-            url = 'file://%s' % (canonical_path(service_ref))
-        else:
-            url = service_ref
+    if service_url is not None:
 
-        from zinc.services.simple import SimpleServiceConsumer
-        service = SimpleServiceConsumer(service_ref)
+        urlcomps = urlparse(service_url)
+        if urlcomps.scheme in ('http', 'https'):
+            _catalog_connection_get_http(service_url)
 
-    #if service is not None:
-    #    return ZincClient(service)
+            from zinc.services.web import WebServiceConsumer
+            return WebServiceConsumer(service_url)
 
-    ## TODO: error, exception
-    #return None
+        elif urlcomps.scheme in ('file', ''):
+            if urlcomps.scheme == '':
+                # assume it's a path and convert a file URL
+                file_url = 'file://%s' % (canonical_path(service_url))
+            else:
+                file_url = service_url
 
-    return service
+            from zinc.services.simple import SimpleServiceConsumer
+            return SimpleServiceConsumer(file_url)
 
+    elif coordinator_info is not None and storage_info is not None:
 
+        coord_class = coordinator_for_url(coordinator_info['url'])
+        coord = coord_class(**coordinator_info)
+
+        storage_class = storage_for_url(storage_info['url'])
+        storage = storage_class(**storage_info)
+
+        from zinc.services import CustomServiceConsumer
+        return CustomServiceConsumer(coordinator=coord, storage=storage)
