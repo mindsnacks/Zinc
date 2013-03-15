@@ -5,8 +5,8 @@ import os
 import sys
 
 from zinc.utils import canonical_path
-from zinc.client import (connect, catalog_ref_split, create_bundle_version,
-        ZincClientConfig)
+from zinc.client import (ZincClientConfig, connect, catalog_ref_split,
+        create_bundle_version, verify_bundle)
 from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
@@ -35,13 +35,12 @@ def load_config(path):
 def set_loglevel(args):
     # TODO: this could be a lot cleaner
 
-    if args.loglevel == 'info':
-        logging.basicConfig(level=logging.INFO)
-    elif args.loglevel == 'debug':
+    if args.loglevel == 'debug':
         logging.basicConfig(level=logging.DEBUG,
                             format='%(asctime)s %(levelname)s [%(name)s] %(message)s')
     else:
-        logging.basicConfig(level=logging.ERROR)
+        logging.basicConfig(level=logging.INFO,
+                            format='[%(levelname)s] %(message)s')
 
 
 def catalog_from_config(config, catalog_ref):
@@ -217,6 +216,13 @@ def subcmd_bundle_delete(config, args):
     bundle_delete(catalog, bundle_name, version_name, dry_run=dry_run)
 
 
+def subcmd_bundle_verify(config, args):
+    catalog = get_catalog(config, args)
+    bundle_name = args.bundle
+    version = int(args.version)
+    verify_bundle(catalog, bundle_name=bundle_name, version=version)
+
+
 def subcmd_distro_update(config, args):
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
@@ -252,7 +258,7 @@ def main():
 
     # TODO: embetter this
     parser.add_argument('--loglevel', default='error',
-                        choices=('error', 'info', 'debug'),
+                        choices=('info', 'debug'),
                         help='Log level.')
 
     subparsers = parser.add_subparsers(
@@ -355,6 +361,15 @@ def main():
             '-n', '--dry-run', default=False, action='store_true',
             help='Dry run. Don\' actually delete anything.')
     parser_bundle_delete.set_defaults(func=subcmd_bundle_delete)
+
+    # bundle:verify
+    parser_bundle_verify = subparsers.add_parser(
+            'bundle:verify', help = 'Verify all contents of a bundle.')
+    add_catalog_arg(parser_bundle_verify)
+    add_bundle_arg(parser_bundle_verify)
+    add_version_arg(parser_bundle_verify)
+    # TODO: allow for version OR distro
+    parser_bundle_verify.set_defaults(func=subcmd_bundle_verify)
 
     # distro:update
     parser_distro_update = subparsers.add_parser(

@@ -181,12 +181,24 @@ class ZincCatalog(ZincAbstractCatalog):
             self._storage.put(subpath, src_file)
         return subpath
 
+    def _get_archive_info(self, bundle_name, version, flavor=None):
+        subpath = self._ph.path_for_archive_for_bundle_version(bundle_name,
+                version, flavor=flavor)
+        meta = self._storage.get_meta(subpath)
+        return meta
+
     def _write_archive(self, bundle_name, version, src_path, flavor=None):
         subpath = self._ph.path_for_archive_for_bundle_version(
                 bundle_name, version, flavor=flavor)
         with open(src_path, 'r') as src_file:
             self._storage.put(subpath, src_file)
         return subpath
+
+    def _read_archive(self, bundle_name, version, flavor=None):
+        subpath = self._ph.path_for_archive_for_bundle_version(
+                bundle_name, version, flavor=flavor)
+        return self._storage.get(subpath)
+
 
     ### "Public" Methods
 
