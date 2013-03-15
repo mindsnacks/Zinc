@@ -28,7 +28,7 @@ class ZincClientConfig(ZincModel):
 
     @classmethod
     def from_dict(cls, d, mutable=True):
-        replaced = cls._replace_vars(d, d[cls.VARS])
+        replaced = cls._replace_vars(d, d.get(cls.VARS))
         zincConfig = cls(replaced, mutable=mutable)
         return zincConfig
 
