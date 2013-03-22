@@ -5,8 +5,8 @@ import os
 import sys
 
 from zinc.utils import canonical_path
-from zinc.client import (connect, catalog_ref_split, create_bundle_version,
-        ZincClientConfig)
+from zinc.client import (ZincClientConfig, connect, catalog_ref_split,
+        create_bundle_version, verify_bundle, verify_catalog)
 from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
@@ -35,13 +35,12 @@ def load_config(path):
 def set_loglevel(args):
     # TODO: this could be a lot cleaner
 
-    if args.loglevel == 'info':
-        logging.basicConfig(level=logging.INFO)
-    elif args.loglevel == 'debug':
+    if args.loglevel == 'debug':
         logging.basicConfig(level=logging.DEBUG,
                             format='%(asctime)s %(levelname)s [%(name)s] %(message)s')
     else:
-        logging.basicConfig(level=logging.ERROR)
+        logging.basicConfig(level=logging.INFO,
+                            format='[%(levelname)s] %(message)s')
 
 
 def catalog_from_config(config, catalog_ref):
@@ -218,6 +217,13 @@ def subcmd_bundle_delete(config, args):
     bundle_delete(catalog, bundle_name, version_name, dry_run=dry_run)
 
 
+def subcmd_bundle_verify(config, args):
+    catalog = get_catalog(config, args)
+    bundle_name = args.bundle
+    version = int(args.version)
+    verify_bundle(catalog, bundle_name=bundle_name, version=version)
+
+
 def subcmd_distro_update(config, args):
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
@@ -232,17 +238,15 @@ def subcmd_distro_delete(config, args):
     distro_name = args.distro
     distro_delete(catalog, distro_name, bundle_name)
 
-## TODO: replace this
-#def _cmd_verify(path):
-#    catalog = ZincCatalog(path)
-#    results = catalog.verify()
-#    error_count = total_count = 0
-#    for (file, error) in results.items():
-#        if error.code != ZincErrors.OK.code:
-#            print error.message + " : " + file
-#            error_count = error_count + 1
-#        total_count = total_count + 1
-#    print "Verified %d files, %d errors" % (total_count, error_count)
+
+def subcmd_catalog_verify(config, args):
+    catalog = get_catalog(config, args)
+    results = verify_catalog(catalog)
+    if len(results) == 0:
+        print 'All ok!'
+    else:
+        print results
+
 
 
 ### Main #####################################################################
@@ -255,7 +259,7 @@ def main():
 
     # TODO: embetter this
     parser.add_argument('--loglevel', default='error',
-                        choices=('error', 'info', 'debug'),
+                        choices=('info', 'debug'),
                         help='Log level.')
 
     subparsers = parser.add_subparsers(
@@ -289,6 +293,12 @@ def main():
             help='This command does a dry run by default. Specifying this flag '
             'will cause files to actually be removed.')
     parser_catalog_clean.set_defaults(func=cmd_catalog_clean)
+
+    # catalog:verify
+    parser_catalog_verify = subparsers.add_parser(
+            'catalog:verify', help='catalog:verify help')
+    add_catalog_arg(parser_catalog_verify)
+    parser_catalog_verify.set_defaults(func=subcmd_catalog_verify)
 
     # catalog:list
     parser_catalog_list = subparsers.add_parser(
@@ -352,6 +362,15 @@ def main():
             '-n', '--dry-run', default=False, action='store_true',
             help='Dry run. Don\' actually delete anything.')
     parser_bundle_delete.set_defaults(func=subcmd_bundle_delete)
+
+    # bundle:verify
+    parser_bundle_verify = subparsers.add_parser(
+            'bundle:verify', help = 'Verify all contents of a bundle.')
+    add_catalog_arg(parser_bundle_verify)
+    add_bundle_arg(parser_bundle_verify)
+    add_version_arg(parser_bundle_verify)
+    # TODO: allow for version OR distro
+    parser_bundle_verify.set_defaults(func=subcmd_bundle_verify)
 
     # distro:update
     parser_distro_update = subparsers.add_parser(
