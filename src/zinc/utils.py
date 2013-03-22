@@ -58,9 +58,15 @@ def gunzip_path(src_path, dst_path):
     f_out.close()
     f_in.close()
 
+
 def gzip_bytes(bytes):
     """Convenience method for gzipping bytes in memory."""
     return zlib.compress(bytes)
+
+
+def gunzip_bytes(bytes):
+    return zlib.decompress(bytes, 16 + zlib.MAX_WBITS)
+
 
 def filename_with_ext(filename, ext):
     if ext is not None:

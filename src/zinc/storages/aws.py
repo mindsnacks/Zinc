@@ -1,4 +1,5 @@
 import os
+from tempfile import TemporaryFile
 from copy import copy
 from urlparse import urlparse
 
@@ -41,7 +42,10 @@ class S3StorageBackend(StorageBackend):
             return subpath
 
     def get(self, subpath):
-        return self._bucket.get_key(self._get_keyname(subpath))
+        t = TemporaryFile()
+        t.write(self._bucket.get_key(self._get_keyname(subpath)).read())
+        t.seek(0)
+        return t
 
     def get_meta(self, subpath):
         key = self._bucket.lookup(self._get_keyname(subpath))

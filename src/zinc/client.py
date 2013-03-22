@@ -1,10 +1,15 @@
 import os
-from urlparse import urlparse
-from collections import namedtuple
 import logging
+import tarfile
+import hashlib
+from collections import namedtuple
+from urlparse import urlparse
 
 import toml
 
+from zinc.utils import canonical_path, gunzip_bytes
+from zinc.helpers import file_extension_for_format
+from zinc.formats import Formats
 from zinc.models import ZincModel
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 from zinc.coordinators import coordinator_for_url
@@ -80,6 +85,124 @@ def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
     return task.run()
 
 ################################################################################
+
+
+class ZincVerificationError(Exception):
+    pass
+
+
+def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
+        distro=None, check_shas=True, **kwargs):
+
+    assert catalog
+    assert manifest or bundle_name
+    if bundle_name is not None:
+        assert version or distro
+
+    if manifest is None:
+        if version is None:
+            index = catalog.get_index()
+            index.version_for_bundle(bundle_name, distro)
+        manifest = catalog.get_manifest(bundle_name, version)
+
+    ## Check individual files
+
+    for path, info in manifest.files.iteritems():
+        sha = manifest.sha_for_file(path)
+
+        ## Note: it's important to used the reference in kwargs directly
+        ##  or else changes won't be propagated to the calling code
+
+        if kwargs.get('verified_files') is not None:
+            if sha in kwargs['verified_files']:
+                log.debug('Skipping %s' % (sha))
+                continue
+            else:
+                kwargs['verified_files'].add(sha)
+
+        try:
+            meta = catalog._get_file_info(sha)
+            if meta is None:
+                raise ZincVerificationError('File %s not exist' % (sha))
+
+            format = meta['format']
+            meta_size = meta['size']
+            manifest_size = info['formats'][format]['size']
+            log.debug("file=%s format=%s meta_size=%s manifest_size=%s" % (sha, format, meta_size, manifest_size))
+            if  meta_size != manifest_size:
+                raise ZincVerificationError('File %s wrong size' % (sha))
+
+            if check_shas:
+                ext = file_extension_for_format(format)
+                with catalog._read_file(sha, ext=ext) as f:
+                    b = f.read()
+                    if format == Formats.GZ:
+                        b = gunzip_bytes(b)
+                    digest = hashlib.sha1(b).hexdigest()
+                    if digest != sha:
+                        raise ZincVerificationError('File %s wrong hash' % (sha))
+
+            log.info('File %s OK' % (sha))
+
+        except ZincVerificationError as e:
+            log.error(e)
+
+    ## Check archives
+
+    flavors = list(manifest.flavors)
+    flavors.append(None)  # no flavor
+
+    for flavor in flavors:
+        # TODO: private reference to _ph
+        archive_name = catalog._ph.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
+        try:
+            # TODO: private reference to _get_archive_info
+            meta = catalog._get_archive_info(manifest.bundle_name, manifest.version, flavor=flavor)
+            if meta is None:
+                if flavor is None and len(flavors) > 1:
+                    # If there is more than 1 flavor, we usually don't need the
+                    # master archive. This is probably OK.
+                    log.warn('Archive %s not found.' % (archive_name))
+                    continue
+                else:
+                    raise ZincVerificationError('Archive %s not found.' % (archive_name))
+
+            with catalog._read_archive(manifest.bundle_name, manifest.version, flavor=flavor) as a:
+                tar = tarfile.open(fileobj=a)
+                members = tar.getmembers()
+                #for member in members:
+                #    print member
+
+            log.info('Archive %s OK' % (archive_name))
+
+        except ZincVerificationError as e:
+            log.error(e)
+
+
+def verify_catalog(catalog):
+
+    errors = []
+    index = catalog.get_index()
+    manifests = []
+    ph = catalog.path_helper  # TODO: this isn't in abstract base class
+
+    # TODO: fix private ref to _bundle_info_by_name
+    for (bundle_name, bundle_info) in index._bundle_info_by_name.iteritems():
+        for version in bundle_info['versions']:
+            manifest_name = ph.manifest_name(bundle_name, version)
+            log.info("Loading %s" % (manifest_name))
+            manifest = catalog.get_manifest(bundle_name, version)
+            if manifest is None:
+                errors.append("manifest not found: %s" % (manifest_name))
+                continue
+            manifests.append(manifest)
+
+    verified_files = set()
+    for manifest in manifests:
+        log.info("Verifying %s-%d" % (manifest.bundle_name, manifest.version))
+        verify_bundle(catalog, manifest=manifest, verified_files=verified_files)
+
+    return errors
 
 
 def _catalog_connection_get_api_version(url):
