@@ -6,7 +6,7 @@ import sys
 
 from zinc.utils import canonical_path
 from zinc.client import (ZincClientConfig, connect, catalog_ref_split,
-        create_bundle_version, verify_bundle)
+        create_bundle_version, verify_bundle, verify_catalog)
 from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
@@ -241,7 +241,7 @@ def subcmd_distro_delete(config, args):
 
 def subcmd_catalog_verify(config, args):
     catalog = get_catalog(config, args)
-    results = verify(catalog)
+    results = verify_catalog(catalog)
     if len(results) == 0:
         print 'All ok!'
     else:

@@ -1,5 +1,7 @@
 import os
 import logging
+import tarfile
+import hashlib
 from collections import namedtuple
 from urlparse import urlparse
 
@@ -90,7 +92,7 @@ class ZincVerificationError(Exception):
 
 
 def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
-        distro=None, check_shas=False, **kwargs):
+        distro=None, check_shas=True, **kwargs):
 
     assert catalog
     assert manifest or bundle_name
@@ -103,14 +105,20 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
             index.version_for_bundle(bundle_name, distro)
         manifest = catalog.get_manifest(bundle_name, version)
 
-    verified_files = kwargs.get('verified_files') or set()
-
     ## Check individual files
 
     for path, info in manifest.files.iteritems():
         sha = manifest.sha_for_file(path)
-        if sha in verified_files:
-            continue
+
+        ## Note: it's important to used the reference in kwargs directly
+        ##  or else changes won't be propagated to the calling code
+
+        if kwargs.get('verified_files') is not None:
+            if sha in kwargs['verified_files']:
+                log.debug('Skipping %s' % (sha))
+                continue
+            else:
+                kwargs['verified_files'].add(sha)
 
         try:
             meta = catalog._get_file_info(sha)
@@ -171,7 +179,6 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
             log.error(e)
 
 
-
 def verify_catalog(catalog):
 
     errors = []
@@ -183,17 +190,17 @@ def verify_catalog(catalog):
     for (bundle_name, bundle_info) in index._bundle_info_by_name.iteritems():
         for version in bundle_info['versions']:
             manifest_name = ph.manifest_name(bundle_name, version)
-            print "Loading %s" % (manifest_name)
+            log.info("Loading %s" % (manifest_name))
             manifest = catalog.get_manifest(bundle_name, version)
             if manifest is None:
                 errors.append("manifest not found: %s" % (manifest_name))
                 continue
             manifests.append(manifest)
 
-    checked_shas = set()
-
+    verified_files = set()
     for manifest in manifests:
-        verify_bundle(catalog, manifest=manifest)
+        log.info("Verifying %s-%d" % (manifest.bundle_name, manifest.version))
+        verify_bundle(catalog, manifest=manifest, verified_files=verified_files)
 
     return errors
 
