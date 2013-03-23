@@ -248,7 +248,6 @@ def subcmd_catalog_verify(config, args):
         print results
 
 
-
 ### Main #####################################################################
 
 def main():
