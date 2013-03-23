@@ -14,7 +14,7 @@ from zinc.models import ZincModel
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 from zinc.coordinators import coordinator_for_url
 from zinc.storages import storage_for_url
-from zinc.utils import canonical_path
+
 
 log = logging.getLogger(__name__)
 
