@@ -83,10 +83,10 @@ class RedisCatalogCoordinator(CatalogCoordinator):
             u = urlparse(self.url)
             self._redis = Redis(host=u.hostname, port=u.port, password=redis_password)
 
-    def get_index_lock(self, prefix=None):
+    def get_index_lock(self, domain=None):
         name = 'index'
-        if prefix:
-            name = '%s.%s' % (prefix, name)
+        if domain is not None:
+            name = '%s.%s' % (domain, name)
         return Lock(name, redis=self._redis)
 
     @classmethod

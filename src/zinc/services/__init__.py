@@ -110,7 +110,7 @@ class ZincCatalog(ZincAbstractCatalog):
             #output = func(*args, **kwargs)
             #lock.release()
 
-            with self._coordinator.get_index_lock(prefix=self.id):
+            with self._coordinator.get_index_lock(domain=self.id):
                 self._reload()
                 output = func(self, *args, **kwargs)
                 self._save()
@@ -130,7 +130,7 @@ class ZincCatalog(ZincAbstractCatalog):
         if raw:
             self._storage.puts(subpath, bytes)
         if gzip:
-            self._storage.puts(subpath+'.gz', gzip_bytes(bytes))
+            self._storage.puts(subpath + '.gz', gzip_bytes(bytes))
 
     def _read_index(self):
         subpath = self._ph.path_for_index()

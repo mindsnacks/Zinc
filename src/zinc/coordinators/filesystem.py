@@ -11,8 +11,8 @@ class FilesystemCatalogCoordinator(CatalogCoordinator):
     def _index_lock_path(self):
         return os.path.join(self.path, '.index')
 
-    def get_index_lock(self, prefix=None):
-        # TODO: handle prefix?
+    def get_index_lock(self, domain=None):
+        # TODO: handle domain?
         return FileLock(self._index_lock_path())
 
     @property
