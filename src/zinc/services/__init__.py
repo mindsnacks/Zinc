@@ -147,7 +147,10 @@ class ZincCatalog(ZincAbstractCatalog):
         subpath = self._ph.path_for_manifest_for_bundle_version(
                 bundle_name, version)
         bytes = self._read(subpath)
-        return ZincManifest.from_bytes(bytes)
+        if bytes is not None:
+            return ZincManifest.from_bytes(bytes)
+        else:
+            return None
 
     def _write_manifest(self, manifest, raw=True, gzip=True):
         subpath = self._ph.path_for_manifest(manifest)
