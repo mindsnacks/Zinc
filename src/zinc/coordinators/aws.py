@@ -48,7 +48,7 @@ class Lock(object):
                 if item is None or item.get(LOCK_TOKEN) is None:
                     attrs = {
                         LOCK_TOKEN: self._token,
-                        LOCK_TIME: time.time() + self._expires
+                        LOCK_TIME: time.time()
                     }
                     self._sdb_domain.put_attributes(
                         self._key, attrs,
