@@ -104,7 +104,9 @@ def bundle_update(catalog, bundle_name, path, flavors=None, force=False,
     manifest = create_bundle_version(catalog, bundle_name, path,
                                      flavor_spec=flavors, force=force,
                                      skip_master_archive=skip_master_archive)
-    print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+    #print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+    # TODO: add some nice human readable and machine readable output options
+    print "%d" % (manifest.version)
 
 
 def bundle_delete(catalog, bundle_name, version_name, dry_run=False):
