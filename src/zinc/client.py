@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 class ZincClientConfig(ZincModel):
 
     VARS = 'vars'
+    ENV = 'env'
 
     def __init__(self, d=None, **kwargs):
         super(ZincClientConfig, self).__init__(**kwargs)
@@ -45,9 +46,15 @@ class ZincClientConfig(ZincModel):
         for key, value in indict.iteritems():
             if isinstance(value, dict):
                 outdict[key] = cls._replace_vars(value, vars)
-            elif isinstance(value, basestring) and value.startswith(cls.VARS + '.'):
-                varname = value[len(cls.VARS) + 1:]
-                var = vars[varname]
+            elif isinstance(value, basestring) \
+                    and (value.startswith(cls.VARS + ':') \
+                         or value.startswith(cls.ENV + ':')):
+                if value.startswith(cls.VARS + ':'):
+                    varname = value[len(cls.VARS) + 1:]
+                    var = vars[varname]
+                elif value.startswith(cls.ENV + ':'):
+                    varname = value[len(cls.ENV) + 1:]
+                    var = os.environ[varname]
                 outdict[key] = var
             else:
                 outdict[key] = value
