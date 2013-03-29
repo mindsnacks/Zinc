@@ -96,7 +96,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self._read_config_file()
 
     def _read_config_file(self):
-        log.warn('reimplement config loading')
+        #log.warn('reimplement config loading')
         self.config = ZincCatalogConfig()
         #config_path = pjoin(self.path, defaults['catalog_config_name'])
         #self.config = load_config(config_path)
