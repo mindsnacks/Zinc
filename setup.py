@@ -15,6 +15,7 @@ install_requires = [
     "lockfile==0.9.1",
     "boto==2.8.0",
     "atomicfile==0.1",
+    "redis==2.7.2",
 ]
 
 
