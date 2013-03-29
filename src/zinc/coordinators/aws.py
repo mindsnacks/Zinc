@@ -18,7 +18,9 @@ LOCK_TIME = 'lock_time'
 class Lock(object):
     def __init__(self, sdb_domain, key, expires=300, timeout=10):
 
-        assert expires > timeout and expires > 30
+        # Expiration must be 0 (never) or at least 30 seconds and greater than
+        # the timeout
+        assert expires == 0 or (expires > timeout and expires >= 30)
 
         self._sdb_domain = sdb_domain
         self._key = key
@@ -33,7 +35,7 @@ class Lock(object):
                 item = self._sdb_domain.get_item(self._key, consistent_read=True)
 
                 # check expiration
-                if item is not None:
+                if item is not None and self._expires != 0:
                     lock_time = item.get(LOCK_TIME)
                     if lock_time is None \
                        or time.time() > float(lock_time) + self._expires:
