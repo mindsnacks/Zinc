@@ -4,7 +4,7 @@ import time
 import uuid
 import logging
 
-from boto.sdb import connect_to_region
+import boto.sdb
 from boto.exception import SDBResponseError
 
 from . import CatalogCoordinator
@@ -100,9 +100,9 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
         if sdb_domain == '':
             sdb_domain = 'zinc'
 
-        self._conn = connect_to_region(sdb_region,
-                                       aws_access_key_id=aws_key,
-                                       aws_secret_access_key=aws_secret)
+        self._conn = boto.sdb.connect_to_region(sdb_region,
+                                                aws_access_key_id=aws_key,
+                                                aws_secret_access_key=aws_secret)
         self._domain = self._conn.create_domain(sdb_domain)
 
     def get_index_lock(self, domain=None):
@@ -112,5 +112,5 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
     @classmethod
     def valid_url(cls, url):
         urlcomps = urlparse(url)
-        # TODO: validate region
-        return urlcomps.scheme == 'sdb'
+        return urlcomps.scheme == 'sdb' \
+                and urlcomps.netloc in [r.name for r in boto.sdb.regions()]
