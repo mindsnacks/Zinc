@@ -99,7 +99,7 @@ class ZincIndex(ZincModel):
             info = self._bundle_info_by_name[bundle_name] = {
                 'versions': [],
                 'distributions': {},
-                'next_version': 1,
+                'next_version': 0,
             }
         return info
 
@@ -107,13 +107,15 @@ class ZincIndex(ZincModel):
     def add_version_for_bundle(self, bundle_name, version):
         bundle_info = self._get_or_create_bundle_info(bundle_name)
         if version not in bundle_info['versions']:
-            next_version = self.next_version_for_bundle(bundle_name)
-            if version != next_version:
-                raise Exception("Expected next bundle version %d, got version %d"
-                                % (version, next_version))
             bundle_info['versions'].append(version)
             bundle_info['versions'] = sorted(bundle_info['versions'])
-            bundle_info['next_version'] = version + 1
+        else:
+            raise ValueError('Bundle version %d already exists.' % (version))
+
+    @mutable_only
+    def increment_next_version_for_bundle(self, bundle_name):
+        bundle_info = self._get_or_create_bundle_info(bundle_name)
+        bundle_info['next_version'] = self.next_version_for_bundle(bundle_name) + 1
 
     def versions_for_bundle(self, bundle_name):
         info = self._get_bundle_info(bundle_name)
@@ -125,7 +127,7 @@ class ZincIndex(ZincModel):
         if next_version is None:  # older index without next_version
             versions = self.versions_for_bundle(bundle_name)
             if len(versions) == 0:
-                next_version = 1
+                next_version = 0
             else:
                 next_version = versions[-1] + 1
             if bundle_info and self.is_mutable:

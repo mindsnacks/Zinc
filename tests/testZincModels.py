@@ -20,7 +20,7 @@ class ZincIndexTestCase(TempDirTestCase):
     def test_add_duplicate_version_for_bundle(self):
         index = ZincIndex()
         index.add_version_for_bundle("meep", 1)
-        index.add_version_for_bundle("meep", 1)
+        self.assertRaises(ValueError, index.add_version_for_bundle, "meep", 1)
         self.assertTrue(1 in index.versions_for_bundle("meep"))
         self.assertTrue(len(index.versions_for_bundle("meep")) == 1)
 
@@ -144,6 +144,13 @@ class ZincIndexTestCase(TempDirTestCase):
         bad_key = index.to_dict()["bundles"][bundle_name].get('next-version')
         self.assertTrue(bad_key is None)
 
+    def test_increment_next_version_for_bundle(self):
+        index = ZincIndex(mutable=True)
+        orig_version = index.next_version_for_bundle("meep")
+        index.increment_next_version_for_bundle("meep")
+        new_version = index.next_version_for_bundle("meep")
+        self.assertEquals(orig_version + 1, new_version)
+
     def test_immutable(self):
         index = ZincIndex(mutable=False)
         self.assertFalse(index.is_mutable)
@@ -151,6 +158,7 @@ class ZincIndexTestCase(TempDirTestCase):
         self.assertRaises(TypeError, index.delete_bundle_version, "meep", 1)
         self.assertRaises(TypeError, index.update_distribution, "master", "meep", 1)
         self.assertRaises(TypeError, index.delete_distribution, "master", "meep")
+        self.assertRaises(TypeError, index.increment_next_version_for_bundle, "meep")
 
     def test_immutable_from_dict(self):
         index = ZincIndex(id='com.foo')

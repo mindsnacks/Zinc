@@ -203,11 +203,3 @@ class ZincCatalogTestCase(TempDirTestCase):
                 "meep", self.scratch_dir, flavor_spec=flavor_spec, skip_master_archive=True)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1)
         self.assertFalse(self.path_exists_in_catalog(archive_path))
-
-    def test_next_version_is_2_for_new_bundle(self):
-        catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
-        create_random_file(self.scratch_dir)
-        create_bundle_version(catalog, "meep", self.scratch_dir)
-        next_version = catalog.get_index().next_version_for_bundle("meep")
-        self.assertEquals(next_version, 2)
-

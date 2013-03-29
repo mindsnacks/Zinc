@@ -243,7 +243,8 @@ class ZincCatalog(ZincAbstractCatalog):
 
         ## build manifest
 
-        version = self.index.next_version_for_bundle(bundle_name)
+        version = self._reserve_version_for_bundle(bundle_name)
+        log.debug('RESERVED %d !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!' % (version))
         new_manifest = ZincManifest(self.id, bundle_name, version)
         new_manifest.files = filelist.clone(mutable=True)
         # TODO move into setter?
@@ -332,6 +333,11 @@ class ZincCatalog(ZincAbstractCatalog):
     @_lock_index
     def _add_version_for_bundle(self, bundle_name, version):
         self.index.add_version_for_bundle(bundle_name, version)
+
+    @_lock_index
+    def _reserve_version_for_bundle(self, bundle_name):
+        self.index.increment_next_version_for_bundle(bundle_name)
+        return self.index.next_version_for_bundle(bundle_name)
 
     @_lock_index
     def delete_bundle_version(self, bundle_name, version):
