@@ -42,10 +42,14 @@ class S3StorageBackend(StorageBackend):
             return subpath
 
     def get(self, subpath):
-        t = TemporaryFile()
-        t.write(self._bucket.get_key(self._get_keyname(subpath)).read())
-        t.seek(0)
-        return t
+        key = self._bucket.get_key(self._get_keyname(subpath))
+        if key is not None:
+            t = TemporaryFile()
+            t.write(key.read())
+            t.seek(0)
+            return t
+        else:
+            return None
 
     def get_meta(self, subpath):
         key = self._bucket.lookup(self._get_keyname(subpath))

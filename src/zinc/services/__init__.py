@@ -124,7 +124,8 @@ class ZincCatalog(ZincAbstractCatalog):
     ### I/O Helpers ###
 
     def _read(self, rel_path):
-        return self._storage.get(rel_path).read()
+        f = self._storage.get(rel_path)
+        return f.read() if f is not None else None
 
     def _write(self, subpath, bytes, raw=True, gzip=True):
         if raw:
