@@ -11,6 +11,10 @@ install_requires = [
     # List your project dependencies here.
     # For more details, see:
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
+    "toml==0.7.0",
+    "lockfile==0.9.1",
+    "boto==2.8.0",
+    "atomicfile==0.1",
 ]
 
 
