@@ -72,4 +72,3 @@ class ZincBundleUpdateTask(object):
         return self.catalog.update_bundle(
                 self.bundle_name, filelist, force=self.force,
                 skip_master_archive=self.skip_master_archive)
-

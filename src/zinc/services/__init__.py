@@ -248,7 +248,6 @@ class ZincCatalog(ZincAbstractCatalog):
         ## build manifest
 
         version = self._reserve_version_for_bundle(bundle_name)
-        log.debug('RESERVED %d !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!' % (version))
         new_manifest = ZincManifest(self.id, bundle_name, version)
         new_manifest.files = filelist.clone(mutable=True)
         # TODO move into setter?
