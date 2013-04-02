@@ -17,8 +17,6 @@ class TestZincClientConfigFromFile(unittest.TestCase):
 
     def test_replace_vars(self):
         local = self.config.bookmarks["local"]
-        print local
-        print local['password']
         self.assertEquals(local['password'], "abc123")
 
 
