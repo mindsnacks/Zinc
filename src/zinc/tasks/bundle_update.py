@@ -1,21 +1,60 @@
 import os.path
+import logging
+import tarfile
+import tempfile
 
-from zinc.utils import *
-from zinc.helpers import *
-from zinc.models import ZincFileList
+import zinc.helpers as helpers
+import zinc.utils as utils
+from zinc.models import ZincFileList, ZincManifest
 
-# TODO: real ignore system
+log = logging.getLogger(__name__)
+
+## TODO: real ignore system
 IGNORE = ['.DS_Store']
+
+
+## TODO: relocate?
+def _build_archive(catalog, manifest, src_dir, flavor=None):
+
+    bundle_id = helpers.make_bundle_id(catalog.id, manifest.bundle_name)
+    bundle_descr = helpers.make_bundle_descriptor(bundle_id,
+                                                  manifest.version,
+                                                  flavor=flavor)
+    archive_filename = '%s.tar' % (bundle_descr)
+
+    archive_path = os.path.join(
+            tempfile.mkdtemp(), archive_filename)
+
+    files = manifest.get_all_files(flavor=flavor)
+
+    with tarfile.open(archive_path, 'w') as tar:
+        for f in files:
+            format, format_info = manifest.get_format_info_for_file(f)
+            assert format is not None
+            assert format_info is not None
+            sha = manifest.sha_for_file(f)
+            ext = helpers.file_extension_for_format(format)
+
+            tarinfo = tar.tarinfo()
+            tarinfo.name = utils.filename_with_ext(sha, ext)
+            tarinfo.size = format_info['size']
+
+            path = os.path.join(src_dir, f)
+            with open(path, 'r') as fileobj:
+                tar.addfile(tarinfo, fileobj)
+
+    return archive_path
+
 
 class ZincBundleUpdateTask(object):
 
     def __init__(self,
-            catalog=None,
-            bundle_name=None,
-            src_dir=None,
-            flavor_spec=None,
-            force=False,
-            skip_master_archive=False):
+                 catalog=None,
+                 bundle_name=None,
+                 src_dir=None,
+                 flavor_spec=None,
+                 force=False,
+                 skip_master_archive=False):
 
         self.catalog = catalog
         self.bundle_name = bundle_name
@@ -32,7 +71,7 @@ class ZincBundleUpdateTask(object):
     @src_dir.setter
     def src_dir(self, val):
         if val is not None:
-            val = canonical_path(val)
+            val = utils.canonical_path(val)
         self._src_dir = val
 
     def _import_files(self, src_dir, flavor_spec=None):
@@ -49,6 +88,7 @@ class ZincBundleUpdateTask(object):
                 file_info = self.catalog.import_path(full_path)
                 if file_info is not None:
                     filelist.add_file(rel_path, file_info['sha'])
+                    filelist.add_format_for_file(rel_path, file_info['format'], file_info['size'])
 
                     if flavor_spec is not None:
                         for flavor in flavor_spec.flavors:
@@ -69,6 +109,49 @@ class ZincBundleUpdateTask(object):
 
         filelist = self._import_files(self.src_dir, self.flavor_spec)
 
-        return self.catalog.update_bundle(
-                self.bundle_name, filelist, force=self.force,
-                skip_master_archive=self.skip_master_archive)
+        ## Check if it matches the newest version
+        ## TODO: optionally check it if matches any existing versions?
+
+        if not self.force:
+            existing_manifest = self.catalog.manifest_for_bundle(self.bundle_name)
+            if existing_manifest is not None \
+               and existing_manifest.files.contents_are_equalivalent(filelist):
+                log.info("Found existing version with same contents.")
+                return existing_manifest
+
+        ## Build manifest
+
+        version = self.catalog._reserve_version_for_bundle(self.bundle_name)
+        new_manifest = ZincManifest(self.catalog.id, self.bundle_name, version)
+        new_manifest.files = filelist.clone(mutable=True)
+        # TODO move into setter?
+
+        ## Handle archives
+
+        should_create_archives = len(filelist) > 1
+        if should_create_archives:
+
+            archive_flavors = list()
+
+            # should create master archive?
+            if len(new_manifest.flavors) == 0 or not self.skip_master_archive:
+                # None is the appropriate flavor for the master archive
+                archive_flavors.append(None)
+
+            # should create archives for flavors?
+            if new_manifest.flavors is not None:
+                archive_flavors.extend(new_manifest.flavors)
+
+            for flavor in archive_flavors:
+                tmp_tar_path = _build_archive(
+                        self.catalog, new_manifest, self.src_dir, flavor=flavor)
+                self.catalog._write_archive(
+                        self.bundle_name, new_manifest.version,
+                        tmp_tar_path, flavor=flavor)
+
+                # TODO: remove remove?
+                os.remove(tmp_tar_path)
+
+        self.catalog.update_bundle(new_manifest)
+
+        return new_manifest
