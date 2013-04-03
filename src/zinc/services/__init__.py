@@ -182,9 +182,18 @@ class ZincCatalog(ZincAbstractCatalog):
     def get_manifest(self, bundle_name, version):
         return self._read_manifest(bundle_name, version)
 
+    @_lock_index
     def update_bundle(self, new_manifest):
 
         assert new_manifest
+
+        existing_versions = self.index.versions_for_bundle(new_manifest.bundle_name)
+        if new_manifest.version in existing_versions:
+            raise ValueError("Bundle version already exists.")
+
+        next_version = self.index.next_version_for_bundle(new_manifest.bundle_name)
+        if new_manifest.version > next_version:
+            raise ValueError("Unexpected manifest version.")
 
         ## verify all files in the filelist exist in the repo
 
@@ -211,8 +220,8 @@ class ZincCatalog(ZincAbstractCatalog):
 
         ## update catalog index
 
-        self._add_version_for_bundle(new_manifest.bundle_name,
-                                     new_manifest.version)
+        self.index.add_version_for_bundle(new_manifest.bundle_name,
+                                          new_manifest.version)
 
 
     def import_path(self, src_path):
@@ -253,10 +262,6 @@ class ZincCatalog(ZincAbstractCatalog):
         log.info("Imported %s --> %s" % (src_path, file_info))
         log.debug("Imported path: %s" % imported_path)
         return  file_info
-
-    @_lock_index
-    def _add_version_for_bundle(self, bundle_name, version):
-        self.index.add_version_for_bundle(bundle_name, version)
 
     @_lock_index
     def _reserve_version_for_bundle(self, bundle_name):
