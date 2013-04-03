@@ -13,36 +13,6 @@ from zinc.helpers import *
 
 log = logging.getLogger(__name__)
 
-################# TEMP ######################
-
-def _build_archive(catalog, manifest, flavor=None):
-
-    import tarfile
-
-    archive_filename = catalog.path_helper.archive_name(
-            manifest.bundle_name, manifest.version, flavor=flavor)
-    archive_path = os.path.join(
-            tempfile.mkdtemp(), archive_filename)
-
-    files = manifest.get_all_files(flavor=flavor)
-
-    with tarfile.open(archive_path, 'w') as tar:
-        for f in files:
-            format, format_info = manifest.get_format_info_for_file(f)
-            sha = manifest.sha_for_file(f)
-            ext = file_extension_for_format(format)
-
-            fileobj = catalog._read_file(sha, ext=ext)
-
-            tarinfo = tar.tarinfo()
-            tarinfo.name = filename_with_ext(sha, ext)
-            tarinfo.size = format_info['size']
-
-            tar.addfile(tarinfo, fileobj)
-
-    return archive_path
-
-
 ################################################################################
 
 class ZincCatalog(ZincAbstractCatalog):
@@ -212,29 +182,17 @@ class ZincCatalog(ZincAbstractCatalog):
     def get_manifest(self, bundle_name, version):
         return self._read_manifest(bundle_name, version)
 
-    def update_bundle(self, bundle_name, filelist,
-                      skip_master_archive=False, force=False):
+    def update_bundle(self, new_manifest):
 
-        assert bundle_name
-        assert filelist
-
-        ## Check if it matches the newest version
-        ## TODO: optionally check it if matches any existing versions?
-
-        if not force:
-            existing_manifest = self.manifest_for_bundle(bundle_name)
-            if existing_manifest is not None \
-               and existing_manifest.files.contents_are_equalivalent(filelist):
-                log.info("Found existing version with same contents.")
-                return existing_manifest
+        assert new_manifest
 
         ## verify all files in the filelist exist in the repo
 
         missing_shas = list()
         info_by_path = dict()
 
-        for path in filelist.keys():
-            sha = filelist.sha_for_file(path)
+        for path in new_manifest.files.keys():
+            sha = new_manifest.sha_for_file(path)
             file_info = self._get_file_info(sha)
             if file_info is None:
                 missing_shas.append(sha)
@@ -245,44 +203,7 @@ class ZincCatalog(ZincAbstractCatalog):
             # TODO: better error
             raise Exception("Missing shas: %s" % (missing_shas))
 
-        ## build manifest
-
-        version = self._reserve_version_for_bundle(bundle_name)
-        new_manifest = ZincManifest(self.id, bundle_name, version)
-        new_manifest.files = filelist.clone(mutable=True)
-        # TODO move into setter?
-
-        for path, info in info_by_path.iteritems():
-            format = info['format']
-            size = info['size']
-            new_manifest.add_format_for_file(
-                    path, format, size)
-
-        ## Handle archives
-
-        should_create_archives = len(filelist) > 1
-        if should_create_archives:
-
-            archive_flavors = list()
-
-            # should create master archive?
-            if len(new_manifest.flavors) == 0 or not skip_master_archive:
-                # None is the appropriate flavor for the master archive
-                archive_flavors.append(None)
-
-            # should create archives for flavors?
-            if new_manifest.flavors is not None:
-                archive_flavors.extend(new_manifest.flavors)
-
-            for flavor in archive_flavors:
-                tmp_tar_path = _build_archive(
-                        self, new_manifest, flavor=flavor)
-                self._write_archive(
-                        bundle_name, new_manifest.version,
-                        tmp_tar_path, flavor=flavor)
-
-                # TODO: remove remove?
-                os.remove(tmp_tar_path)
+        ## TODO: verify archives?
 
         ## write manifest
 
@@ -290,9 +211,9 @@ class ZincCatalog(ZincAbstractCatalog):
 
         ## update catalog index
 
-        self._add_version_for_bundle(bundle_name, version)
+        self._add_version_for_bundle(new_manifest.bundle_name,
+                                     new_manifest.version)
 
-        return new_manifest
 
     def import_path(self, src_path):
 

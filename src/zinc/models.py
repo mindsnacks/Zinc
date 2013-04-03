@@ -238,6 +238,30 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
     def flavors_for_file(self, path):
         return self._files[path].get('flavors')
 
+    @mutable_only
+    def add_format_for_file(self, path, format, size):
+        props = self._files[path]
+        formats = props.get('formats') or {}
+        formats[format] = {'size': size}
+        props['formats'] = formats
+
+    def formats_for_file(self, path):
+        props = self._files[path]
+        formats = props.get('formats')
+        return formats
+
+    def get_format_info_for_file(self, path, preferred_formats=None):
+
+        if preferred_formats is None:
+            preferred_formats = defaults['catalog_preferred_formats']
+        for format in preferred_formats:
+            format_info = self.formats_for_file(path).get(format)
+            if format_info is not None:
+                return (format, format_info)
+
+        return (None, None)
+
+
     #TODO: naming could be better
     def get_all_files(self, flavor=None):
         all_files = self._files.keys()
@@ -338,29 +362,6 @@ class ZincManifest(ZincModel):
         return self._files.sha_for_file(path)
 
     @mutable_only
-    def add_format_for_file(self, path, format, size):
-        props = self._files[path]
-        formats = props.get('formats') or {}
-        formats[format] = {'size': size}
-        props['formats'] = formats
-
-    def formats_for_file(self, path):
-        props = self._files[path]
-        formats = props.get('formats')
-        return formats
-
-    def get_format_info_for_file(self, path, preferred_formats=None):
-
-        if preferred_formats is None:
-            preferred_formats = defaults['catalog_preferred_formats']
-        for format in preferred_formats:
-            format_info = self.formats_for_file(path).get(format)
-            if format_info is not None:
-                return (format, format_info)
-
-        return (None, None)
-
-    @mutable_only
     def add_flavor_for_file(self, path, flavor):
         self._files.add_flavor_for_file(path, flavor)
         if flavor not in self._flavors:
@@ -368,6 +369,17 @@ class ZincManifest(ZincModel):
 
     def flavors_for_file(self, path):
         return self._files.flavors_for_file(path)
+
+    @mutable_only
+    def add_format_for_file(self, path, format, size):
+        self._files.add_format_for_file(path, format, size)
+
+    def formats_for_file(self, path):
+        return self._files.formats_for_file(path)
+
+    def get_format_info_for_file(self, path, preferred_formats=None):
+        print path
+        return self._files.get_format_info_for_file(path, preferred_formats=preferred_formats)
 
     #TODO: naming could be better
     def get_all_files(self, flavor=None):
