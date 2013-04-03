@@ -378,7 +378,6 @@ class ZincManifest(ZincModel):
         return self._files.formats_for_file(path)
 
     def get_format_info_for_file(self, path, preferred_formats=None):
-        print path
         return self._files.get_format_info_for_file(path, preferred_formats=preferred_formats)
 
     #TODO: naming could be better

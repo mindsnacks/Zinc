@@ -9,12 +9,11 @@ from zinc.models import ZincFileList, ZincManifest
 
 log = logging.getLogger(__name__)
 
-# TODO: real ignore system
+## TODO: real ignore system
 IGNORE = ['.DS_Store']
 
 
-################# TEMP ######################
-
+## TODO: relocate?
 def _build_archive(catalog, manifest, src_dir, flavor=None):
 
     bundle_id = helpers.make_bundle_id(catalog.id, manifest.bundle_name)
@@ -50,12 +49,12 @@ def _build_archive(catalog, manifest, src_dir, flavor=None):
 class ZincBundleUpdateTask(object):
 
     def __init__(self,
-            catalog=None,
-            bundle_name=None,
-            src_dir=None,
-            flavor_spec=None,
-            force=False,
-            skip_master_archive=False):
+                 catalog=None,
+                 bundle_name=None,
+                 src_dir=None,
+                 flavor_spec=None,
+                 force=False,
+                 skip_master_archive=False):
 
         self.catalog = catalog
         self.bundle_name = bundle_name
@@ -120,20 +119,12 @@ class ZincBundleUpdateTask(object):
                 log.info("Found existing version with same contents.")
                 return existing_manifest
 
-        ## build manifest
+        ## Build manifest
 
         version = self.catalog._reserve_version_for_bundle(self.bundle_name)
         new_manifest = ZincManifest(self.catalog.id, self.bundle_name, version)
         new_manifest.files = filelist.clone(mutable=True)
         # TODO move into setter?
-
-        #info_by_path = dict()
-
-        #for path, info in info_by_path.iteritems():
-        #    format = info['format']
-        #    size = info['size']
-        #    new_manifest.add_format_for_file(
-        #            path, format, size)
 
         ## Handle archives
 
