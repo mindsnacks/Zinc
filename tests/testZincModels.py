@@ -185,6 +185,9 @@ class ZincFileListTestCase(unittest.TestCase):
         immutable_filelist = ZincFileList.from_dict(d, mutable=False)
         self.assertFalse(immutable_filelist.is_mutable)
 
+    def test_get_path_for_file_that_does_not_exist(self):
+        filelist = ZincFileList()
+        self.assertTrue(filelist.sha_for_file('doesnotexist.toml') is None)
 
 class ZincManifestTestCase(TempDirTestCase):
 

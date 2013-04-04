@@ -225,7 +225,7 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
         self._files[path] = {'sha': sha}
 
     def sha_for_file(self, path):
-        return self._files.get(path).get('sha')
+        return self._files.get(path).get('sha') if self._files.get(path) else None
 
     @mutable_only
     def add_flavor_for_file(self, path, flavor):
