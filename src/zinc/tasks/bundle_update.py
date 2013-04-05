@@ -45,12 +45,14 @@ def _build_archive(catalog, manifest, src_dir, flavor=None):
             ## TODO: write a test to ensure that file formats are written correctly
 
             if format == Formats.RAW:
+                tarinfo.size = format_info['size']
                 with open(path, 'r') as fileobj:
                     tar.addfile(tarinfo, fileobj)
 
             elif format == Formats.GZ:
                 gz_path = tempfile.mkstemp()[1]
                 utils.gzip_path(path, gz_path)
+                tarinfo.size = os.path.getsize(gz_path)
                 with open(gz_path, 'r') as fileobj:
                     tar.addfile(tarinfo, fileobj)
                 os.remove(gz_path)
