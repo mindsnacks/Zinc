@@ -6,6 +6,7 @@ import tempfile
 import zinc.helpers as helpers
 import zinc.utils as utils
 from zinc.models import ZincFileList, ZincManifest
+from zinc.formats import Formats
 
 log = logging.getLogger(__name__)
 
@@ -40,8 +41,19 @@ def _build_archive(catalog, manifest, src_dir, flavor=None):
             tarinfo.size = format_info['size']
 
             path = os.path.join(src_dir, f)
-            with open(path, 'r') as fileobj:
-                tar.addfile(tarinfo, fileobj)
+
+            ## TODO: write a test to ensure that file formats are written correctly
+
+            if format == Formats.RAW:
+                with open(path, 'r') as fileobj:
+                    tar.addfile(tarinfo, fileobj)
+
+            elif format == Formats.GZ:
+                gz_path = tempfile.mkstemp()[1]
+                utils.gzip_path(path, gz_path)
+                with open(gz_path, 'r') as fileobj:
+                    tar.addfile(tarinfo, fileobj)
+                os.remove(gz_path)
 
     return archive_path
 
