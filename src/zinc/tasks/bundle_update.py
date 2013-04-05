@@ -38,7 +38,6 @@ def _build_archive(catalog, manifest, src_dir, flavor=None):
 
             tarinfo = tar.tarinfo()
             tarinfo.name = utils.filename_with_ext(sha, ext)
-            tarinfo.size = format_info['size']
 
             path = os.path.join(src_dir, f)
 
