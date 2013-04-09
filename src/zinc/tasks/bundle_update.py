@@ -67,7 +67,7 @@ class ZincBundleUpdateTask(object):
                  src_dir=None,
                  flavor_spec=None,
                  force=False,
-                 skip_master_archive=False):
+                 skip_master_archive=True):
 
         self.catalog = catalog
         self.bundle_name = bundle_name

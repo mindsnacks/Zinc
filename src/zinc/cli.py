@@ -333,11 +333,17 @@ def main():
     parser_bundle_update.add_argument(
             '--flavors', help='Flavor spec path. Should be JSON.')
     parser_bundle_update.add_argument(
-            '--skip-master-archive', default=False, action='store_true',
-            help='Skips creating master archive if flavors are specified.')
-    parser_bundle_update.add_argument(
             '-f', '--force', default=False, action='store_true',
             help='Update bundle even if no files changed.')
+
+    parser_bundle_update_master_archive_group = parser_bundle_update.add_mutually_exclusive_group()
+    parser_bundle_update_master_archive_group.add_argument(
+            '--skip-master-archive', default=True, action='store_true', dest='skip_master_archive',
+            help='Skips creating master archive if flavors are specified. This is the default behavior.')
+    parser_bundle_update_master_archive_group.add_argument(
+            '--include-master-archive', default=False, action='store_true', dest='skip_master_archive',
+            help='Also creates master archive if flavors are specified.')
+
     parser_bundle_update.set_defaults(func=subcmd_bundle_update)
 
     # bundle:clone
