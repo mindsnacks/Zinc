@@ -3,10 +3,11 @@ import json
 import logging
 import os
 import sys
+from urlparse import urlparse
 
 from zinc.utils import canonical_path
 from zinc.client import (ZincClientConfig, connect, catalog_ref_split,
-        create_bundle_version, verify_bundle, verify_catalog)
+        create_bundle_version, verify_bundle, verify_catalog, create_catalog)
 from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 
@@ -50,6 +51,23 @@ def catalog_from_config(config, catalog_ref):
         coordinator_info = config.coordinators[config.bookmarks[catalog_ref]['coordinator']]
         storage_info = config.storages[config.bookmarks[catalog_ref]['storage']]
         return catalog_id, coordinator_info, storage_info
+
+
+def resolve_storage_info(config, storage_ref):
+
+    # first check if it's already a valid URL
+    urlcomps = urlparse(storage_ref)
+    if not urlcomps.scheme == '':
+        return {'url': storage_ref}
+
+    # check if it's in the config
+    storage_info = config.storages.get(storage_ref)
+    if storage_info is not None:
+        return storage_info
+
+    # assume it's a path and convert to file url
+    path = canonical_path(storage_ref)
+    return {'url': 'file://%s' % (path)}
 
 
 def get_catalog(config, args):
@@ -157,13 +175,12 @@ def subcmd_catalog_list(config, args):
     catalog_list(catalog, distro=distro, print_versions=not args.no_versions)
 
 
-# TODO: fix
-def cmd_catalog_create(args, config):
-    dest = args.catalog
-    if dest is None:
-        dest = './%s' % (args.catalog_id)
-    create_catalog_at_path(dest, args.catalog_id)
-
+def subcmd_catalog_create(config, args):
+    storage_ref = args.storage
+    catalog_id = args.catalog_id
+    storage_info = resolve_storage_info(config, storage_ref)
+    create_catalog(catalog_id=catalog_id, storage_info=storage_info)
+    print "Catalog '%s' successfully created." % (catalog_id)
 
 # TODO: fix
 def cmd_catalog_clean(args, config):
@@ -281,9 +298,10 @@ def main():
     parser_catalog_create = subparsers.add_parser(
             'catalog:create', help='catalog:create help')
     parser_catalog_create.add_argument('catalog_id')
-    parser_catalog_create.add_argument('-c', '--catalog',
-            help='Destination path. Defaults to "./<catalog_id>"')
-    parser_catalog_create.set_defaults(func=cmd_catalog_create)
+    parser_catalog_create.add_argument('-s', '--storage',
+                                       help='Storage descriptor. Defaults to "file://."',
+                                       default='.')
+    parser_catalog_create.set_defaults(func=subcmd_catalog_create)
 
     # catalog:clean
     parser_catalog_clean = subparsers.add_parser(

@@ -1,9 +1,10 @@
 import os
 from urlparse import urlparse
 from atomicfile import AtomicFile
+from copy import copy
 
+import zinc.utils as utils
 from . import StorageBackend
-from zinc.utils import *
 
 
 class FilesystemStorageBackend(StorageBackend):
@@ -16,6 +17,14 @@ class FilesystemStorageBackend(StorageBackend):
     @classmethod
     def valid_url(cls, url):
         return urlparse(url).scheme in ('file')
+
+    def bind_to_catalog(self, id=None):
+        assert id
+        cpy = copy(self)
+        urlcomps = urlparse(self._url)
+        new_path = os.path.join(urlcomps.path, id)
+        cpy._url = 'file://%s' % (new_path)
+        return cpy
 
     @property
     def url(self):
@@ -42,6 +51,6 @@ class FilesystemStorageBackend(StorageBackend):
 
     def put(self, subpath, fileobj):
         abs_path = self._abs_path(subpath)
-        makedirs(os.path.dirname(abs_path))
+        utils.makedirs(os.path.dirname(abs_path))
         with AtomicFile(abs_path, 'w') as f:
             f.write(fileobj.read())

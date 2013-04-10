@@ -31,6 +31,7 @@ class SimpleServiceConsumer(ZincServiceConsumer):
     def _abs_path(self, subpath):
         return os.path.join(canonical_path(self._root_path), subpath)
 
+    ## TODO: fix cloning between this and zinc.client
     def create_catalog(self, id=None, loc=None):
         assert id
         loc = loc or '.'

@@ -10,10 +10,12 @@ import toml
 from zinc.utils import canonical_path, gunzip_bytes
 from zinc.helpers import file_extension_for_format
 from zinc.formats import Formats
-from zinc.models import ZincModel
+from zinc.models import ZincModel, ZincIndex, ZincCatalogConfig
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 from zinc.coordinators import coordinator_for_url
 from zinc.storages import storage_for_url
+from zinc.services import ZincCatalog
+from zinc.defaults import defaults
 
 
 log = logging.getLogger(__name__)
@@ -247,6 +249,27 @@ def catalog_ref_split(catalog_ref):
 
     elif urlcomps.scheme in ('file', ''):
         return CatalogRefSplitResult(catalog_ref, CatalogInfo(None, '.'))
+
+
+## TODO: fix cloning between this and zinc.services.simple
+def create_catalog(catalog_id=None, storage_info=None):
+    assert catalog_id
+    assert storage_info
+
+    storage_class = storage_for_url(storage_info['url'])
+    storage = storage_class(**storage_info)
+    catalog_storage = storage.bind_to_catalog(id=catalog_id)
+
+    catalog_storage.puts(
+            defaults['catalog_config_name'],
+            ZincCatalogConfig().to_bytes())
+
+    catalog_storage.puts(
+            defaults['catalog_index_name'],
+            ZincIndex(catalog_id).to_bytes())
+
+    catalog = ZincCatalog(storage=catalog_storage)
+    catalog.save()
 
 
 def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs):

@@ -20,7 +20,7 @@ class StorageBackend(object):
         return self._url
 
     # TODO: think of a better name
-    def bind_to_catalog(self, loc=None, id=None):
+    def bind_to_catalog(self, id=None):
         raise NotImplementedError()
 
     def puts(self, subpath, bytes):

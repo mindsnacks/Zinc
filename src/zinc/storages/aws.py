@@ -29,7 +29,7 @@ class S3StorageBackend(StorageBackend):
     def valid_url(cls, url):
         return urlparse(url).scheme in ('s3')
 
-    def bind_to_catalog(self, loc=None, id=None):
+    def bind_to_catalog(self, id=None):
         assert id
         cpy = copy(self)
         cpy._prefix = id

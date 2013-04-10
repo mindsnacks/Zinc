@@ -17,9 +17,8 @@ log = logging.getLogger(__name__)
 
 class ZincCatalog(ZincAbstractCatalog):
 
-    def __init__(self, coordinator=None, storage=None,
-            path_helper=None, **kwargs):
-        assert coordinator
+    def __init__(self, storage=None, coordinator=None, path_helper=None,
+                 **kwargs):
         assert storage
 
         super(ZincCatalog, self).__init__(**kwargs)
@@ -37,7 +36,7 @@ class ZincCatalog(ZincAbstractCatalog):
 
     @property
     def url(self):
-        return self._coordinator.url
+        return self._storage.url
 
     @property
     def path(self):
@@ -75,6 +74,8 @@ class ZincCatalog(ZincAbstractCatalog):
         @wraps(func)
         def with_lock_index(self, *args, **kwargs):
 
+            assert self._coordinator
+
             #lock = self._coordinator.get_index_lock_index()
             #lock.acquire(timeout=self.lock_timeout)
             #output = func(*args, **kwargs)
@@ -83,12 +84,12 @@ class ZincCatalog(ZincAbstractCatalog):
             with self._coordinator.get_index_lock(domain=self.id):
                 self._reload()
                 output = func(self, *args, **kwargs)
-                self._save()
+                self.save()
 
             return output
         return with_lock_index
 
-    def _save(self):
+    def save(self):
         self._write_index(self.index)
 
     ### I/O Helpers ###
