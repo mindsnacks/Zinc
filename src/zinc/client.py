@@ -168,9 +168,13 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
             # TODO: private reference to _get_archive_info
             meta = catalog._get_archive_info(manifest.bundle_name, manifest.version, flavor=flavor)
             if meta is None:
-                if flavor is None and len(flavors) > 1:
+                if len(manifest.get_all_files(flavor=flavor)) == 1:
+                    # If there is only 1 file in the bundle there should not be
+                    # an archive
+                    continue
+                elif flavor is None and len(flavors) > 1:
                     # If there is more than 1 flavor, we usually don't need the
-                    # master archive. This is probably OK.
+                    # master archive. This is probably OK, but warn anyway.
                     log.warn('Archive %s not found.' % (archive_name))
                     continue
                 else:
