@@ -12,9 +12,12 @@ import hashlib
 import gzip
 import zlib
 import os
+import StringIO
+
 
 def enum(**enums):
     return type('Enum', (), enums)
+
 
 def sha1_for_path(path):
     """Returns the SHA1 hash as a string for the given path."""
@@ -26,11 +29,13 @@ def sha1_for_path(path):
         f.close()
     return sha1.hexdigest()
 
+
 def canonical_path(path):
     path = os.path.expanduser(path)
     path = os.path.normpath(path)
     path = os.path.realpath(path)
     return path
+
 
 def makedirs(path):
     """Convenience method that ignores errors if directory already exists."""
@@ -38,9 +43,10 @@ def makedirs(path):
         os.makedirs(path)
     except OSError, e:
         if e.errno == 17:
-            pass # directory already exists
+            pass  # directory already exists
         else:
             raise e
+
 
 def gzip_path(src_path, dst_path):
     """Convenience method for gzipping a file."""
@@ -49,6 +55,7 @@ def gzip_path(src_path, dst_path):
     f_out.writelines(f_in)
     f_out.close()
     f_in.close()
+
 
 def gunzip_path(src_path, dst_path):
     """Convenience method for un-gzipping a file."""
@@ -61,7 +68,13 @@ def gunzip_path(src_path, dst_path):
 
 def gzip_bytes(bytes):
     """Convenience method for gzipping bytes in memory."""
-    return zlib.compress(bytes)
+    buffer = StringIO.StringIO()
+    gzfile = gzip.GzipFile(fileobj=buffer, mode='wb')
+    gzfile.write(bytes)
+    gzfile.close()
+    gz_bytes = buffer.getvalue()
+    buffer.close()
+    return gz_bytes
 
 
 def gunzip_bytes(bytes):
@@ -72,6 +85,7 @@ def filename_with_ext(filename, ext):
     if ext is not None:
         return '%s.%s' % (filename, ext)
     return filename
+
 
 def file_url(path):
     return 'file://%s' % (canonical_path(path))
