@@ -112,6 +112,8 @@ class ZincCatalog(ZincAbstractCatalog):
         subpath = self._ph.path_for_index()
         bytes = index.to_bytes()
         self._write(subpath, bytes, raw=raw, gzip=gzip)
+        if defaults['catalog_write_legacy_index']:
+            self._write('index.json', bytes, raw=raw, gzip=gzip)
 
     def _read_manifest(self, bundle_name, version):
         subpath = self._ph.path_for_manifest_for_bundle_version(
