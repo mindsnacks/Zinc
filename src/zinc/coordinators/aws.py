@@ -36,7 +36,7 @@ class Lock(object):
         the remote `lock_token` does not match our local `lock_token`."""
 
         attrs = self._get_lock_attrs()
-        log.info('Refreshing lock... %s' % (attrs))
+        log.debug('Refreshing lock... %s' % (attrs))
 
         self._sdb_domain.put_attributes(
             self._key, attrs,
