@@ -226,7 +226,6 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.add_version_for_bundle(new_manifest.bundle_name,
                                           new_manifest.version)
 
-
     def import_path(self, src_path):
 
         sha = sha1_for_path(src_path)
@@ -258,10 +257,10 @@ class ZincCatalog(ZincAbstractCatalog):
                     sha, final_src_path, format=format)
 
         file_info = {
-                'sha' :  sha,
-                'size' : final_src_size,
-                'format' : format
-                }
+            'sha':  sha,
+            'size': final_src_size,
+            'format': format
+        }
         log.info("Imported %s --> %s" % (src_path, file_info))
         log.debug("Imported path: %s" % imported_path)
         return  file_info
@@ -332,8 +331,9 @@ class ZincCatalog(ZincAbstractCatalog):
         all_objects = set()
         for bundle_desc in bundle_descriptors:
             manifest = self.manifest_for_bundle_descriptor(bundle_desc)
-            for f, meta in manifest.files.iteritems():
-                all_objects.add(meta['sha'])
+            if manifest is not None:
+                for f, meta in manifest.files.iteritems():
+                    all_objects.add(meta['sha'])
 
         dir = self._ph.objects_dir
         for f in self._storage.list(dir):
