@@ -29,6 +29,7 @@ class Lock(object):
         self._expires = expires
         self._token = str(uuid.uuid1())
         self._refresh = expires / 4
+        self._timer = None
 
     def _update_lock(self):
         """Attempts to update the lock but incresing the lock_time. Will fail if
@@ -88,7 +89,8 @@ class Lock(object):
                     raise sdberr
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self._timer.cancel()
+        if self._timer is not None:
+            self._timer.cancel()
         item = self._sdb_domain.get_item(self._key, consistent_read=True)
         if item is not None and item[LOCK_TOKEN] == self._token:
             self._sdb_domain.delete_attributes(
