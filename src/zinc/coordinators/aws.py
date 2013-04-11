@@ -35,17 +35,24 @@ class Lock(object):
         """Attempts to update the lock but incresing the lock_time. Will fail if
         the remote `lock_token` does not match our local `lock_token`."""
 
-
         attrs = {
             LOCK_TOKEN: self._token,
             LOCK_TIME: time.time()
         }
 
-        log.info('Refreshing lock... %s' %(attrs))
+        log.info('Refreshing lock... %s' % (attrs))
 
         self._sdb_domain.put_attributes(
             self._key, attrs,
             expected_value=[LOCK_TOKEN, self._token])
+
+    def _schedule_timer(self):
+        self._timer = Timer(self._refresh, self._timer_fired)
+        self._timer.start()
+
+    def _timer_fired(self):
+        self._update_lock()
+        self._schedule_timer()
 
     def __enter__(self):
         timeout = self._timeout
@@ -75,8 +82,7 @@ class Lock(object):
                         self._key, attrs,
                         expected_value=[LOCK_TOKEN, False])
 
-                    self._timer = Timer(self._refresh, self._update_lock)
-                    self._timer.start()
+                    self._schedule_timer()
                     return
 
                 timeout -= 1
