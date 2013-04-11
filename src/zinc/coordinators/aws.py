@@ -35,12 +35,14 @@ class Lock(object):
         """Attempts to update the lock but incresing the lock_time. Will fail if
         the remote `lock_token` does not match our local `lock_token`."""
 
-        log.info('Refreshing lock...')
 
         attrs = {
             LOCK_TOKEN: self._token,
             LOCK_TIME: time.time()
         }
+
+        log.info('Refreshing lock... %s' %(attrs))
+
         self._sdb_domain.put_attributes(
             self._key, attrs,
             expected_value=[LOCK_TOKEN, self._token])
