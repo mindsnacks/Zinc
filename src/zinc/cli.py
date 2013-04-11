@@ -52,6 +52,8 @@ def catalog_from_config(config, catalog_ref):
         storage_info = config.storages[config.bookmarks[catalog_ref]['storage']]
         return catalog_id, coordinator_info, storage_info
 
+    return None, None, None  # seems a bit silly
+
 
 def resolve_storage_info(config, storage_ref):
 
@@ -76,9 +78,14 @@ def get_catalog(config, args):
         service = connect(coordinator_info=coordinator_info, storage_info=storage_info)
         catalog = service.get_catalog(id=catalog_id)
     else:
-        r = catalog_ref_split(args.catalog)
-        service = connect(r.service)
-        catalog = service.get_catalog(**r.catalog._asdict())
+        #r = catalog_ref_split(args.catalog)
+        #print r
+        #service = connect(r.service)
+        #catalog = service.get_catalog(**r.catalog._asdict())
+
+        # TODO: not sure if this is correct for general case
+        service = connect(args.catalog)
+        catalog = service.get_catalog()
     return catalog
 
 
@@ -182,9 +189,9 @@ def subcmd_catalog_create(config, args):
     create_catalog(catalog_id=catalog_id, storage_info=storage_info)
     print "Catalog '%s' successfully created." % (catalog_id)
 
-# TODO: fix
-def cmd_catalog_clean(args, config):
-    catalog = ZincCatalog(args.catalog)
+
+def subcmd_catalog_clean(config, args):
+    catalog = get_catalog(config, args)
     catalog.clean(dry_run=not args.force)
 
 
@@ -311,7 +318,7 @@ def main():
             '-f', '--force', default=False, action='store_true',
             help='This command does a dry run by default. Specifying this flag '
             'will cause files to actually be removed.')
-    parser_catalog_clean.set_defaults(func=cmd_catalog_clean)
+    parser_catalog_clean.set_defaults(func=subcmd_catalog_clean)
 
     # catalog:verify
     parser_catalog_verify = subparsers.add_parser(

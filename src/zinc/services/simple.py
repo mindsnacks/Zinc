@@ -1,4 +1,6 @@
+import os
 from multiprocessing import Process, Pipe
+from urlparse import urlparse
 
 from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
 from zinc.storages.filesystem import FilesystemStorageBackend
@@ -6,8 +8,7 @@ from zinc.models import ZincIndex, ZincCatalogConfig
 from . import ZincServiceConsumer, ZincServiceProvider, ZincCatalog
 
 from zinc.defaults import defaults
-from zinc.utils import *
-from zinc.helpers import *
+import zinc.utils as utils
 
 
 def f(service, conn, command):
@@ -25,11 +26,15 @@ def _get_index(url, conn):
 
 class SimpleServiceConsumer(ZincServiceConsumer):
 
-    def __init__(self, root_path=None):
-        self._root_path = root_path or '/'
+    def __init__(self, url=None):
+        assert url
+        self._url = url
+
+    def _root_abs_path(self):
+        return urlparse(self._url).path
 
     def _abs_path(self, subpath):
-        return os.path.join(canonical_path(self._root_path), subpath)
+        return os.path.join(self._root_abs_path(), subpath)
 
     ## TODO: fix cloning between this and zinc.client
     def create_catalog(self, id=None, loc=None):
@@ -37,7 +42,7 @@ class SimpleServiceConsumer(ZincServiceConsumer):
         loc = loc or '.'
 
         path = self._abs_path(loc)
-        makedirs(path)
+        utils.makedirs(path)
 
         config_path = os.path.join(path, defaults['catalog_config_name'])
         ZincCatalogConfig().write(config_path)
@@ -47,7 +52,7 @@ class SimpleServiceConsumer(ZincServiceConsumer):
 
     def get_catalog(self, loc=None, id=None):
         loc = loc or '.'
-        url = file_url(os.path.join(self._root_path, loc))
+        url = utils.file_url(os.path.join(self._root_abs_path(), loc))
         storage = FilesystemStorageBackend(url=url)
         coordinator = FilesystemCatalogCoordinator(url=url)
         return ZincCatalog(coordinator=coordinator, storage=storage)
@@ -68,5 +73,3 @@ class SimpleServiceConsumer(ZincServiceConsumer):
     #    p.start()
     #    print parent_conn.recv()
     #    p.join()
-
-

@@ -54,3 +54,22 @@ class FilesystemStorageBackend(StorageBackend):
         utils.makedirs(os.path.dirname(abs_path))
         with AtomicFile(abs_path, 'w') as f:
             f.write(fileobj.read())
+
+    def list(self, prefix=None):
+        if prefix is not None:
+            dir = self._abs_path(prefix)
+        else:
+            dir = self._root_abs_path()
+
+        contents = []
+        for path, dirs, files in os.walk(dir):
+            for fn in files:
+                abs_path = os.path.join(path, fn)
+                rel_path = abs_path[len(dir) + 1:]  # get path relative to dir
+                contents.append(rel_path)
+
+        return contents
+
+    def delete(self, subpath):
+        path = self._abs_path(subpath)
+        os.remove(path)

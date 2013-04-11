@@ -63,3 +63,18 @@ class S3StorageBackend(StorageBackend):
         k = Key(self._bucket)
         k.key = self._get_keyname(subpath)
         k.set_contents_from_file(fileobj)
+
+    def list(self, prefix=None):
+        contents = []
+        subpath = self._get_keyname(prefix)
+        for k in self._bucket.list(prefix=subpath):
+            if k.name.endswith("/"):
+                # skip "directory" keys
+                continue
+            rel_path = k.name[len(subpath) + 1:]
+            contents.append(rel_path)
+        return contents
+
+    def delete(self, subpath):
+        self._bucket.delete_key(self._get_keyname(subpath))
+

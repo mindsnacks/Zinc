@@ -285,51 +285,113 @@ class ZincCatalog(ZincAbstractCatalog):
 
     @_lock_index
     def clean(self, dry_run=False):
-        bundle_descriptors = self.bundle_descriptors()
         verb = 'Would remove' if dry_run else 'Removing'
 
+        bundle_descriptors = self.bundle_descriptors()
+
         ### 1. scan manifests for ones that aren't in index
-        for root, dirs, files in os.walk(self._manifests_url()):
-            for f in files:
-                remove = False
-                if not (f.endswith(".json") or f.endswith(".json.gz")):
-                    # remove stray files
+
+        dir = self._ph.manifests_dir
+        for f in self._storage.list(dir):
+            remove = False
+            if not (f.endswith(".json") or f.endswith(".json.gz")):
+                # remove stray files
+                remove = True
+            else:
+                bundle_descr = f.split(".")[0]
+                if bundle_descr not in bundle_descriptors:
                     remove = True
-                else:
-                    bundle_descr = f.split(".")[0]
-                    if bundle_descr not in bundle_descriptors:
-                        remove = True
-                if remove:
-                    log.info("%s %s" % (verb, pjoin(root, f)))
-                    if not dry_run: os.remove(pjoin(root, f))
+
+            if remove:
+                subpath = os.path.join(dir, f)
+                log.info("%s %s" % (verb, subpath))
+                if not dry_run:
+                    self._storage.delete(subpath)
 
         ### 2. scan archives for ones that aren't in index
-        for root, dirs, files in os.walk(self._archives_dir()):
-            for f in files:
-                remove = False
-                if not (f.endswith(".tar")):
-                    # remove stray files
+
+        dir = self._ph.archives_dir
+        for f in self._storage.list(dir):
+            remove = False
+            if not (f.endswith(".tar")):
+                # remove stray files
+                remove = True
+            else:
+                bundle_descr = f.split(".")[0]
+                if bundle_descr not in bundle_descriptors:
                     remove = True
-                else:
-                    bundle_descr = f.split(".")[0]
-                    if bundle_descr not in bundle_descriptors:
-                        remove = True
-                if remove:
-                    log.info("%s %s" % (verb, pjoin(root, f)))
-                    if not dry_run: os.remove(pjoin(root, f))
+
+            if remove:
+                subpath = os.path.join(dir, f)
+                log.info("%s %s" % (verb, subpath))
+                if not dry_run:
+                    self._storage.delete(subpath)
 
         ### 3. clean objects
+
         all_objects = set()
         for bundle_desc in bundle_descriptors:
             manifest = self.manifest_for_bundle_descriptor(bundle_desc)
             for f, meta in manifest.files.iteritems():
                 all_objects.add(meta['sha'])
-        for root, dirs, files in os.walk(self._files_dir()):
-            for f in files:
-                basename = os.path.splitext(f)[0]
-                if basename not in all_objects:
-                    log.info("%s %s" % (verb, pjoin(root, f)))
-                    if not dry_run: os.remove(pjoin(root, f))
+
+        dir = self._ph.objects_dir
+        for f in self._storage.list(dir):
+            basename = os.path.splitext(f)[0]
+
+            if basename not in all_objects:
+                subpath = os.path.join(dir, f)
+                log.info("%s %s" % (verb, subpath))
+                if not dry_run:
+                    self._storage.delete(subpath)
+
+    #@_lock_index
+    #def old_clean(self, dry_run=False):
+    #    bundle_descriptors = self.bundle_descriptors()
+    #    verb = 'Would remove' if dry_run else 'Removing'
+
+    #    ### 1. scan manifests for ones that aren't in index
+    #    for root, dirs, files in os.walk(self._manifests_url()):
+    #        for f in files:
+    #            remove = False
+    #            if not (f.endswith(".json") or f.endswith(".json.gz")):
+    #                # remove stray files
+    #                remove = True
+    #            else:
+    #                bundle_descr = f.split(".")[0]
+    #                if bundle_descr not in bundle_descriptors:
+    #                    remove = True
+    #            if remove:
+    #                log.info("%s %s" % (verb, pjoin(root, f)))
+    #                if not dry_run: os.remove(pjoin(root, f))
+
+    #    ### 2. scan archives for ones that aren't in index
+    #    for root, dirs, files in os.walk(self._archives_dir()):
+    #        for f in files:
+    #            remove = False
+    #            if not (f.endswith(".tar")):
+    #                # remove stray files
+    #                remove = True
+    #            else:
+    #                bundle_descr = f.split(".")[0]
+    #                if bundle_descr not in bundle_descriptors:
+    #                    remove = True
+    #            if remove:
+    #                log.info("%s %s" % (verb, pjoin(root, f)))
+    #                if not dry_run: os.remove(pjoin(root, f))
+
+    #    ### 3. clean objects
+    #    all_objects = set()
+    #    for bundle_desc in bundle_descriptors:
+    #        manifest = self.manifest_for_bundle_descriptor(bundle_desc)
+    #        for f, meta in manifest.files.iteritems():
+    #            all_objects.add(meta['sha'])
+    #    for root, dirs, files in os.walk(self._files_dir()):
+    #        for f in files:
+    #            basename = os.path.splitext(f)[0]
+    #            if basename not in all_objects:
+    #                log.info("%s %s" % (verb, pjoin(root, f)))
+    #                if not dry_run: os.remove(pjoin(root, f))
 
 
 
@@ -362,6 +424,6 @@ class CustomServiceConsumer(ZincServiceConsumer):
         self._storage = storage
 
     def get_catalog(self, loc=None, id=None):
-        cat_storage = self._storage.bind_to_catalog(loc=loc, id=id)
+        cat_storage = self._storage.bind_to_catalog(id=id)
         # TODO: bind to coordinator?
         return ZincCatalog(coordinator=self._coordinator, storage=cat_storage)

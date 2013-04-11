@@ -48,6 +48,14 @@ class StorageBackend(object):
         """Write data from file-like object 'fileobj' to subpath."""
         raise NotImplementedError()
 
+    def list(self, prefix=None):
+        """List contents, with optional prefix."""
+        raise NotImplementedError()
+
+    def delete(self, subpath):
+        """Delete subpath."""
+        raise NotImplementedError()
+
 
 def storage_for_url(url):
     from .filesystem import FilesystemStorageBackend

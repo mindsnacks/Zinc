@@ -1,7 +1,10 @@
+import os
+import logging
 
-from zinc.utils import *
-from zinc.helpers import *
+import zinc.helpers as helpers
 from zinc.defaults import defaults
+
+log = logging.getLogger(__name__)
 
 ################################################################################
 
@@ -51,7 +54,7 @@ class ZincCatalogPathHelper(object):
                     "Should specify either `ext` or `format`, not both.")
 
         if format is not None:
-            ext = file_extension_for_format(format)
+            ext = helpers.file_extension_for_format(format)
         subdir = os.path.join(self.objects_dir, sha[0:2], sha[2:4])
         file = sha
         if ext is not None:
@@ -131,8 +134,8 @@ class ZincAbstractCatalog(object):
         Convenience method to get a manifest by bundle_descriptor.
         """
         return self.manifest_for_bundle(
-            bundle_id_from_bundle_descriptor(bundle_descriptor),
-            bundle_version_from_bundle_descriptor(bundle_descriptor))
+            helpers.bundle_id_from_bundle_descriptor(bundle_descriptor),
+            helpers.bundle_version_from_bundle_descriptor(bundle_descriptor))
 
     def bundle_descriptors(self):
         bundle_descriptors = []
@@ -141,6 +144,9 @@ class ZincAbstractCatalog(object):
             for version in index.versions_for_bundle(bundle_name):
                 bundle_descriptors.append("%s-%d" % (bundle_name, version))
                 manifest = self.manifest_for_bundle(bundle_name, version)
+                if manifest is None:
+                    log.warn('Could not load manifest for %s-%d' % (bundle_name, version))
+                    continue
                 for flavor in manifest.flavors:
                     bundle_descriptors.append("%s-%d~%s" %
                             (bundle_name, version, flavor))
