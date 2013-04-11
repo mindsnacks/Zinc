@@ -13,7 +13,7 @@ from . import CatalogCoordinator
 log = logging.getLogger(__name__)
 
 LOCK_TOKEN = 'lock_token'
-LOCK_TIME = 'lock_time'
+LOCK_EXPIRES = 'lock_expires'
 
 
 class Lock(object):
@@ -32,14 +32,10 @@ class Lock(object):
         self._timer = None
 
     def _update_lock(self):
-        """Attempts to update the lock but incresing the lock_time. Will fail if
+        """Attempts to update the lock but incresing the lock_expires. Will fail if
         the remote `lock_token` does not match our local `lock_token`."""
 
-        attrs = {
-            LOCK_TOKEN: self._token,
-            LOCK_TIME: time.time()
-        }
-
+        attrs = self._get_lock_attrs()
         log.info('Refreshing lock... %s' % (attrs))
 
         self._sdb_domain.put_attributes(
@@ -54,6 +50,12 @@ class Lock(object):
         self._update_lock()
         self._schedule_timer()
 
+    def _get_lock_attrs(self):
+        return {
+            LOCK_TOKEN: self._token,
+            LOCK_EXPIRES: time.time() + self._expires
+        }
+
     def __enter__(self):
         timeout = self._timeout
         while timeout >= 0:
@@ -62,24 +64,20 @@ class Lock(object):
 
                 # check expiration
                 if item is not None and self._expires != 0:
-                    lock_time = item.get(LOCK_TIME)
-                    if lock_time is None \
-                       or time.time() > float(lock_time) + self._expires:
+                    lock_expires = item.get(LOCK_EXPIRES)
+                    if lock_expires is None \
+                       or time.time() > float(lock_expires):
                         log.info('Clearing expired lock...')
                         self._sdb_domain.delete_attributes(
-                            self._key, [LOCK_TOKEN, LOCK_TIME],
+                            self._key, [LOCK_TOKEN, LOCK_EXPIRES],
                             expected_values=[LOCK_TOKEN, item[LOCK_TOKEN]])
 
                 # try to get the lock
                 if item is None or item.get(LOCK_TOKEN) is None:
 
                     # try to write, expecting token to be UNSET
-                    attrs = {
-                        LOCK_TOKEN: self._token,
-                        LOCK_TIME: time.time()
-                    }
                     self._sdb_domain.put_attributes(
-                        self._key, attrs,
+                        self._key, self._get_lock_attrs(),
                         expected_value=[LOCK_TOKEN, False])
 
                     self._schedule_timer()
@@ -102,7 +100,7 @@ class Lock(object):
         item = self._sdb_domain.get_item(self._key, consistent_read=True)
         if item is not None and item[LOCK_TOKEN] == self._token:
             self._sdb_domain.delete_attributes(
-                self._key, [LOCK_TOKEN, LOCK_TIME],
+                self._key, [LOCK_TOKEN, LOCK_EXPIRES],
                 expected_values=[LOCK_TOKEN, self._token])
         else:
             raise LockException("Failed to acquire lock within timeout.")
