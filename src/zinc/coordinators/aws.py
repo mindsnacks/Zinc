@@ -34,7 +34,7 @@ class Lock(object):
         """Attempts to update the lock but incresing the lock_time. Will fail if
         the remote `lock_token` does not match our local `lock_token`."""
 
-        log.debug('Updating lock...')
+        log.info('Refreshing lock...')
 
         attrs = {
             LOCK_TOKEN: self._token,
