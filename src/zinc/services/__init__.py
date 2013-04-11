@@ -345,55 +345,6 @@ class ZincCatalog(ZincAbstractCatalog):
                 if not dry_run:
                     self._storage.delete(subpath)
 
-    #@_lock_index
-    #def old_clean(self, dry_run=False):
-    #    bundle_descriptors = self.bundle_descriptors()
-    #    verb = 'Would remove' if dry_run else 'Removing'
-
-    #    ### 1. scan manifests for ones that aren't in index
-    #    for root, dirs, files in os.walk(self._manifests_url()):
-    #        for f in files:
-    #            remove = False
-    #            if not (f.endswith(".json") or f.endswith(".json.gz")):
-    #                # remove stray files
-    #                remove = True
-    #            else:
-    #                bundle_descr = f.split(".")[0]
-    #                if bundle_descr not in bundle_descriptors:
-    #                    remove = True
-    #            if remove:
-    #                log.info("%s %s" % (verb, pjoin(root, f)))
-    #                if not dry_run: os.remove(pjoin(root, f))
-
-    #    ### 2. scan archives for ones that aren't in index
-    #    for root, dirs, files in os.walk(self._archives_dir()):
-    #        for f in files:
-    #            remove = False
-    #            if not (f.endswith(".tar")):
-    #                # remove stray files
-    #                remove = True
-    #            else:
-    #                bundle_descr = f.split(".")[0]
-    #                if bundle_descr not in bundle_descriptors:
-    #                    remove = True
-    #            if remove:
-    #                log.info("%s %s" % (verb, pjoin(root, f)))
-    #                if not dry_run: os.remove(pjoin(root, f))
-
-    #    ### 3. clean objects
-    #    all_objects = set()
-    #    for bundle_desc in bundle_descriptors:
-    #        manifest = self.manifest_for_bundle_descriptor(bundle_desc)
-    #        for f, meta in manifest.files.iteritems():
-    #            all_objects.add(meta['sha'])
-    #    for root, dirs, files in os.walk(self._files_dir()):
-    #        for f in files:
-    #            basename = os.path.splitext(f)[0]
-    #            if basename not in all_objects:
-    #                log.info("%s %s" % (verb, pjoin(root, f)))
-    #                if not dry_run: os.remove(pjoin(root, f))
-
-
 
 ################################################################################
 

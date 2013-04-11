@@ -78,11 +78,6 @@ def get_catalog(config, args):
         service = connect(coordinator_info=coordinator_info, storage_info=storage_info)
         catalog = service.get_catalog(id=catalog_id)
     else:
-        #r = catalog_ref_split(args.catalog)
-        #print r
-        #service = connect(r.service)
-        #catalog = service.get_catalog(**r.catalog._asdict())
-
         # TODO: not sure if this is correct for general case
         service = connect(args.catalog)
         catalog = service.get_catalog()
