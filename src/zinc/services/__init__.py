@@ -331,16 +331,17 @@ class ZincCatalog(ZincAbstractCatalog):
         all_objects = set()
         for bundle_desc in bundle_descriptors:
             manifest = self.manifest_for_bundle_descriptor(bundle_desc)
-            if manifest is not None:
-                for f, meta in manifest.files.iteritems():
-                    all_objects.add(meta['sha'])
+            for f, meta in manifest.files.iteritems():
+                all_objects.add(meta['sha'])
 
         dir = self._ph.objects_dir
-        for f in self._storage.list(dir):
-            basename = os.path.splitext(f)[0]
+        for path in self._storage.list(dir):
 
-            if basename not in all_objects:
-                subpath = os.path.join(dir, f)
+            basename = os.path.basename(path)
+            obj = os.path.splitext(basename)[0]
+
+            if obj not in all_objects:
+                subpath = os.path.join(dir, path)
                 log.info("%s %s" % (verb, subpath))
                 if not dry_run:
                     self._storage.delete(subpath)
