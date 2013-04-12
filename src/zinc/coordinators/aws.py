@@ -13,7 +13,7 @@ from . import CatalogCoordinator
 log = logging.getLogger(__name__)
 
 LOCK_TOKEN = 'lock_token'
-LOCK_EXPIRES = 'lock_expires'
+LOCK_EXPIRES = 'lock_expiry'
 
 
 class Lock(object):
