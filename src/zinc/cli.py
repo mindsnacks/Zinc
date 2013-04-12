@@ -266,7 +266,8 @@ def subcmd_catalog_verify(config, args):
     if len(results) == 0:
         print 'All ok!'
     else:
-        print results
+        for r in results:
+            print r
 
 
 ### Main #####################################################################
