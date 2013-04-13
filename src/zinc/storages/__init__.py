@@ -23,10 +23,10 @@ class StorageBackend(object):
     def bind_to_catalog(self, id=None):
         raise NotImplementedError()
 
-    def puts(self, subpath, bytes):
+    def puts(self, subpath, bytes, **kwargs):
         """Write string 'bytes' to subpath."""
         fileobj = StringIO(bytes)
-        self.put(subpath, fileobj)
+        self.put(subpath, fileobj, **kwargs)
 
     ## Methods to override
 
@@ -44,7 +44,7 @@ class StorageBackend(object):
         """
         raise NotImplementedError()
 
-    def put(self, subpath, fileobj):
+    def put(self, subpath, fileobj, **kwargs):
         """Write data from file-like object 'fileobj' to subpath."""
         raise NotImplementedError()
 

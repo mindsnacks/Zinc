@@ -49,7 +49,7 @@ class FilesystemStorageBackend(StorageBackend):
         meta['size'] = os.path.getsize(abs_path)
         return meta
 
-    def put(self, subpath, fileobj):
+    def put(self, subpath, fileobj, **kwargs):
         abs_path = self._abs_path(subpath)
         utils.makedirs(os.path.dirname(abs_path))
         with AtomicFile(abs_path, 'w') as f:

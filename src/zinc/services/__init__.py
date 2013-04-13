@@ -98,11 +98,11 @@ class ZincCatalog(ZincAbstractCatalog):
         f = self._storage.get(rel_path)
         return f.read() if f is not None else None
 
-    def _write(self, subpath, bytes, raw=True, gzip=True):
+    def _write(self, subpath, bytes, raw=True, gzip=True, max_age=None):
         if raw:
-            self._storage.puts(subpath, bytes)
+            self._storage.puts(subpath, bytes, max_age=max_age)
         if gzip:
-            self._storage.puts(subpath + '.gz', gzip_bytes(bytes))
+            self._storage.puts(subpath + '.gz', gzip_bytes(bytes), max_age=max_age)
 
     def _read_index(self):
         subpath = self._ph.path_for_index()
@@ -112,9 +112,10 @@ class ZincCatalog(ZincAbstractCatalog):
     def _write_index(self, index, raw=True, gzip=True):
         subpath = self._ph.path_for_index()
         bytes = index.to_bytes()
-        self._write(subpath, bytes, raw=raw, gzip=gzip)
+        max_age = defaults['catalog_index_max_age_seconds']
+        self._write(subpath, bytes, raw=raw, gzip=gzip, max_age=max_age)
         if defaults['catalog_write_legacy_index']:
-            self._write('index.json', bytes, raw=raw, gzip=gzip)
+            self._write('index.json', bytes, raw=raw, gzip=gzip, max_age=max_age)
 
     def _read_manifest(self, bundle_name, version):
         subpath = self._ph.path_for_manifest_for_bundle_version(

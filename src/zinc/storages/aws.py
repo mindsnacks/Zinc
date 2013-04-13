@@ -59,9 +59,11 @@ class S3StorageBackend(StorageBackend):
         meta['size'] = key.size
         return meta
 
-    def put(self, subpath, fileobj):
+    def put(self, subpath, fileobj, max_age=None, **kwargs):
         k = Key(self._bucket)
         k.key = self._get_keyname(subpath)
+        if max_age is not None:
+            k.set_metadata('Cache-Control', 'max-age=%d' % (max_age))
         k.set_contents_from_file(fileobj)
 
     def list(self, prefix=None):
