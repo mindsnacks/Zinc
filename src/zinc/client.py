@@ -101,7 +101,7 @@ class ZincVerificationError(Exception):
 
 
 def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
-        distro=None, check_shas=True, **kwargs):
+        distro=None, check_shas=True, should_lock=False, **kwargs):
 
     assert catalog
     assert manifest or bundle_name
@@ -192,7 +192,7 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
             log.error(e)
 
 
-def verify_catalog(catalog):
+def verify_catalog(catalog, should_lock=False, **kwargs):
 
     errors = []
     index = catalog.get_index()
