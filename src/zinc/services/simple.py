@@ -50,7 +50,7 @@ class SimpleServiceConsumer(ZincServiceConsumer):
         index_path = os.path.join(path, defaults['catalog_index_name'])
         ZincIndex(id).write(index_path)
 
-    def get_catalog(self, loc=None, id=None):
+    def get_catalog(self, loc=None, id=None, **kwargs):
         loc = loc or '.'
         url = utils.file_url(os.path.join(self._root_abs_path(), loc))
         storage = FilesystemStorageBackend(url=url)
