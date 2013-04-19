@@ -110,7 +110,7 @@ class ZincAbstractCatalog(object):
     def verify(self):
         raise NotImplementedError()
 
-    def clean(self):
+    def clean(self, **kwargs):
         raise NotImplementedError()
 
     ### Non-abstract methods

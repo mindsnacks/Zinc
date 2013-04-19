@@ -74,13 +74,14 @@ def resolve_storage_info(config, storage_ref):
 
 def get_catalog(config, args):
     catalog_id, coordinator_info, storage_info = catalog_from_config(config, args.catalog)
+    timeout = vars(args).get('timeout')
     if coordinator_info is not None and storage_info is not None:
         service = connect(coordinator_info=coordinator_info, storage_info=storage_info)
-        catalog = service.get_catalog(id=catalog_id)
+        catalog = service.get_catalog(id=catalog_id, lock_timeout=timeout)
     else:
         # TODO: not sure if this is correct for general case
         service = connect(args.catalog)
-        catalog = service.get_catalog()
+        catalog = service.get_catalog(lock_timeout=timeout)
     return catalog
 
 
@@ -262,7 +263,8 @@ def subcmd_distro_delete(config, args):
 
 def subcmd_catalog_verify(config, args):
     catalog = get_catalog(config, args)
-    results = verify_catalog(catalog)
+    should_lock = args.lock
+    results = verify_catalog(catalog, should_lock=should_lock)
     if len(results) == 0:
         print 'All ok!'
     else:
@@ -289,13 +291,16 @@ def main():
             help='additional help')
 
     add_catalog_arg = lambda parser, required=True: parser.add_argument(
-            '-c', '--catalog', required=required, help='Catalog reference.')
+        '-c', '--catalog', required=required, help='Catalog reference.')
     add_bundle_arg = lambda parser, required=True: parser.add_argument(
-            '-b', '--bundle', required=True, help='Bundle name.')
+        '-b', '--bundle', required=True, help='Bundle name.')
     add_distro_arg = lambda parser, required=True: parser.add_argument(
-            '-d', '--distro', required=required, help='Name of the distro.')
+        '-d', '--distro', required=required, help='Name of the distro.')
     add_version_arg = lambda parser, required=True: parser.add_argument(
-            '-v', '--version', required=required, help='Version.')
+        '-v', '--version', required=required, help='Version.')
+    add_timeout_arg = lambda parser, required=False: parser.add_argument(
+        '--timeout', required=required, default=None,
+        help='Timeout for acquiring catalog locks. 0 = wait forever.')
 
     # catalog:create
     parser_catalog_create = subparsers.add_parser(
@@ -310,6 +315,7 @@ def main():
     parser_catalog_clean = subparsers.add_parser(
             'catalog:clean', help='catalog:clean help')
     add_catalog_arg(parser_catalog_clean)
+    add_timeout_arg(parser_catalog_clean)
     parser_catalog_clean.add_argument(
             '-f', '--force', default=False, action='store_true',
             help='This command does a dry run by default. Specifying this flag '
@@ -320,6 +326,9 @@ def main():
     parser_catalog_verify = subparsers.add_parser(
             'catalog:verify', help='catalog:verify help')
     add_catalog_arg(parser_catalog_verify)
+    parser_catalog_verify.add_argument(
+            '--lock', default=False, action='store_true',
+            help='Lock the catalog while verifying.')
     parser_catalog_verify.set_defaults(func=subcmd_catalog_verify)
 
     # catalog:list
@@ -347,6 +356,7 @@ def main():
     parser_bundle_update = subparsers.add_parser(
             'bundle:update', help='bundle:update help')
     add_catalog_arg(parser_bundle_update)
+    add_timeout_arg(parser_bundle_update)
     add_bundle_arg(parser_bundle_update)
     parser_bundle_update.add_argument(
             '-p', '--path', required=True,
@@ -384,6 +394,7 @@ def main():
     parser_bundle_delete = subparsers.add_parser(
             'bundle:delete', help='bundle:delete help')
     add_catalog_arg(parser_bundle_delete)
+    add_timeout_arg(parser_bundle_delete)
     add_bundle_arg(parser_bundle_delete)
     add_version_arg(parser_bundle_delete)
     parser_bundle_delete.add_argument(
@@ -404,6 +415,7 @@ def main():
     parser_distro_update = subparsers.add_parser(
             'distro:update', help='distro:update help')
     add_catalog_arg(parser_distro_update)
+    add_timeout_arg(parser_distro_update)
     add_bundle_arg(parser_distro_update)
     add_version_arg(parser_distro_update)
     add_distro_arg(parser_distro_update)
@@ -413,6 +425,7 @@ def main():
     parser_distro_delete = subparsers.add_parser(
             'distro:delete', help='distro:delete help')
     add_catalog_arg(parser_distro_delete)
+    add_timeout_arg(parser_distro_delete)
     add_bundle_arg(parser_distro_delete)
     add_distro_arg(parser_distro_delete)
     parser_distro_delete.set_defaults(func=subcmd_distro_delete)

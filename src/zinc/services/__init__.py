@@ -15,10 +15,11 @@ log = logging.getLogger(__name__)
 
 ################################################################################
 
+
 class ZincCatalog(ZincAbstractCatalog):
 
     def __init__(self, storage=None, coordinator=None, path_helper=None,
-                 **kwargs):
+                 lock_timeout=None, **kwargs):
         assert storage
 
         super(ZincCatalog, self).__init__(**kwargs)
@@ -30,7 +31,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self._manifests = {}
         self._reload()
 
-        self.lock_timeout = defaults['catalog_lock_timeout']
+        self.lock_timeout = lock_timeout or defaults['catalog_lock_timeout']
 
     ### Properties ###
 
@@ -363,7 +364,7 @@ class ZincServiceConsumer(object):
     def create_catalog(self, id=None, loc=None):
         raise NotImplementedError()
 
-    def get_catalog(self, loc=None, id=None):
+    def get_catalog(self, loc=None, id=None, lock_timeout=None):
         raise NotImplementedError()
 
 
@@ -376,7 +377,8 @@ class CustomServiceConsumer(ZincServiceConsumer):
         self._coordinator = coordinator
         self._storage = storage
 
-    def get_catalog(self, loc=None, id=None):
+    def get_catalog(self, loc=None, id=None, lock_timeout=None):
         cat_storage = self._storage.bind_to_catalog(id=id)
         # TODO: bind to coordinator?
-        return ZincCatalog(coordinator=self._coordinator, storage=cat_storage)
+        return ZincCatalog(coordinator=self._coordinator, storage=cat_storage,
+                           lock_timeout=lock_timeout)
