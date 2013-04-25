@@ -79,4 +79,3 @@ class S3StorageBackend(StorageBackend):
 
     def delete(self, subpath):
         self._bucket.delete_key(self._get_keyname(subpath))
-
