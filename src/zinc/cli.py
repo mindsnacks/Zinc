@@ -6,10 +6,13 @@ import sys
 from urlparse import urlparse
 
 from zinc.utils import canonical_path
-from zinc.client import (ZincClientConfig, connect, catalog_ref_split,
-        create_bundle_version, verify_bundle, verify_catalog, create_catalog)
+from zinc.client import (ZincClientConfig, connect, create_bundle_version,
+                         verify_bundle, verify_catalog, create_catalog)
 from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
+import zinc.helpers as helpers
+
+log = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = '~/.zinc'
 
@@ -154,6 +157,13 @@ def bundle_delete(catalog, bundle_name, version_name, dry_run=False):
 
 
 def distro_update(catalog, bundle_name, distro_name, version_name, save_previous=True):
+
+    errors = helpers.distro_name_errors(distro_name)
+    if len(errors) > 0:
+        for e in errors:
+            log.error(e)
+        sys.exit()
+
     if version_name == "latest":
         index = catalog.get_index()
         bundle_version = index.versions_for_bundle(bundle_name)[-1]
@@ -247,6 +257,7 @@ def subcmd_bundle_verify(config, args):
 
 
 def subcmd_distro_update(config, args):
+
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
     distro_name = args.distro

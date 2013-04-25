@@ -227,7 +227,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog.update_distribution(distro, bundle_name, 1)
 
         # verify
-        prev_distro = helpers.previous_name_for_distro(distro)
+        prev_distro = helpers.distro_previous_name(distro)
         prev_version = catalog.index.version_for_bundle(bundle_name, prev_distro)
         self.assertTrue(prev_version is None)
 
@@ -247,8 +247,6 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog.update_distribution(distro, bundle_name, 2)
 
         # verify
-        prev_distro = helpers.previous_name_for_distro(distro)
+        prev_distro = helpers.distro_previous_name(distro)
         prev_version = catalog.index.version_for_bundle(bundle_name, prev_distro)
         self.assertEquals(prev_version, 1)
-
-

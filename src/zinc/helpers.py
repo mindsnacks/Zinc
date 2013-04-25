@@ -47,5 +47,18 @@ def file_extension_for_format(format):
     return format
 
 
-def previous_name_for_distro(distro_name):
+def distro_previous_name(distro_name):
     return '%s%s' % (defaults['catalog_prev_distro_prefix'], distro_name)
+
+
+def distro_name_errors(distro_name):
+    """Returns a list of errors in the distro name. Empty list means distro name
+    is valid."""
+
+    errors = []
+
+    if distro_name.startswith(defaults['catalog_prev_distro_prefix']):
+        errors.append(
+            "%s is a reserved prefix" % (defaults['catalog_prev_distro_prefix']))
+
+    return errors

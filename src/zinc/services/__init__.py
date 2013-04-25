@@ -284,7 +284,7 @@ class ZincCatalog(ZincAbstractCatalog):
         if save_previous:
             cur_version = self.index.version_for_bundle(bundle_name, distribution_name)
             if cur_version is not None and cur_version != bundle_version:
-                prev_distro = helpers.previous_name_for_distro(distribution_name)
+                prev_distro = helpers.distro_previous_name(distribution_name)
                 self.index.update_distribution(prev_distro, bundle_name, cur_version)
 
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
