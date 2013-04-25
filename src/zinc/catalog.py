@@ -101,7 +101,7 @@ class ZincAbstractCatalog(object):
     def delete_bundle_version(self, bundle_name, version):
         raise NotImplementedError()
 
-    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+    def update_distribution(self, distribution_name, bundle_name, bundle_version, save_previous=True):
         raise NotImplementedError()
 
     def delete_distribution(self, distribution_name, bundle_name):

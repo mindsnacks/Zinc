@@ -19,3 +19,4 @@ defaults['catalog_config_name'] = 'config.json'
 defaults['catalog_preferred_formats'] = [Formats.GZ, Formats.RAW]
 defaults['catalog_valid_formats'] = defaults['catalog_preferred_formats']
 defaults['catalog_lock_timeout'] = 60
+defaults['catalog_prev_distro_prefix'] = '_'
