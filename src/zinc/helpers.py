@@ -45,3 +45,5 @@ def file_extension_for_format(format):
         return None
     return format
 
+def previous_name_for_distro(distro_name):
+    return '^%s' % (distro_name)
