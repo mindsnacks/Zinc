@@ -2,6 +2,7 @@
 ### Utils
 
 from .formats import Formats
+from .defaults import defaults
 
 
 def make_bundle_id(catalog_id, bundle_name):
@@ -45,5 +46,6 @@ def file_extension_for_format(format):
         return None
     return format
 
+
 def previous_name_for_distro(distro_name):
-    return '^%s' % (distro_name)
+    return '%s%s' % (defaults['catalog_prev_distro_prefix'], distro_name)
