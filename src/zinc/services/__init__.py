@@ -2,14 +2,15 @@ from urlparse import urlparse
 from functools import wraps
 import tempfile
 import logging
+import os
 
 from zinc.models import ZincIndex, ZincManifest, ZincCatalogConfig
 from zinc.catalog import ZincAbstractCatalog, ZincCatalogPathHelper
 from zinc.formats import Formats
 
 from zinc.defaults import defaults
-from zinc.utils import *
-from zinc.helpers import *
+import zinc.helpers as helpers
+import zinc.utils as utils
 
 log = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ class ZincCatalog(ZincAbstractCatalog):
         if raw:
             self._storage.puts(subpath, bytes, max_age=max_age)
         if gzip:
-            self._storage.puts(subpath + '.gz', gzip_bytes(bytes), max_age=max_age)
+            self._storage.puts(subpath + '.gz', utils.gzip_bytes(bytes), max_age=max_age)
 
     def _read_index(self):
         subpath = self._ph.path_for_index()
@@ -119,8 +120,8 @@ class ZincCatalog(ZincAbstractCatalog):
             self._write('index.json', bytes, raw=raw, gzip=gzip, max_age=max_age)
 
     def _read_manifest(self, bundle_name, version):
-        subpath = self._ph.path_for_manifest_for_bundle_version(
-                bundle_name, version)
+        subpath = self._ph.path_for_manifest_for_bundle_version(bundle_name,
+                                                                version)
         bytes = self._read(subpath)
         if bytes is not None:
             return ZincManifest.from_bytes(bytes)
@@ -140,10 +141,10 @@ class ZincCatalog(ZincAbstractCatalog):
             meta = self._storage.get_meta(subpath)
             if meta is not None:
                 return {
-                        'sha' : sha,
-                        'size' : meta['size'],
-                        'format' : format
-                        }
+                    'sha': sha,
+                    'size': meta['size'],
+                    'format': format
+                }
         return None
 
     def _read_file(self, sha, ext=None):
@@ -151,7 +152,7 @@ class ZincCatalog(ZincAbstractCatalog):
         return self._storage.get(subpath)
 
     def _write_file(self, sha, src_path, format=None):
-        format = format or Formats.RAW # default to RAW
+        format = format or Formats.RAW  # default to RAW
         if format not in defaults['catalog_valid_formats']:
             raise Exception("Invalid format '%s'." % (format))
         ext = format if format != Formats.RAW else None
@@ -162,22 +163,24 @@ class ZincCatalog(ZincAbstractCatalog):
 
     def _get_archive_info(self, bundle_name, version, flavor=None):
         subpath = self._ph.path_for_archive_for_bundle_version(bundle_name,
-                version, flavor=flavor)
+                                                               version,
+                                                               flavor=flavor)
         meta = self._storage.get_meta(subpath)
         return meta
 
     def _write_archive(self, bundle_name, version, src_path, flavor=None):
-        subpath = self._ph.path_for_archive_for_bundle_version(
-                bundle_name, version, flavor=flavor)
+        subpath = self._ph.path_for_archive_for_bundle_version(bundle_name,
+                                                               version,
+                                                               flavor=flavor)
         with open(src_path, 'r') as src_file:
             self._storage.put(subpath, src_file)
         return subpath
 
     def _read_archive(self, bundle_name, version, flavor=None):
-        subpath = self._ph.path_for_archive_for_bundle_version(
-                bundle_name, version, flavor=flavor)
+        subpath = self._ph.path_for_archive_for_bundle_version(bundle_name,
+                                                               version,
+                                                               flavor=flavor)
         return self._storage.get(subpath)
-
 
     ### "Public" Methods
 
@@ -230,7 +233,7 @@ class ZincCatalog(ZincAbstractCatalog):
 
     def import_path(self, src_path):
 
-        sha = sha1_for_path(src_path)
+        sha = utils.sha1_for_path(src_path)
 
         file_info = self._get_file_info(sha)
         if file_info is not None:
@@ -241,7 +244,7 @@ class ZincCatalog(ZincAbstractCatalog):
         with tempfile.NamedTemporaryFile() as tmp_file:
             src_path_gz = tmp_file.name
             with open(src_path) as src_file:
-                tmp_file.write(gzip_bytes(src_file.read()))
+                tmp_file.write(utils.gzip_bytes(src_file.read()))
             tmp_file.flush()
 
             src_size = os.path.getsize(src_path)
@@ -255,8 +258,7 @@ class ZincCatalog(ZincAbstractCatalog):
                 final_src_size = src_size
                 format = Formats.RAW
 
-            imported_path = self._write_file(
-                    sha, final_src_path, format=format)
+            imported_path = self._write_file(sha, final_src_path, format=format)
 
         file_info = {
             'sha':  sha,
@@ -277,7 +279,14 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.delete_bundle_version(bundle_name, version)
 
     @_lock_index
-    def update_distribution(self, distribution_name, bundle_name, bundle_version):
+    def update_distribution(self, distribution_name, bundle_name, bundle_version, save_previous=True):
+
+        if save_previous:
+            cur_version = self.index.version_for_bundle(bundle_name, distribution_name)
+            if cur_version is not None and cur_version != bundle_version:
+                prev_distro = helpers.distro_previous_name(distribution_name)
+                self.index.update_distribution(prev_distro, bundle_name, cur_version)
+
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
 
     @_lock_index

@@ -9,6 +9,8 @@ from zinc.storages import StorageBackend
 
 from zinc.client import connect, create_bundle_version
 
+import zinc.helpers as helpers
+
 from tests import *
 
 # TODO: relocate
@@ -180,7 +182,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         create_random_file(self.scratch_dir)
         flavor_spec = ZincFlavorSpec.from_dict({'dummy': ['+ *']})
         create_bundle_version(catalog, "meep", self.scratch_dir,
-                flavor_spec=flavor_spec)
+                              flavor_spec=flavor_spec)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1,
                 flavor='dummy')
         self.assertFalse(self.path_exists_in_catalog(archive_path))
@@ -189,8 +191,8 @@ class ZincCatalogTestCase(TempDirTestCase):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         create_random_file(self.scratch_dir)
         create_random_file(self.scratch_dir)
-        create_bundle_version(catalog,
-                "meep", self.scratch_dir, skip_master_archive=True)
+        create_bundle_version(catalog, "meep", self.scratch_dir,
+                              skip_master_archive=True)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1)
         self.assertTrue(self.path_exists_in_catalog(archive_path))
 
@@ -199,7 +201,52 @@ class ZincCatalogTestCase(TempDirTestCase):
         create_random_file(self.scratch_dir)
         create_random_file(self.scratch_dir)
         flavor_spec = ZincFlavorSpec.from_dict({'dummy': ['+ *']})
-        create_bundle_version(catalog,
-                "meep", self.scratch_dir, flavor_spec=flavor_spec, skip_master_archive=True)
+        create_bundle_version(catalog, "meep", self.scratch_dir,
+                              flavor_spec=flavor_spec, skip_master_archive=True)
         archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1)
         self.assertFalse(self.path_exists_in_catalog(archive_path))
+
+    def test_update_distro_basic(self):
+        # set up
+        catalog = self._build_test_catalog()
+        bundle_name, distro = "meep", "master"
+
+        # create 'master' distro at v1
+        catalog.update_distribution(distro, bundle_name, 1)
+
+        # verify
+        version = catalog.index.version_for_bundle(bundle_name, distro)
+        self.assertEquals(version, 1)
+
+    def test_save_prev_distro_if_no_previous(self):
+        # set up
+        catalog = self._build_test_catalog()
+        bundle_name, distro = "meep", "master"
+
+        # create 'master' distro at v1
+        catalog.update_distribution(distro, bundle_name, 1)
+
+        # verify
+        prev_distro = helpers.distro_previous_name(distro)
+        prev_version = catalog.index.version_for_bundle(bundle_name, prev_distro)
+        self.assertTrue(prev_version is None)
+
+    def test_save_prev_distro_if_prev_exists(self):
+        # set up
+        catalog = self._build_test_catalog()
+        bundle_name, distro = "meep", "master"
+
+        # create 'master' distro at v1
+        catalog.update_distribution(distro, bundle_name, 1)
+
+        # create a bundle version 2
+        create_random_file(self.scratch_dir)
+        create_bundle_version(catalog, bundle_name, self.scratch_dir)
+
+        # update 'master' distro to v2
+        catalog.update_distribution(distro, bundle_name, 2)
+
+        # verify
+        prev_distro = helpers.distro_previous_name(distro)
+        prev_version = catalog.index.version_for_bundle(bundle_name, prev_distro)
+        self.assertEquals(prev_version, 1)
