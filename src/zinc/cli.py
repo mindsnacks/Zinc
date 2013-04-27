@@ -217,10 +217,10 @@ def subcmd_bundle_update(config, args):
             skip_master_archive=skip_master_archive)
 
 
-# TODO: fix
-def cmd_bundle_clone(args, config):
+def subcmd_bundle_clone(config, args):
 
-    catalog = catalog_connect(args.catalog)
+    catalog = get_catalog(config, args)
+
     task = ZincBundleCloneTask()
     task.catalog = catalog
     task.bundle_name = args.bundle
@@ -384,11 +384,11 @@ def main():
     add_bundle_arg(parser_bundle_clone)
     add_version_arg(parser_bundle_clone)
     parser_bundle_clone.add_argument(
-            '-p', '--path', required=True,
+            '-p', '--path', required=False, default='.',
             help='Destination path for bundle clone.')
     parser_bundle_clone.add_argument(
             '--flavor', help='Name of flavor.')
-    parser_bundle_clone.set_defaults(func=cmd_bundle_clone)
+    parser_bundle_clone.set_defaults(func=subcmd_bundle_clone)
 
     # bundle:delete
     parser_bundle_delete = subparsers.add_parser(

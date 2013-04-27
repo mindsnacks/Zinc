@@ -1,5 +1,4 @@
 import os
-from shutil import copyfile
 import logging
 
 from zinc.formats import Formats
@@ -10,14 +9,15 @@ log = logging.getLogger(__name__)
 
 ## TODO: this is broken and needs to be tested too
 
+
 class ZincBundleCloneTask(object):
 
     def __init__(self,
-            catalog=None,
-            bundle_name=None,
-            version=None,
-            output_path=None,
-            flavor=None):
+                 catalog=None,
+                 bundle_name=None,
+                 version=None,
+                 output_path=None,
+                 flavor=None):
 
         self.catalog = catalog
         self.bundle_name = bundle_name
@@ -42,24 +42,23 @@ class ZincBundleCloneTask(object):
         assert self.version
         assert self.output_path
 
-        manifest = self.catalog.manifest_for_bundle(
-                self.bundle_name, self.version)
+        manifest = self.catalog.manifest_for_bundle(self.bundle_name,
+                                                    self.version)
 
         if manifest is None:
-            raise Exception("manifest not found: %s-%d" %
-                    (self.bundle_name, self.version))
+            raise Exception("manifest not found: %s-%d" % (self.bundle_name,
+                                                           self.version))
 
         if self.flavor is not None and self.flavor not in manifest.flavors:
             raise Exception("manifest does not contain flavor '%s'" %
-                    (self.flavor))
+                            (self.flavor))
 
         all_files = manifest.get_all_files(flavor=self.flavor)
 
         makedirs(self.output_path)
-        bundle_id = make_bundle_id(
-                self.catalog.id, self.bundle_name)
-        bundle_descriptor = make_bundle_descriptor(
-                bundle_id, self.version, flavor=self.flavor)
+        bundle_id = make_bundle_id(self.catalog.id, self.bundle_name)
+        bundle_descriptor = make_bundle_descriptor(bundle_id, self.version,
+                                                   flavor=self.flavor)
         root_dir = os.path.join(self.output_path, bundle_descriptor)
 
         for file in all_files:
@@ -71,13 +70,20 @@ class ZincBundleCloneTask(object):
             makedirs(os.path.dirname(dst_path))
 
             if formats.get(Formats.RAW) is not None:
-                src_path = self.catalog._path_for_file_with_sha(sha)
-                copyfile(src_path, dst_path)
+                format = Formats.RAW
             elif formats.get(Formats.GZ) is not None:
-                src_path = self.catalog._path_for_file_with_sha(sha, ext='gz')
-                gunzip(src_path, dst_path)
+                format = Formats.GZ
+            else:
+                format = None
 
-            log.info("Exported %s --> %s" % (src_path, dst_path))
+            ext = file_extension_for_format(format)
+            with self.catalog._read_file(sha, ext=ext) as infile:
+                b = infile.read()
+                if format == Formats.GZ:
+                    b = gunzip_bytes(b)
+                with open(dst_path, 'w+b') as outfile:
+                    outfile.write(b)
+
+            log.info("Exported %s --> %s" % (sha, dst_path))
 
         log.info("Exported %d files to '%s'" % (len(all_files), root_dir))
-
