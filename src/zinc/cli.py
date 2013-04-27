@@ -6,10 +6,13 @@ import sys
 from urlparse import urlparse
 
 from zinc.utils import canonical_path
-from zinc.client import (ZincClientConfig, connect, catalog_ref_split,
-        create_bundle_version, verify_bundle, verify_catalog, create_catalog)
+from zinc.client import (ZincClientConfig, connect, create_bundle_version,
+                         verify_bundle, verify_catalog, create_catalog)
 from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
+import zinc.helpers as helpers
+
+log = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = '~/.zinc'
 
@@ -153,7 +156,14 @@ def bundle_delete(catalog, bundle_name, version_name, dry_run=False):
             catalog.delete_bundle_version(bundle_name, int(v))
 
 
-def distro_update(catalog, bundle_name, distro_name, version_name):
+def distro_update(catalog, bundle_name, distro_name, version_name, save_previous=True):
+
+    errors = helpers.distro_name_errors(distro_name)
+    if len(errors) > 0:
+        for e in errors:
+            log.error(e)
+        sys.exit()
+
     if version_name == "latest":
         index = catalog.get_index()
         bundle_version = index.versions_for_bundle(bundle_name)[-1]
@@ -162,7 +172,7 @@ def distro_update(catalog, bundle_name, distro_name, version_name):
         bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
     else:
         bundle_version = int(version_name)
-    catalog.update_distribution(distro_name, bundle_name, bundle_version)
+    catalog.update_distribution(distro_name, bundle_name, bundle_version, save_previous=save_previous)
 
 
 def distro_delete(catalog, distro_name, bundle_name):
@@ -247,11 +257,14 @@ def subcmd_bundle_verify(config, args):
 
 
 def subcmd_distro_update(config, args):
+
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
     distro_name = args.distro
     version_name = args.version
-    distro_update(catalog, bundle_name, distro_name, version_name)
+    save_previous = not args.no_prev_distro
+    distro_update(catalog, bundle_name, distro_name, version_name,
+                  save_previous=save_previous)
 
 
 def subcmd_distro_delete(config, args):
@@ -419,6 +432,8 @@ def main():
     add_bundle_arg(parser_distro_update)
     add_version_arg(parser_distro_update)
     add_distro_arg(parser_distro_update)
+    parser_distro_update.add_argument('--no-prev-distro', default=False, action='store_true',
+                                      help='Do not preserve previous version for distro.')
     parser_distro_update.set_defaults(func=subcmd_distro_update)
 
     # distro:delete
