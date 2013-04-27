@@ -88,6 +88,40 @@ def get_catalog(config, args):
     return catalog
 
 
+def parse_single_version(catalog, bundle_name, version_string):
+
+    if version_string == 'latest':
+        index = catalog.get_index()
+        bundle_version = index.versions_for_bundle(bundle_name)[-1]
+
+    elif version_string.startswith('@'):
+        source_distro = version_string[1:]
+        bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
+
+    else:
+        bundle_version = int(version_string)
+
+    return bundle_version
+
+
+def parse_multi_versions(catalog, bundle_name, version_string):
+
+    if version_string == 'all':
+        index = catalog.get_index()
+        bundle_versions = index.versions_for_bundle(bundle_name)
+
+    elif version_string == 'unreferenced':
+        index = catalog.get_index()
+        all_versions = index.versions_for_bundle(bundle_name)
+        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
+        bundle_versions = [v for v in all_versions if v not in referenced_versions]
+
+    else:
+        bundle_versions = [parse_single_version(catalog, bundle_name, version_string)]
+
+    return bundle_versions
+
+
 ### Client Commands #################################################################
 # TODO: move to zinc.client ?
 
@@ -133,30 +167,20 @@ def bundle_update(catalog, bundle_name, path, flavors=None, force=False,
     print "%d" % (manifest.version)
 
 
-def bundle_delete(catalog, bundle_name, version_name, dry_run=False):
-    if version_name == 'all':
-        index = catalog.get_index()
-        versions_to_delete = index.versions_for_bundle(bundle_name)
-    elif version_name == 'unreferenced':
-        index = catalog.get_index()
-        all_versions = index.versions_for_bundle(bundle_name)
-        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
-        versions_to_delete = [v for v in all_versions if v not in referenced_versions]
-    else:
-        versions_to_delete = [int(version_name)]
+def bundle_delete(catalog, bundle_name, versions, dry_run=False):
 
-    if len(versions_to_delete) == 0:
+    if len(versions) == 0:
         print 'Nothing to do'
     else:
         verb = 'Would remove' if dry_run else 'Removing'
-        print "%s versions %s" % (verb, versions_to_delete)
+        print "%s versions %s" % (verb, versions)
 
     if not dry_run:
-        for v in versions_to_delete:
-            catalog.delete_bundle_version(bundle_name, int(v))
+        for v in versions:
+            catalog.delete_bundle_version(bundle_name, v)
 
 
-def distro_update(catalog, bundle_name, distro_name, version_name, save_previous=True):
+def distro_update(catalog, bundle_name, distro_name, version, save_previous=True):
 
     errors = helpers.distro_name_errors(distro_name)
     if len(errors) > 0:
@@ -164,15 +188,7 @@ def distro_update(catalog, bundle_name, distro_name, version_name, save_previous
             log.error(e)
         sys.exit()
 
-    if version_name == "latest":
-        index = catalog.get_index()
-        bundle_version = index.versions_for_bundle(bundle_name)[-1]
-    elif version_name.startswith('@'):
-        source_distro = version_name[1:]
-        bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
-    else:
-        bundle_version = int(version_name)
-    catalog.update_distribution(distro_name, bundle_name, bundle_version, save_previous=save_previous)
+    catalog.update_distribution(distro_name, bundle_name, version, save_previous=save_previous)
 
 
 def distro_delete(catalog, distro_name, bundle_name):
@@ -204,7 +220,7 @@ def subcmd_catalog_clean(config, args):
 def subcmd_bundle_list(config, args):
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
-    version = int(args.version)
+    version = parse_single_version(catalog, bundle_name, args.version)
     print_sha = args.sha
     bundle_list(catalog, bundle_name, version, print_sha=print_sha)
 
@@ -228,31 +244,28 @@ def subcmd_bundle_update(config, args):
 
 
 def subcmd_bundle_clone(config, args):
-
     catalog = get_catalog(config, args)
-
     task = ZincBundleCloneTask()
     task.catalog = catalog
     task.bundle_name = args.bundle
-    task.version = int(args.version)
+    task.version = parse_single_version(catalog, args.bundle, args.version)
     task.flavor = args.flavor
     task.output_path = args.path
-
     task.run()
 
 
 def subcmd_bundle_delete(config, args):
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
-    version_name = args.version
+    versions = parse_multi_versions(catalog, bundle_name, args.version)
     dry_run = args.dry_run
-    bundle_delete(catalog, bundle_name, version_name, dry_run=dry_run)
+    bundle_delete(catalog, bundle_name, versions, dry_run=dry_run)
 
 
 def subcmd_bundle_verify(config, args):
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
-    version = int(args.version)
+    version = parse_single_version(catalog, bundle_name, args.version)
     verify_bundle(catalog, bundle_name=bundle_name, version=version)
 
 
@@ -261,9 +274,9 @@ def subcmd_distro_update(config, args):
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
     distro_name = args.distro
-    version_name = args.version
+    version = parse_single_version(catalog, bundle_name, args.version)
     save_previous = not args.no_prev_distro
-    distro_update(catalog, bundle_name, distro_name, version_name,
+    distro_update(catalog, bundle_name, distro_name, version,
                   save_previous=save_previous)
 
 
