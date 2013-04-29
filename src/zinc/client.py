@@ -17,7 +17,6 @@ from zinc.storages import storage_for_url
 from zinc.services import ZincCatalog
 from zinc.defaults import defaults
 
-
 log = logging.getLogger(__name__)
 
 
