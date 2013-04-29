@@ -129,7 +129,8 @@ def parse_multi_versions(catalog, bundle_name, version_string):
 
 def catalog_list(catalog, distro=None, print_versions=True):
     index = catalog.get_index()
-    for bundle_name in index.bundle_names():
+    bundle_names = sorted(index.bundle_names())
+    for bundle_name in bundle_names:
         if distro and distro not in index.distributions_for_bundle(bundle_name):
             continue
         distros = index.distributions_for_bundle_by_version(bundle_name)
@@ -138,11 +139,11 @@ def catalog_list(catalog, distro=None, print_versions=True):
         for version in versions:
             version_string = str(version)
             if distros.get(version) is not None:
-                distro_string = "(%s)" % (", ".join(distros.get(version)))
+                distro_string = "(%s)" % (", ".join(sorted(distros.get(version))))
                 version_string += '=' + distro_string
             version_strings.append(version_string)
 
-        final_version_string = "[%s]" % (", ".join(version_strings))
+        final_version_string = "[%s]" % (", ".join(sorted(version_strings)))
         if print_versions:
             print "%s %s" % (bundle_name, final_version_string)
         else:
