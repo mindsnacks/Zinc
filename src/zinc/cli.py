@@ -11,6 +11,8 @@ from zinc.client import (ZincClientConfig, connect, create_bundle_version,
 from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 import zinc.helpers as helpers
+import zinc.utils as utils
+from zinc.formats import Formats
 
 log = logging.getLogger(__name__)
 
@@ -298,6 +300,58 @@ def subcmd_catalog_verify(config, args):
             print r
 
 
+def _dump_json(catalog, subpath, dest_path=None, should_decompress=True):
+
+    subpath_gz = helpers.append_file_extension_for_format(subpath, Formats.GZ)
+    data = catalog._read(subpath_gz)  # TODO: fix private method references
+    if should_decompress:
+        out = utils.gunzip_bytes(data)
+    else:
+        out = data
+
+    if dest_path is not None:
+        name = os.path.split(subpath)[-1]
+        with open(name, 'w+b') as f:
+            f.write(out)
+        log.info('Wrote %s' % (name))
+    else:
+        print out
+
+def subcmd_dump_index(config, args):
+    catalog = get_catalog(config, args)
+
+    # TODO: fix private method references
+    subpath = catalog._ph.path_for_index()
+
+    if args.remote_name:
+        dest_path = os.path.split(subpath)[-1]
+    else:
+        dest_path = None
+
+    _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
+            dest_path=dest_path)
+
+
+def subcmd_dump_manifest(config, args):
+    catalog = get_catalog(config, args)
+    bundle_name = args.bundle
+    version = parse_single_version(catalog, bundle_name, args.version)
+
+    # TODO: fix private method references
+    subpath = catalog._ph.path_for_manifest_for_bundle_version(bundle_name, version)
+
+    if args.remote_name:
+        dest_path = os.path.split(subpath)[-1]
+    else:
+        dest_path = None
+
+    _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
+            dest_path=dest_path)
+
+
+
+
+
 ### Main #####################################################################
 
 def main():
@@ -327,6 +381,13 @@ def main():
     add_timeout_arg = lambda parser, required=False: parser.add_argument(
         '--timeout', required=required, default=None,
         help='Timeout for acquiring catalog locks. 0 = wait forever.')
+    add_remote_name_arg = lambda parser, required=False: parser.add_argument(
+            '-O', '--remote-name', required=required, default=False,
+                action='store_true', help='Write to file using remote name \
+                instead of stdout.')
+    add_no_decompress_arg = lambda parser, required=False: parser.add_argument(
+            '--no-decompress', required=required, default=False,
+            action='store_true', help='Don\'t decompress file after downloading.')
 
     # catalog:create
     parser_catalog_create = subparsers.add_parser(
@@ -458,10 +519,29 @@ def main():
     add_distro_arg(parser_distro_delete)
     parser_distro_delete.set_defaults(func=subcmd_distro_delete)
 
+    # dump:index
+    parser_dump_index = subparsers.add_parser(
+            'dump:index', help='Dump catalog index file (catalog.json).')
+    add_catalog_arg(parser_dump_index)
+    add_remote_name_arg(parser_dump_index)
+    add_no_decompress_arg(parser_dump_index)
+    parser_dump_index.set_defaults(func=subcmd_dump_index)
+
+    # dump:manifest
+    parser_dump_manifest = subparsers.add_parser(
+            'dump:manifest', help='Dump a manifest file from a catalog.')
+    add_catalog_arg(parser_dump_manifest)
+    add_bundle_arg(parser_dump_manifest)
+    add_version_arg(parser_dump_manifest)
+    add_remote_name_arg(parser_dump_manifest)
+    add_no_decompress_arg(parser_dump_manifest)
+    parser_dump_manifest.set_defaults(func=subcmd_dump_manifest)
+
     args = parser.parse_args()
     config = load_config(args.config)
     set_loglevel(args)
     args.func(config, args)
+
 
 if __name__ == "__main__":
     main()

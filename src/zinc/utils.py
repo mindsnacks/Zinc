@@ -81,11 +81,5 @@ def gunzip_bytes(bytes):
     return zlib.decompress(bytes, 16 + zlib.MAX_WBITS)
 
 
-def filename_with_ext(filename, ext):
-    if ext is not None:
-        return '%s.%s' % (filename, ext)
-    return filename
-
-
 def file_url(path):
     return 'file://%s' % (canonical_path(path))
