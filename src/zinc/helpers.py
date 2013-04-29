@@ -57,6 +57,10 @@ def distro_name_errors(distro_name):
 
     errors = []
 
+    if len(distro_name) == 0:
+        errors.append(
+            "distro name cannot be zero length")
+
     if distro_name.startswith(defaults['catalog_prev_distro_prefix']):
         errors.append(
             "%s is a reserved prefix" % (defaults['catalog_prev_distro_prefix']))
