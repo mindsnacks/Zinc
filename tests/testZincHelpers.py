@@ -28,3 +28,7 @@ class TestZincHelpers(unittest.TestCase):
     def test_distro_name_errors_bad_because_prev_prefix(self):
         errors = helpers.distro_name_errors("_meep")
         self.assertTrue(len(errors) == 1)
+
+    def test_distro_name_errors_bad_because_zero_length(self):
+        errors = helpers.distro_name_errors("")
+        self.assertTrue(len(errors) == 1)
