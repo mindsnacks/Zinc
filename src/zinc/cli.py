@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 from urlparse import urlparse
-import requests
 
 from zinc.utils import canonical_path
 from zinc.client import (ZincClientConfig, connect, create_bundle_version,
