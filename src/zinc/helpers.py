@@ -42,9 +42,28 @@ def bundle_version_from_bundle_descriptor(bundle_descriptor):
 
 # TODO: move to formats.py?
 def file_extension_for_format(format):
+    """Returns proper file extension for the given format, or `None` if no
+    extension is necessary."""
+
     if format == Formats.RAW:
         return None
     return format
+
+
+def append_file_extension(path, ext):
+    """Appends the given extension to the path. If `ext` is `None`,
+    `path` is returned."""
+
+    if ext is not None:
+        return '%s.%s' % (path, ext)
+    return path
+
+
+def append_file_extension_for_format(path, format):
+    """Appends the proper filename extension for the given format."""
+
+    ext = file_extension_for_format(format)
+    return append_file_extension(path, ext)
 
 
 def distro_previous_name(distro_name):
