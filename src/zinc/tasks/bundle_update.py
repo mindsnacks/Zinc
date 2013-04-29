@@ -37,7 +37,7 @@ def _build_archive(catalog, manifest, src_dir, flavor=None):
             ext = helpers.file_extension_for_format(format)
 
             tarinfo = tar.tarinfo()
-            tarinfo.name = utils.filename_with_ext(sha, ext)
+            tarinfo.name = helpers.append_file_extension(sha, ext)
 
             path = os.path.join(src_dir, f)
 

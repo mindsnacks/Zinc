@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 from urlparse import urlparse
+import requests
 
 from zinc.utils import canonical_path
 from zinc.client import (ZincClientConfig, connect, create_bundle_version,
@@ -11,6 +12,8 @@ from zinc.client import (ZincClientConfig, connect, create_bundle_version,
 from zinc.models import ZincFlavorSpec
 from zinc.tasks.bundle_clone import ZincBundleCloneTask
 import zinc.helpers as helpers
+import zinc.utils as utils
+from zinc.formats import Formats
 
 log = logging.getLogger(__name__)
 
@@ -298,6 +301,31 @@ def subcmd_catalog_verify(config, args):
             print r
 
 
+def subcmd_dump_manifest(config, args):
+    catalog = get_catalog(config, args)
+    bundle_name = args.bundle
+    version = parse_single_version(catalog, bundle_name, args.version)
+
+    # TODO: fix private method references
+    subpath = catalog._ph.path_for_manifest_for_bundle_version(bundle_name, version)
+    subpath_gz = helpers.append_file_extension_for_format(subpath, Formats.GZ)
+    data = catalog._read(subpath_gz)
+
+    if args.no_decompress:
+        out = data
+    else:
+        out = utils.gunzip_bytes(data)
+
+    if args.remote_name:
+        name = os.path.split(subpath)[-1]
+        with open(name, 'w+b') as f:
+            f.write(out)
+        log.info('Wrote %s' % (name))
+    else:
+        print out
+
+
+
 ### Main #####################################################################
 
 def main():
@@ -458,10 +486,24 @@ def main():
     add_distro_arg(parser_distro_delete)
     parser_distro_delete.set_defaults(func=subcmd_distro_delete)
 
+    # dump:manifest
+    parser_dump_manifest = subparsers.add_parser(
+            'dump:manifest', help='Dump a manifest file from a catalog')
+    add_catalog_arg(parser_dump_manifest)
+    add_bundle_arg(parser_dump_manifest)
+    add_version_arg(parser_dump_manifest)
+    parser_dump_manifest.add_argument('-O', '--remote-name', default=False,
+            action='store_true',
+            help='Write to file using remote name instead of stdout')
+    parser_dump_manifest.add_argument('--no-decompress', default=False,
+            action='store_true', help='Don\'t decompress file.')
+    parser_dump_manifest.set_defaults(func=subcmd_dump_manifest)
+
     args = parser.parse_args()
     config = load_config(args.config)
     set_loglevel(args)
     args.func(config, args)
+
 
 if __name__ == "__main__":
     main()
