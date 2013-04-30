@@ -268,12 +268,19 @@ def verify_catalog(catalog, should_lock=False, **kwargs):
 ################################################################################
 
 
-def clone_bundle(catalog, bundle_name, version, output_path, flavor=None):
+def clone_bundle(catalog, bundle_name, version, root_path=None, bundle_dir_name=None, flavor=None):
 
     assert catalog
     assert bundle_name
     assert version
-    assert output_path
+
+    if root_path is None:
+        root_path = '.'
+
+    if bundle_dir_name is None:
+        bundle_id = helpers.make_bundle_id(catalog.id, bundle_name)
+        bundle_dir_name = helpers.make_bundle_descriptor(bundle_id, version,
+                                                         flavor=flavor)
 
     manifest = catalog.manifest_for_bundle(bundle_name, version)
 
@@ -285,11 +292,8 @@ def clone_bundle(catalog, bundle_name, version, output_path, flavor=None):
 
     all_files = manifest.get_all_files(flavor=flavor)
 
-    utils.makedirs(output_path)
-    bundle_id = helpers.make_bundle_id(catalog.id, bundle_name)
-    bundle_descriptor = helpers.make_bundle_descriptor(bundle_id, version,
-                                                       flavor=flavor)
-    root_dir = os.path.join(output_path, bundle_descriptor)
+    root_dir = os.path.join(root_path, bundle_dir_name)
+    utils.makedirs(root_dir)
 
     for file in all_files:
         dst_path = os.path.join(root_dir, file)

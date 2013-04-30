@@ -249,16 +249,28 @@ def subcmd_bundle_update(config, args):
 def subcmd_bundle_clone(config, args):
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
+    bundle_id = helpers.make_bundle_id(catalog.id, bundle_name)
     version = parse_single_version(catalog, bundle_name, args.version)
     flavor = args.flavor
-    output_path = args.path
-    clone_bundle(catalog, bundle_name, version, output_path, flavor=flavor)
-    if args.include_manifest:
-        # TODO: fix private method references
-        manifest_name = '%s.%s' % (catalog.id, catalog._ph.manifest_name(bundle_name, version))
-        manifest_dest_path = os.path.join(output_path, manifest_name)
-        manifest_src_path = catalog._ph.path_for_manifest_for_bundle_version(bundle_name, version)
-        _dump_json(catalog, manifest_src_path, dest_path=manifest_dest_path)
+    root_path = args.path
+
+    if args.no_versions:
+        bundle_dir_name = bundle_id
+    else:
+        bundle_dir_name = None
+
+    clone_bundle(catalog, bundle_name, version, root_path=root_path,
+                 bundle_dir_name=bundle_dir_name, flavor=flavor)
+
+    if args.no_versions:
+        manifest_name = '%s.json' % (bundle_id)
+    else:
+        manifest_name = '%s.json' % (helpers.make_bundle_descriptor(bundle_id, version))
+
+    manifest_dest_path = os.path.join(root_path, manifest_name)
+    # TODO: fix private method reference
+    manifest_src_path = catalog._ph.path_for_manifest_for_bundle_version(bundle_name, version)
+    _dump_json(catalog, manifest_src_path, dest_path=manifest_dest_path)
 
 
 def subcmd_bundle_delete(config, args):
@@ -479,6 +491,9 @@ def main():
     parser_bundle_clone.add_argument(
             '--include-manifest', required=False, action='store_true',
             help='Also dump bundle manifest.')
+    parser_bundle_clone.add_argument(
+            '--no-versions', default=False, action='store_true',
+            help='Omit version when writing bundle file names.')
     parser_bundle_clone.set_defaults(func=subcmd_bundle_clone)
 
     # bundle:delete
