@@ -6,13 +6,13 @@ import sys
 from urlparse import urlparse
 
 from zinc.utils import canonical_path
-from zinc.client import (ZincClientConfig, connect, create_bundle_version,
-                         verify_bundle, verify_catalog, create_catalog)
 from zinc.models import ZincFlavorSpec
-from zinc.tasks.bundle_clone import ZincBundleCloneTask
 import zinc.helpers as helpers
 import zinc.utils as utils
 from zinc.formats import Formats
+from zinc.client import (ZincClientConfig, connect, create_bundle_version,
+                         verify_bundle, verify_catalog, create_catalog,
+                         clone_bundle)
 
 log = logging.getLogger(__name__)
 
@@ -248,13 +248,11 @@ def subcmd_bundle_update(config, args):
 
 def subcmd_bundle_clone(config, args):
     catalog = get_catalog(config, args)
-    task = ZincBundleCloneTask()
-    task.catalog = catalog
-    task.bundle_name = args.bundle
-    task.version = parse_single_version(catalog, args.bundle, args.version)
-    task.flavor = args.flavor
-    task.output_path = args.path
-    task.run()
+    bundle_name = args.bundle
+    version = parse_single_version(catalog, bundle_name, args.version)
+    flavor = args.flavor
+    output_path = args.path
+    clone_bundle(catalog, bundle_name, version, output_path, flavor=flavor)
 
 
 def subcmd_bundle_delete(config, args):

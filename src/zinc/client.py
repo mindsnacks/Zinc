@@ -4,11 +4,8 @@ import tarfile
 import hashlib
 from collections import namedtuple
 from urlparse import urlparse
-
 import toml
 
-from zinc.utils import canonical_path, gunzip_bytes
-from zinc.helpers import file_extension_for_format
 from zinc.formats import Formats
 from zinc.models import ZincModel, ZincIndex, ZincCatalogConfig
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
@@ -16,6 +13,8 @@ from zinc.coordinators import coordinator_for_url
 from zinc.storages import storage_for_url
 from zinc.catalog import ZincCatalog
 from zinc.defaults import defaults
+import zinc.helpers as helpers
+import zinc.utils as utils
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ class ZincClientConfig(ZincModel):
             if isinstance(value, dict):
                 outdict[key] = cls._replace_vars(value, vars)
             elif isinstance(value, basestring) \
-                    and (value.startswith(cls.VARS + ':') \
+                    and (value.startswith(cls.VARS + ':')
                          or value.startswith(cls.ENV + ':')):
                 if value.startswith(cls.VARS + ':'):
                     varname = value[len(cls.VARS) + 1:]
@@ -80,6 +79,7 @@ class ZincClientConfig(ZincModel):
 
 ################################################################################
 
+
 def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
                           force=False, skip_master_archive=False):
 
@@ -92,6 +92,7 @@ def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
     task.force = force
     return task.run()
 
+
 ################################################################################
 
 
@@ -100,7 +101,7 @@ class ZincVerificationError(Exception):
 
 
 def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
-        distro=None, check_shas=True, should_lock=False, **kwargs):
+                  distro=None, check_shas=True, should_lock=False, **kwargs):
 
     assert catalog
     assert manifest or bundle_name
@@ -141,11 +142,11 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
                 raise ZincVerificationError('File %s wrong size' % (sha))
 
             if check_shas:
-                ext = file_extension_for_format(format)
+                ext = helpers.file_extension_for_format(format)
                 with catalog._read_file(sha, ext=ext) as f:
                     b = f.read()
                     if format == Formats.GZ:
-                        b = gunzip_bytes(b)
+                        b = utils.gunzip_bytes(b)
                     digest = hashlib.sha1(b).hexdigest()
                     if digest != sha:
                         raise ZincVerificationError('File %s wrong hash' % (sha))
@@ -217,6 +218,63 @@ def verify_catalog(catalog, should_lock=False, **kwargs):
     return errors
 
 
+################################################################################
+
+
+def clone_bundle(catalog, bundle_name, version, output_path, flavor=None):
+
+    assert catalog
+    assert bundle_name
+    assert version
+    assert output_path
+
+    manifest = catalog.manifest_for_bundle(bundle_name, version)
+
+    if manifest is None:
+        raise Exception("manifest not found: %s-%d" % (bundle_name, version))
+
+    if flavor is not None and flavor not in manifest.flavors:
+        raise Exception("manifest does not contain flavor '%s'" % (flavor))
+
+    all_files = manifest.get_all_files(flavor=flavor)
+
+    utils.makedirs(output_path)
+    bundle_id = helpers.make_bundle_id(catalog.id, bundle_name)
+    bundle_descriptor = helpers.make_bundle_descriptor(bundle_id, version,
+                                                       flavor=flavor)
+    root_dir = os.path.join(output_path, bundle_descriptor)
+
+    for file in all_files:
+        dst_path = os.path.join(root_dir, file)
+
+        formats = manifest.formats_for_file(file)
+        sha = manifest.sha_for_file(file)
+
+        utils.makedirs(os.path.dirname(dst_path))
+
+        if formats.get(Formats.RAW) is not None:
+            format = Formats.RAW
+        elif formats.get(Formats.GZ) is not None:
+            format = Formats.GZ
+        else:
+            format = None
+
+        ext = helpers.file_extension_for_format(format)
+        with catalog._read_file(sha, ext=ext) as infile:
+            b = infile.read()
+            if format == Formats.GZ:
+                b = utils.gunzip_bytes(b)
+            with open(dst_path, 'w+b') as outfile:
+                outfile.write(b)
+
+        log.info("Exported %s --> %s" % (sha, dst_path))
+
+    log.info("Exported %d files to '%s'" % (len(all_files), root_dir))
+
+
+################################################################################
+
+
 def _catalog_connection_get_api_version(url):
     import requests
     ZINC_VERSION_HEADER = 'x-zinc-api-version'
@@ -225,7 +283,7 @@ def _catalog_connection_get_api_version(url):
     api_version = resp.headers.get(ZINC_VERSION_HEADER)
     if api_version is None:
         raise Exception("Unknown Zinc API - '%s' header not found" %
-                (ZINC_VERSION_HEADER))
+                        (ZINC_VERSION_HEADER))
     return api_version
 
 
@@ -240,8 +298,8 @@ def _catalog_connection_get_http(url):
 
 def catalog_ref_split(catalog_ref):
 
-    CatalogRefSplitResult = namedtuple(
-            'CatalogRefSplitResult', 'service catalog')
+    CatalogRefSplitResult = namedtuple('CatalogRefSplitResult',
+                                       'service catalog')
     CatalogInfo = namedtuple('CatalogInfo', 'id loc')
 
     urlcomps = urlparse(catalog_ref)
@@ -263,13 +321,11 @@ def create_catalog(catalog_id=None, storage_info=None):
     storage = storage_class(**storage_info)
     catalog_storage = storage.bind_to_catalog(id=catalog_id)
 
-    catalog_storage.puts(
-            defaults['catalog_config_name'],
-            ZincCatalogConfig().to_bytes())
+    catalog_storage.puts(defaults['catalog_config_name'],
+                         ZincCatalogConfig().to_bytes())
 
-    catalog_storage.puts(
-            defaults['catalog_index_name'],
-            ZincIndex(catalog_id).to_bytes())
+    catalog_storage.puts(defaults['catalog_index_name'],
+                         ZincIndex(catalog_id).to_bytes())
 
     catalog = ZincCatalog(storage=catalog_storage)
     catalog.save()
@@ -289,7 +345,7 @@ def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs
         elif urlcomps.scheme in ('file', ''):
             if urlcomps.scheme == '':
                 # assume it's a path and convert a file URL
-                file_url = 'file://%s' % (canonical_path(service_url))
+                file_url = 'file://%s' % (utils.canonical_path(service_url))
             else:
                 file_url = service_url
 
