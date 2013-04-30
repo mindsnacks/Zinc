@@ -223,11 +223,6 @@ class ZincCatalog(ZincAbstractCatalog):
 
             assert self._coordinator
 
-            #lock = self._coordinator.get_index_lock_index()
-            #lock.acquire(timeout=self.lock_timeout)
-            #output = func(*args, **kwargs)
-            #lock.release()
-
             with self._coordinator.get_index_lock(domain=self.id):
                 self._reload()
                 output = func(self, *args, **kwargs)
