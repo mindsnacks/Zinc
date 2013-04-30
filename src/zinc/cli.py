@@ -7,12 +7,11 @@ from urlparse import urlparse
 
 from zinc.utils import canonical_path
 from zinc.models import ZincFlavorSpec
+from zinc.formats import Formats
+from zinc.client import ZincClientConfig
+import zinc.client as client
 import zinc.helpers as helpers
 import zinc.utils as utils
-from zinc.formats import Formats
-from zinc.client import (ZincClientConfig, connect, create_bundle_version,
-                         verify_bundle, verify_catalog, create_catalog,
-                         clone_bundle)
 
 log = logging.getLogger(__name__)
 
@@ -81,11 +80,11 @@ def get_catalog(config, args):
     catalog_id, coordinator_info, storage_info = catalog_from_config(config, args.catalog)
     timeout = vars(args).get('timeout')
     if coordinator_info is not None and storage_info is not None:
-        service = connect(coordinator_info=coordinator_info, storage_info=storage_info)
+        service = client.connect(coordinator_info=coordinator_info, storage_info=storage_info)
         catalog = service.get_catalog(id=catalog_id, lock_timeout=timeout)
     else:
         # TODO: not sure if this is correct for general case
-        service = connect(args.catalog)
+        service = client.connect(args.catalog)
         catalog = service.get_catalog(lock_timeout=timeout)
     return catalog
 
@@ -162,7 +161,7 @@ def bundle_list(catalog, bundle_name, version, print_sha=False):
 
 def bundle_update(catalog, bundle_name, path, flavors=None, force=False,
                   skip_master_archive=True):
-    manifest = create_bundle_version(catalog, bundle_name, path,
+    manifest = client.create_bundle_version(catalog, bundle_name, path,
                                      flavor_spec=flavors, force=force,
                                      skip_master_archive=skip_master_archive)
     #print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
@@ -211,7 +210,7 @@ def subcmd_catalog_create(config, args):
     storage_ref = args.storage
     catalog_id = args.catalog_id
     storage_info = resolve_storage_info(config, storage_ref)
-    create_catalog(catalog_id=catalog_id, storage_info=storage_info)
+    client.create_catalog(catalog_id=catalog_id, storage_info=storage_info)
     print "Catalog '%s' successfully created." % (catalog_id)
 
 
@@ -259,7 +258,7 @@ def subcmd_bundle_clone(config, args):
     else:
         bundle_dir_name = None
 
-    clone_bundle(catalog, bundle_name, version, root_path=root_path,
+    client.clone_bundle(catalog, bundle_name, version, root_path=root_path,
                  bundle_dir_name=bundle_dir_name, flavor=flavor)
 
     if args.no_versions:
@@ -285,7 +284,7 @@ def subcmd_bundle_verify(config, args):
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
     version = parse_single_version(catalog, bundle_name, args.version)
-    verify_bundle(catalog, bundle_name=bundle_name, version=version)
+    client.verify_bundle(catalog, bundle_name=bundle_name, version=version)
 
 
 def subcmd_distro_update(config, args):
@@ -309,7 +308,7 @@ def subcmd_distro_delete(config, args):
 def subcmd_catalog_verify(config, args):
     catalog = get_catalog(config, args)
     should_lock = args.lock
-    results = verify_catalog(catalog, should_lock=should_lock)
+    results = client.verify_catalog(catalog, should_lock=should_lock)
     if len(results) == 0:
         print 'All ok!'
     else:
