@@ -4,7 +4,7 @@ import logging
 from zinc.models import ZincIndex, ZincManifest, ZincFlavorSpec
 from zinc.catalog import ZincCatalogPathHelper
 from zinc.defaults import defaults
-from zinc.services import ZincCatalog
+from zinc.catalog import ZincCatalog
 from zinc.storages import StorageBackend
 
 from zinc.client import connect, create_bundle_version
@@ -12,6 +12,7 @@ from zinc.client import connect, create_bundle_version
 import zinc.helpers as helpers
 
 from tests import *
+
 
 # TODO: relocate
 class StorageBackendTestCase(unittest.TestCase):

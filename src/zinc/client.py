@@ -14,7 +14,7 @@ from zinc.models import ZincModel, ZincIndex, ZincCatalogConfig
 from zinc.tasks.bundle_update import ZincBundleUpdateTask
 from zinc.coordinators import coordinator_for_url
 from zinc.storages import storage_for_url
-from zinc.services import ZincCatalog
+from zinc.catalog import ZincCatalog
 from zinc.defaults import defaults
 
 log = logging.getLogger(__name__)
