@@ -100,6 +100,48 @@ class ZincVerificationError(Exception):
     pass
 
 
+def _verify_archive(manifest, fileobj=None, flavor=None, check_shas=True):
+
+    assert fileobj
+
+    if not check_shas:
+        log.warning('Skipping SHA digest verification for archive members.')
+
+    all_files = manifest.get_all_files(flavor=flavor)
+
+    tar = tarfile.open(fileobj=fileobj)
+
+    # Note: getmembers and getnames return objects in the same order
+    members = tar.getmembers()
+    member_names = tar.getnames()
+
+    errors = list()
+
+    for file in all_files:
+        sha = manifest.sha_for_file(file)
+        format, info = manifest.get_format_info_for_file(file, preferred_formats=defaults['catalog_preferred_formats'])
+        target_member_name = helpers.append_file_extension_for_format(sha, format)
+        if target_member_name not in member_names:
+            errors.append(ZincVerificationError('File \'%s\' not found in %s.' % (target_member_name, helpers.make_bundle_descriptor(manifest.bundle_name, manifest.version, flavor=flavor))))
+        else:
+            member = members[member_names.index(target_member_name)]
+            if check_shas:
+                f = tar.extractfile(member)
+                b = f.read()
+                f.close()
+                if format == Formats.GZ:
+                    b = utils.gunzip_bytes(b)
+                digest = hashlib.sha1(b).hexdigest()
+                if digest != sha:
+                    errors.append(ZincVerificationError('File \'%s\' digest does not match: %s.' % (target_member_name, digest)))
+            else:
+                # check length only
+                if info['size'] != member.size:
+                    errors.append(ZincVerificationError('File \'%s\' has size %d, expected %d.' % (target_member_name, info['size'], member.size)))
+
+    return errors
+
+
 def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
                   distro=None, check_shas=True, should_lock=False, **kwargs):
 
@@ -107,6 +149,9 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
     assert manifest or bundle_name
     if bundle_name is not None:
         assert version or distro
+
+    if not check_shas:
+        log.warning('Skipping SHA digest verification for bundle files.')
 
     if manifest is None:
         if version is None:
@@ -181,12 +226,12 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
                     raise ZincVerificationError('Archive %s not found.' % (archive_name))
 
             with catalog._read_archive(manifest.bundle_name, manifest.version, flavor=flavor) as a:
-                tar = tarfile.open(fileobj=a)
-                members = tar.getmembers()
-                #for member in members:
-                #    print member
-
-            log.info('Archive %s OK' % (archive_name))
+                archive_errors = _verify_archive(manifest, fileobj=a, flavor=flavor, check_shas=check_shas)
+                if len(archive_errors) > 0:
+                    for archive_err in archive_errors:
+                        log.error(archive_err)
+                else:
+                    log.info('Archive %s OK' % (archive_name))
 
         except ZincVerificationError as e:
             log.error(e)
