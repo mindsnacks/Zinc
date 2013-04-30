@@ -209,8 +209,7 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
     flavors.append(None)  # no flavor
 
     for flavor in flavors:
-        # TODO: private reference to _ph
-        archive_name = catalog._ph.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
+        archive_name = catalog.path_helper.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
         try:
             # TODO: private reference to _get_archive_info
             meta = catalog._get_archive_info(manifest.bundle_name, manifest.version, flavor=flavor)
@@ -244,7 +243,7 @@ def verify_catalog(catalog, should_lock=False, **kwargs):
     errors = []
     index = catalog.get_index()
     manifests = []
-    ph = catalog.path_helper  # TODO: this isn't in abstract base class
+    ph = catalog.path_helper
 
     # TODO: fix private ref to _bundle_info_by_name
     for (bundle_name, bundle_info) in index._bundle_info_by_name.iteritems():

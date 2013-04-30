@@ -267,8 +267,7 @@ def subcmd_bundle_clone(config, args):
         manifest_name = '%s.json' % (helpers.make_bundle_descriptor(bundle_id, version))
 
     manifest_dest_path = os.path.join(root_path, manifest_name)
-    # TODO: fix private method reference
-    manifest_src_path = catalog._ph.path_for_manifest_for_bundle_version(bundle_name, version)
+    manifest_src_path = catalog.path_helper.path_for_manifest_for_bundle_version(bundle_name, version)
     _dump_json(catalog, manifest_src_path, dest_path=manifest_dest_path)
 
 
@@ -336,8 +335,7 @@ def _dump_json(catalog, subpath, dest_path=None, should_decompress=True):
 def subcmd_dump_index(config, args):
     catalog = get_catalog(config, args)
 
-    # TODO: fix private method references
-    subpath = catalog._ph.path_for_index()
+    subpath = catalog.path_helper.path_for_index()
 
     if args.remote_name:
         dest_path = os.path.split(subpath)[-1]
@@ -353,8 +351,7 @@ def subcmd_dump_manifest(config, args):
     bundle_name = args.bundle
     version = parse_single_version(catalog, bundle_name, args.version)
 
-    # TODO: fix private method references
-    subpath = catalog._ph.path_for_manifest_for_bundle_version(bundle_name, version)
+    subpath = catalog.path_helper.path_for_manifest_for_bundle_version(bundle_name, version)
 
     if args.remote_name:
         dest_path = os.path.split(subpath)[-1]
