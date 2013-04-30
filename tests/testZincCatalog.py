@@ -55,7 +55,6 @@ class ZincCatalogTestCase(TempDirTestCase):
     def test_catalog_create(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
         self.assertTrue(catalog is not None)
-        #self.assertTrue(catalog.is_loaded() == True) #TODO: replace?
         self.assertTrue(len(catalog.index.bundle_names()) == 0)
         self.assertTrue(catalog.format() == defaults['zinc_format'])
 
