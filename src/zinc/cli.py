@@ -162,8 +162,8 @@ def bundle_list(catalog, bundle_name, version, print_sha=False):
 def bundle_update(catalog, bundle_name, path, flavors=None, force=False,
                   skip_master_archive=True):
     manifest = client.create_bundle_version(catalog, bundle_name, path,
-                                     flavor_spec=flavors, force=force,
-                                     skip_master_archive=skip_master_archive)
+                                            flavor_spec=flavors, force=force,
+                                            skip_master_archive=skip_master_archive)
     #print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
     # TODO: add some nice human readable and machine readable output options
     print "%d" % (manifest.version)
@@ -259,7 +259,7 @@ def subcmd_bundle_clone(config, args):
         bundle_dir_name = None
 
     client.clone_bundle(catalog, bundle_name, version, root_path=root_path,
-                 bundle_dir_name=bundle_dir_name, flavor=flavor)
+                        bundle_dir_name=bundle_dir_name, flavor=flavor)
 
     if args.no_versions:
         manifest_name = '%s.json' % (bundle_id)
