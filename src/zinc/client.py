@@ -139,6 +139,8 @@ def _verify_archive(manifest, fileobj=None, flavor=None, check_shas=True):
                 if info['size'] != member.size:
                     errors.append(ZincVerificationError('File \'%s\' has size %d, expected %d.' % (target_member_name, info['size'], member.size)))
 
+    tar.close()
+
     return errors
 
 
