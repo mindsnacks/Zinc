@@ -1,2 +1,6 @@
-distribute==0.6.24
-wsgiref==0.1.2
+atomicfile==0.1
+lockfile==0.9.1
+boto==2.8.0
+toml
+nose
+requests

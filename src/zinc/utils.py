@@ -10,10 +10,17 @@ This module provides utility functions that are used within Zinc.
 
 import hashlib
 import gzip
+import zlib
 import os
+import StringIO
+
+
+def enum(**enums):
+    return type('Enum', (), enums)
+
 
 def sha1_for_path(path):
-    """Returns the SHA1 hash as a string for the given path"""
+    """Returns the SHA1 hash as a string for the given path."""
     sha1 = hashlib.sha1()
     f = open(path, 'rb')
     try:
@@ -22,29 +29,36 @@ def sha1_for_path(path):
         f.close()
     return sha1.hexdigest()
 
+
 def canonical_path(path):
     path = os.path.expanduser(path)
     path = os.path.normpath(path)
     path = os.path.realpath(path)
     return path
 
+
 def makedirs(path):
+    """Convenience method that ignores errors if directory already exists."""
     try:
         os.makedirs(path)
     except OSError, e:
         if e.errno == 17:
-            pass # directory already exists
+            pass  # directory already exists
         else:
             raise e
 
-def mygzip(src_path, dst_path):
+
+def gzip_path(src_path, dst_path):
+    """Convenience method for gzipping a file."""
     f_in = open(src_path, 'rb')
     f_out = gzip.open(dst_path, 'wb')
     f_out.writelines(f_in)
     f_out.close()
     f_in.close()
 
-def gunzip(src_path, dst_path):
+
+def gunzip_path(src_path, dst_path):
+    """Convenience method for un-gzipping a file."""
     f_in = gzip.open(src_path, 'rb')
     f_out = open(dst_path, 'wb')
     f_out.writelines(f_in)
@@ -52,3 +66,20 @@ def gunzip(src_path, dst_path):
     f_in.close()
 
 
+def gzip_bytes(bytes):
+    """Convenience method for gzipping bytes in memory."""
+    buffer = StringIO.StringIO()
+    gzfile = gzip.GzipFile(fileobj=buffer, mode='wb')
+    gzfile.write(bytes)
+    gzfile.close()
+    gz_bytes = buffer.getvalue()
+    buffer.close()
+    return gz_bytes
+
+
+def gunzip_bytes(bytes):
+    return zlib.decompress(bytes, 16 + zlib.MAX_WBITS)
+
+
+def file_url(path):
+    return 'file://%s' % (canonical_path(path))

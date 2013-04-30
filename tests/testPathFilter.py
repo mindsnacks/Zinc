@@ -1,7 +1,7 @@
-from tests import *
-from zinc import *
-import os.path
+from zinc.pathfilter import PathFilter
 from zinc.pathfilter import Match
+
+from tests import *
 
 class TestPathFilterRuleMatching(unittest.TestCase):
 
@@ -61,6 +61,8 @@ class TestPathFilterMatching(unittest.TestCase):
 
     def test_read_json(self):
         pf = PathFilter.from_rule_list(['+ a'])
+        self.assertTrue(pf is not None)
+        pf = PathFilter.from_rule_list(['- a'])
         self.assertTrue(pf is not None)
 
     def test_read_json_invalid(self):

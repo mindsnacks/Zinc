@@ -5,12 +5,17 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.rst')).read()
 NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
-version = '0.1.10'
+version = '0.2.0'
 
 install_requires = [
     # List your project dependencies here.
     # For more details, see:
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
+    "toml==0.7.0",
+    "lockfile==0.9.1",
+    "boto==2.8.0",
+    "atomicfile==0.1",
+    "redis==2.7.2",
 ]
 
 
@@ -32,6 +37,6 @@ setup(name='zinc',
     install_requires=install_requires,
     entry_points={
         'console_scripts':
-            ['zinc=zinc:main']
+            ['zinc=zinc.cli:main']
     }
 )
