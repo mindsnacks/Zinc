@@ -243,7 +243,7 @@ def subcmd_bundle_update(config, args):
     skip_master_archive = args.skip_master_archive
 
     bundle_update(catalog, bundle_name, path, flavors=flavors, force=force,
-            skip_master_archive=skip_master_archive)
+                  skip_master_archive=skip_master_archive)
 
 
 def subcmd_bundle_clone(config, args):
@@ -253,6 +253,12 @@ def subcmd_bundle_clone(config, args):
     flavor = args.flavor
     output_path = args.path
     clone_bundle(catalog, bundle_name, version, output_path, flavor=flavor)
+    if args.include_manifest:
+        # TODO: fix private method references
+        manifest_name = '%s.%s' % (catalog.id, catalog._ph.manifest_name(bundle_name, version))
+        manifest_dest_path = os.path.join(output_path, manifest_name)
+        manifest_src_path = catalog._ph.path_for_manifest_for_bundle_version(bundle_name, version)
+        _dump_json(catalog, manifest_src_path, dest_path=manifest_dest_path)
 
 
 def subcmd_bundle_delete(config, args):
@@ -309,12 +315,12 @@ def _dump_json(catalog, subpath, dest_path=None, should_decompress=True):
         out = data
 
     if dest_path is not None:
-        name = os.path.split(subpath)[-1]
-        with open(name, 'w+b') as f:
+        with open(dest_path, 'w+b') as f:
             f.write(out)
-        log.info('Wrote %s' % (name))
+        log.info('Wrote %s' % (dest_path))
     else:
         print out
+
 
 def subcmd_dump_index(config, args):
     catalog = get_catalog(config, args)
@@ -328,7 +334,7 @@ def subcmd_dump_index(config, args):
         dest_path = None
 
     _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
-            dest_path=dest_path)
+               dest_path=dest_path)
 
 
 def subcmd_dump_manifest(config, args):
@@ -345,10 +351,7 @@ def subcmd_dump_manifest(config, args):
         dest_path = None
 
     _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
-            dest_path=dest_path)
-
-
-
+               dest_path=dest_path)
 
 
 ### Main #####################################################################
@@ -364,10 +367,9 @@ def main():
                         choices=('info', 'debug'),
                         help='Log level.')
 
-    subparsers = parser.add_subparsers(
-            title='subcommands',
-            description='valid subcommands',
-            help='additional help')
+    subparsers = parser.add_subparsers(title='subcommands',
+                                       description='valid subcommands',
+                                       help='additional help')
 
     add_catalog_arg = lambda parser, required=True: parser.add_argument(
         '-c', '--catalog', required=required, help='Catalog reference.')
@@ -474,6 +476,9 @@ def main():
             help='Destination path for bundle clone.')
     parser_bundle_clone.add_argument(
             '--flavor', help='Name of flavor.')
+    parser_bundle_clone.add_argument(
+            '--include-manifest', required=False, action='store_true',
+            help='Also dump bundle manifest.')
     parser_bundle_clone.set_defaults(func=subcmd_bundle_clone)
 
     # bundle:delete
