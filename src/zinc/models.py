@@ -100,6 +100,7 @@ class ZincIndex(ZincModel):
 
     @classmethod
     def from_dict(cls, d, mutable=True):
+        # TODO: handle format appropriately
         index = cls(id=d['id'], mutable=mutable)
         index._format = d['format']
         index._bundle_info_by_name = d['bundles']
@@ -327,6 +328,7 @@ class ZincManifest(ZincModel):
 
     def __init__(self, catalog_id, bundle_name, version, **kwargs):
         super(ZincManifest, self).__init__(**kwargs)
+        self._format = defaults['zinc_format']
         self._catalog_id = catalog_id
         self._bundle_name = bundle_name
         self._version = int(version)
@@ -340,14 +342,20 @@ class ZincManifest(ZincModel):
 
     @classmethod
     def from_dict(cls, d, mutable=True):
+        # TODO: handle format appropriately
         catalog_id = d['catalog']
         bundle_name = d['bundle']
         version = int(d['version'])
         manifest = ZincManifest(catalog_id, bundle_name,
                                 version, mutable=mutable)
+        manifest._format = d.get('format') or defaults['zinc_format']
         manifest._files = ZincFileList.from_dict(d['files'])
         manifest._flavors = d.get('flavors') or []  # to support legacy
         return manifest
+
+    @property
+    def format(self):
+        return self._format
 
     @property
     def catalog_id(self):
