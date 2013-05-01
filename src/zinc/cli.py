@@ -333,6 +333,10 @@ def _dump_json(catalog, subpath, dest_path=None, should_decompress=True):
 
 
 def subcmd_dump_index(config, args):
+
+    # TODO: this should not load the catalog - it should just pull the file from
+    # the storage
+
     catalog = get_catalog(config, args)
 
     subpath = catalog.path_helper.path_for_index()
@@ -347,6 +351,10 @@ def subcmd_dump_index(config, args):
 
 
 def subcmd_dump_manifest(config, args):
+
+    # TODO: this should not load the catalog - it should just pull the file from
+    # the storage
+
     catalog = get_catalog(config, args)
     bundle_name = args.bundle
     version = parse_single_version(catalog, bundle_name, args.version)
