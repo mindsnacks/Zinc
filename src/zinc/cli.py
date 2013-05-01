@@ -142,7 +142,7 @@ def catalog_list(catalog, distro=None, print_versions=True):
                 version_string += '=' + distro_string
             version_strings.append(version_string)
 
-        final_version_string = "[%s]" % (", ".join(sorted(version_strings)))
+        final_version_string = "[%s]" % (", ".join(version_strings))
         if print_versions:
             print "%s %s" % (bundle_name, final_version_string)
         else:
