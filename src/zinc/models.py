@@ -1,6 +1,9 @@
 import json
 import UserDict
 from functools import wraps
+from pkg_resources import resource_string
+
+import jsonschema
 
 from zinc.defaults import defaults
 from zinc.pathfilter import PathFilter
@@ -32,8 +35,15 @@ class ZincModel(object):
         raise NotImplementedError()
 
     @classmethod
+    def schema(cls):
+        return None
+
+    @classmethod
     def from_bytes(cls, b, mutable=True):
         d = json.loads(b)
+        schema = cls.schema()
+        if schema is not None:
+            jsonschema.validate(d, schema)
         return cls.from_dict(d, mutable=mutable)
 
     @classmethod
@@ -84,6 +94,12 @@ class ZincIndex(ZincModel):
         index._format = d['format']
         index._bundle_info_by_name = d['bundles']
         return index
+
+    @classmethod
+    def schema(cls):
+        schema_string = resource_string('zinc.resources.schemas', 'catalog-1.json')
+        schema = json.loads(schema_string)
+        return schema
 
     def _get_bundle_info(self, bundle_name):
         info = self._bundle_info_by_name.get(bundle_name)
@@ -307,6 +323,12 @@ class ZincManifest(ZincModel):
         self._version = int(version)
         self._flavors = []
         self._files = ZincFileList()
+
+    @classmethod
+    def schema(cls):
+        schema_string = resource_string('zinc.resources.schemas', 'manifest-1.json')
+        schema = json.loads(schema_string)
+        return schema
 
     @classmethod
     def from_dict(cls, d, mutable=True):
