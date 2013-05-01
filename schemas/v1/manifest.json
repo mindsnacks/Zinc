@@ -5,6 +5,10 @@
 	"required": ["catalog", "bundle", "version", "files"],
 	"additionalProperties": false,
 	"properties": {
+		"format": {
+			"type": "string",
+			"pattern": "1"
+		},
 		"catalog": {
 			"type": "string",
 			"minLength": 1
