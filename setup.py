@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-import sys, os
+import os
 
 here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.rst')).read()
@@ -16,27 +16,29 @@ install_requires = [
     "boto==2.8.0",
     "atomicfile==0.1",
     "redis==2.7.2",
+    "jsonschema==1.3.0",
 ]
 
 
 setup(name='zinc',
-    version=version,
-    description="Keep your files shiny and healthy.",
-    long_description=README + '\n\n' + NEWS,
-    classifiers=[
-      # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-    ],
-    keywords='',
-    author='Andy Mroczkowski',
-    author_email='andy@mrox.net',
-    url='',
-    license='MIT License',
-    packages=find_packages('src'),
-    package_dir = {'': 'src'},include_package_data=True,
-    zip_safe=False,
-    install_requires=install_requires,
-    entry_points={
-        'console_scripts':
-            ['zinc=zinc.cli:main']
-    }
-)
+      version=version,
+      description="Keep your files shiny and healthy.",
+      long_description=README + '\n\n' + NEWS,
+      classifiers=[
+          # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
+      ],
+      keywords='',
+      author='Andy Mroczkowski',
+      author_email='andy@mrox.net',
+      url='',
+      license='MIT License',
+      packages=find_packages('src'),
+      package_dir = {'': 'src'}, include_package_data = True,
+      package_data = {'': ['*.json']},
+      zip_safe=False,
+      install_requires=install_requires,
+      entry_points={
+          'console_scripts':
+          ['zinc=zinc.cli:main']
+      }
+      )
