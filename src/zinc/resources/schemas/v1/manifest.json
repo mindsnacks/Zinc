@@ -1,5 +1,6 @@
 {
 	"$schema": "http://json-schema.org/draft-04/schema#",
+	"id": "http://mindsnacks.github.io/Zinc/schemas/v1/manifest.json#",
 	"type": "object",
 	"required": ["catalog", "bundle", "version", "files"],
 	"additionalProperties": false,

@@ -20,6 +20,8 @@ def mutable_only(f):
 
 class ZincModel(object):
 
+    _schema = None
+
     def __init__(self, mutable=True):
         self._mutable = mutable
 
@@ -35,8 +37,16 @@ class ZincModel(object):
         raise NotImplementedError()
 
     @classmethod
-    def schema(cls):
+    def _load_schema(cls):
         return None
+
+    @classmethod
+    def schema(cls):
+        if cls._schema is None:
+            s = cls._load_schema()
+            if s is not None:
+                cls._schema = s
+        return cls._schema
 
     @classmethod
     def from_bytes(cls, b, mutable=True):
@@ -96,10 +106,9 @@ class ZincIndex(ZincModel):
         return index
 
     @classmethod
-    def schema(cls):
-        schema_string = resource_string('zinc.resources.schemas', 'catalog-1.json')
-        schema = json.loads(schema_string)
-        return schema
+    def _load_schema(cls):
+        schema_string = resource_string('zinc.resources.schemas.v1', 'catalog.json')
+        return json.loads(schema_string)
 
     def _get_bundle_info(self, bundle_name):
         info = self._bundle_info_by_name.get(bundle_name)
@@ -325,10 +334,9 @@ class ZincManifest(ZincModel):
         self._files = ZincFileList()
 
     @classmethod
-    def schema(cls):
-        schema_string = resource_string('zinc.resources.schemas', 'manifest-1.json')
-        schema = json.loads(schema_string)
-        return schema
+    def _load_schema(cls):
+        schema_string = resource_string('zinc.resources.schemas.v1', 'manifest.json')
+        return json.loads(schema_string)
 
     @classmethod
     def from_dict(cls, d, mutable=True):
