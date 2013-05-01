@@ -261,14 +261,15 @@ def subcmd_bundle_clone(config, args):
     client.clone_bundle(catalog, bundle_name, version, root_path=root_path,
                         bundle_dir_name=bundle_dir_name, flavor=flavor)
 
-    if args.no_versions:
-        manifest_name = '%s.json' % (bundle_id)
-    else:
-        manifest_name = '%s.json' % (helpers.make_bundle_descriptor(bundle_id, version))
+    if args.include_manifest:
+        if args.no_versions:
+            manifest_name = '%s.json' % (bundle_id)
+        else:
+            manifest_name = '%s.json' % (helpers.make_bundle_descriptor(bundle_id, version))
 
-    manifest_dest_path = os.path.join(root_path, manifest_name)
-    manifest_src_path = catalog.path_helper.path_for_manifest_for_bundle_version(bundle_name, version)
-    _dump_json(catalog, manifest_src_path, dest_path=manifest_dest_path)
+        manifest_dest_path = os.path.join(root_path, manifest_name)
+        manifest_src_path = catalog.path_helper.path_for_manifest_for_bundle_version(bundle_name, version)
+        _dump_json(catalog, manifest_src_path, dest_path=manifest_dest_path)
 
 
 def subcmd_bundle_delete(config, args):
