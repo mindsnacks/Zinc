@@ -49,11 +49,13 @@ class ZincModel(object):
         return cls._schema
 
     @classmethod
+    def validate(cls, d):
+        pass
+
+    @classmethod
     def from_bytes(cls, b, mutable=True):
         d = json.loads(b)
-        schema = cls.schema()
-        if schema is not None:
-            jsonschema.validate(d, schema)
+        cls.validate(d)
         return cls.from_dict(d, mutable=mutable)
 
     @classmethod
@@ -108,8 +110,13 @@ class ZincIndex(ZincModel):
 
     @classmethod
     def _load_schema(cls):
-        schema_string = resource_string('zinc.resources.schemas.v1', 'catalog.json')
+        #schema_string = resource_string('zinc.resources.schemas.v1', 'catalog.json')
+        schema_string = resource_string('zinc.resources.schemas', 'zinc-v1.json')
         return json.loads(schema_string)
+
+    @classmethod
+    def validate(cls, d):
+        return jsonschema.validate(d, cls.schema())
 
     def _get_bundle_info(self, bundle_name):
         info = self._bundle_info_by_name.get(bundle_name)
@@ -337,8 +344,14 @@ class ZincManifest(ZincModel):
 
     @classmethod
     def _load_schema(cls):
-        schema_string = resource_string('zinc.resources.schemas.v1', 'manifest.json')
+        #schema_string = resource_string('zinc.resources.schemas.v1', 'manifest.json')
+        schema_string = resource_string('zinc.resources.schemas', 'zinc-v1.json')
         return json.loads(schema_string)
+
+    @classmethod
+    def validate(cls, d):
+        #return jsonschema.validate({'manifest': d}, cls.schema())
+        return jsonschema.validate(d, cls.schema())
 
     @classmethod
     def from_dict(cls, d, mutable=True):

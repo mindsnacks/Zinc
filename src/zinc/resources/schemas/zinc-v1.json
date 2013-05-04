@@ -1,0 +1,133 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"id": "http://mindsnacks.github.io/Zinc/schemas/zinc-v1.json#",
+	"type": "object",
+	"oneOf": [
+		{ "$ref": "#/definitions/catalog" },
+		{ "$ref": "#/definitions/filelist" },
+		{ "$ref": "#/definitions/manifest" }
+	],
+	"definitions": {
+
+		"catalog": {
+			"type": "object",
+			"required": ["id", "format"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"minLength": 1
+				},
+				"format": {
+					"type": "string",
+					"pattern": "1"
+				},
+				"bundles": {
+					"type": "object",
+					"additionalProperties": false,
+					"patternProperties": {
+						".+": {
+							"type": "object",
+							"properties": {
+								"distributions": {
+									"type": "object",
+									"additionalProperties": false,
+									"patternProperties": {
+										".+": {
+											"type": "integer"
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"next_version": {
+					"type": "integer"
+				},
+				"versions": {
+					"type": "array",
+					"items": {
+						"type": "integer",
+						"minimum": 1
+					}
+				}
+			}
+		},
+
+		"filelist": {
+			"type": "object",
+			"patternProperties": {
+				".+": {
+					"type": "object",
+					"required": ["sha", "formats"],
+					"additionalProperties": false,
+					"properties": {
+						"sha": {
+							"type": "string",
+							"pattern": "[0-9a-f]{40}"
+						},
+						"formats": {
+							"type": "object",
+							"additionalProperties": false,
+							"patternProperties": {
+								"^(gz|raw)$": {
+									"type": "object",
+									"properties": {
+										"size": {
+											"type": "integer",
+											"minimum": 0
+										}
+									},
+									"required": ["size"],
+									"additionalProperties": false
+								}
+							}
+						},
+						"flavors": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"minLength": 1
+							}
+						}
+					}
+				}
+			}
+		},
+
+		"manifest": {
+			"type": "object",
+			"required": ["catalog", "bundle", "version", "files"],
+			"additionalProperties": false,
+			"properties": {
+				"format": {
+					"type": "string",
+					"pattern": "1"
+				},
+				"catalog": {
+					"type": "string",
+					"minLength": 1
+				},
+				"bundle": {
+					"type": "string",
+					"minLength": 1
+				},
+				"version": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"flavors": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					}
+				},
+				"files": {
+					"$ref": "#/definitions/filelist",
+					"__$ref": "#filelist"
+				}
+			}
+		}
+	}
+}
