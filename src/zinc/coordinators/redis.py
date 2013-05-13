@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
-import time, random
+import time
+import random
 from urlparse import urlparse
 from redis import Redis
 
@@ -10,6 +11,7 @@ from . import CatalogCoordinator, LockException
 
 # a slightly modified version of retools lock which depends only on redis' expire.
 # (retools depends on client OS time being sync'd)
+
 
 class Lock(object):
     def __init__(self, key, expires=30, timeout=10, redis=None):
