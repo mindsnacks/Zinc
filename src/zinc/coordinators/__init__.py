@@ -1,5 +1,9 @@
 
 
+class LockException(Exception):
+    pass
+
+
 class CatalogCoordinator(object):
 
     def __init__(self, url=None, **kwargs):
@@ -19,9 +23,6 @@ class CatalogCoordinator(object):
 
     def get_index_lock(self, domain=None):
         raise NotImplementedError()
-
-
-################################################################################
 
 
 def coordinator_for_url(url):

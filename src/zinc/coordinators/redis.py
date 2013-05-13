@@ -4,7 +4,7 @@ import time, random
 from urlparse import urlparse
 from redis import Redis
 
-from . import CatalogCoordinator
+from . import CatalogCoordinator, LockException
 
 ################################################################################
 
@@ -62,14 +62,6 @@ class Lock(object):
             self.redis.delete(self.key)
         else:
             raise LockException("Lock expired before exit.")
-
-################################################################################
-
-
-class LockException(Exception):
-    pass
-
-################################################################################
 
 
 class RedisCatalogCoordinator(CatalogCoordinator):

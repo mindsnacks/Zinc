@@ -8,7 +8,7 @@ from threading import Timer
 import boto.sdb
 from boto.exception import SDBResponseError
 
-from . import CatalogCoordinator
+from . import CatalogCoordinator, LockException
 
 log = logging.getLogger(__name__)
 
@@ -104,15 +104,6 @@ class Lock(object):
                 expected_values=[LOCK_TOKEN, self._token])
         else:
             raise LockException("Failed to acquire lock within timeout.")
-
-
-################################################################################
-
-
-class LockException(Exception):
-    pass
-
-################################################################################
 
 
 class SimpleDBCatalogCoordinator(CatalogCoordinator):
