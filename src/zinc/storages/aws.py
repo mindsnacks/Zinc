@@ -2,11 +2,16 @@ import os
 from tempfile import TemporaryFile
 from copy import copy
 from urlparse import urlparse
+import logging
 
 from boto.s3.key import Key
 from boto.s3.connection import S3Connection
+import httplib  # for IncompleteRead exception
 
 from . import StorageBackend
+from zinc.defaults import defaults
+
+log = logging.getLogger(__name__)
 
 
 class S3StorageBackend(StorageBackend):
@@ -45,11 +50,18 @@ class S3StorageBackend(StorageBackend):
         key = self._bucket.get_key(self._get_keyname(subpath))
         if key is not None:
             t = TemporaryFile()
-            t.write(key.read())
-            t.seek(0)
-            return t
-        else:
-            return None
+            retry_count = 0
+            max_retry_count = defaults['storage_aws_read_retry_count']
+            while retry_count < max_retry_count:
+                try:
+                    retry_count = retry_count + 1
+                    t.write(key.read())
+                    t.seek(0)
+                    return t
+                except httplib.IncompleteRead:
+                    log.warn('Caught IncompleteRead, retrying (%d/%d)' % (retry_count, max_retry_count))
+
+        return None
 
     def get_meta(self, subpath):
         key = self._bucket.lookup(self._get_keyname(subpath))
