@@ -58,8 +58,9 @@ class S3StorageBackend(StorageBackend):
                     t.write(key.read())
                     t.seek(0)
                     return t
-                except httplib.IncompleteRead:
+                except httplib.IncompleteRead as e:
                     log.warn('Caught IncompleteRead, retrying (%d/%d)' % (retry_count, max_retry_count))
+                    log.warn('%s' % (e.strerror))
 
         return None
 
