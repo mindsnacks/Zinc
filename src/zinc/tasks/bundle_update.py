@@ -47,7 +47,7 @@ def _build_archive(catalog, manifest, src_dir, flavor=None):
             elif format == Formats.GZ:
                 gz_path = tempfile.mkstemp()[1]
                 utils.gzip_path(path, gz_path)
-                tar.add(gz_path, arcname)
+                tar.add(gz_path, arcname=arcname)
                 os.remove(gz_path)
 
     return archive_path
