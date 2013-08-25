@@ -36,24 +36,18 @@ def _build_archive(catalog, manifest, src_dir, flavor=None):
             sha = manifest.sha_for_file(f)
             ext = helpers.file_extension_for_format(format)
 
-            tarinfo = tar.tarinfo()
-            tarinfo.name = helpers.append_file_extension(sha, ext)
-
             path = os.path.join(src_dir, f)
+            arcname = helpers.append_file_extension(sha, ext)
 
             ## TODO: write a test to ensure that file formats are written correctly
 
             if format == Formats.RAW:
-                tarinfo.size = format_info['size']
-                with open(path, 'r') as fileobj:
-                    tar.addfile(tarinfo, fileobj)
+                tar.add(path, arcname=arcname)
 
             elif format == Formats.GZ:
                 gz_path = tempfile.mkstemp()[1]
                 utils.gzip_path(path, gz_path)
-                tarinfo.size = os.path.getsize(gz_path)
-                with open(gz_path, 'r') as fileobj:
-                    tar.addfile(tarinfo, fileobj)
+                tar.add(gz_path, arcname)
                 os.remove(gz_path)
 
     return archive_path
