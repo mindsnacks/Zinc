@@ -373,6 +373,23 @@ def subcmd_dump_manifest(config, args):
                dest_path=dest_path)
 
 
+def subcmd_debug_flavors(config, args):
+    flavors = ZincFlavorSpec.from_path(args.flavors)
+    for flavor_name in flavors.flavors:
+        print '[%s]' % flavor_name
+        filter = flavors.filter_for_flavor(flavor_name)
+        src_dir = args.path
+        for root, dirs, files in os.walk(src_dir):
+            for f in files:
+                #if f in IGNORE: continue # TODO: integrate ignore system
+                full_path = os.path.join(root, f)
+                rel_dir = root[len(src_dir)+1:]
+                rel_path = os.path.join(rel_dir, f)
+                matched = filter.match(rel_path)
+                print '%s %s' % ('+' if matched else '-', rel_path)
+        print "" # blank line
+
+
 ### Main #####################################################################
 
 def main():
@@ -562,6 +579,16 @@ def main():
     add_remote_name_arg(parser_dump_manifest)
     add_no_decompress_arg(parser_dump_manifest)
     parser_dump_manifest.set_defaults(func=subcmd_dump_manifest)
+
+    # debug:flavors
+    parser_debug_flavors = subparsers.add_parser(
+        'debug:flavors', help='Debug flavors.')
+    parser_debug_flavors.add_argument('--flavors',
+        required=True, help='Flavor spec path. Should be JSON.')
+    parser_debug_flavors.add_argument(
+        '-p', '--path', required=False, default='.',
+        help='Root folder to test')
+    parser_debug_flavors.set_defaults(func=subcmd_debug_flavors)
 
     args = parser.parse_args()
     config = load_config(args.config)
