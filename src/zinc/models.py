@@ -420,6 +420,8 @@ class ZincManifest(ZincModel):
 
     #TODO: naming could be better
     def get_all_files(self, flavor=None):
+        if flavor is not None and flavor not in self._flavors:
+            raise ValueError("unkown flavor '%s'" % (flavor))
         return self._files.get_all_files(flavor=flavor)
 
     def to_dict(self):

@@ -151,9 +151,9 @@ def catalog_list(catalog, distro=None, print_versions=True):
             print "%s" % (bundle_name)
 
 
-def bundle_list(catalog, bundle_name, version, print_sha=False):
+def bundle_list(catalog, bundle_name, version, print_sha=False, flavor_name=None):
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
-    all_files = sorted(manifest.get_all_files())
+    all_files = sorted(manifest.get_all_files(flavor=flavor_name))
     for f in all_files:
         if print_sha:
             print f, 'sha=%s' % (manifest.sha_for_file(f))
@@ -226,7 +226,8 @@ def subcmd_bundle_list(config, args):
     bundle_name = args.bundle
     version = parse_single_version(catalog, bundle_name, args.version)
     print_sha = args.sha
-    bundle_list(catalog, bundle_name, version, print_sha=print_sha)
+    flavor_name = args.flavor
+    bundle_list(catalog, bundle_name, version, print_sha=print_sha, flavor_name=flavor_name)
 
 
 def subcmd_bundle_update(config, args):
@@ -474,6 +475,8 @@ def main():
     parser_bundle_list.add_argument(
             '--sha', default=False, action='store_true',
             help='Print file SHA hash.')
+    parser_bundle_list.add_argument(
+        '--flavor', help='Name of flavor.')
     parser_bundle_list.set_defaults(func=subcmd_bundle_list)
 
     # bundle:update
