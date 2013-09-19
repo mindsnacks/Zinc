@@ -212,8 +212,8 @@ def cli_cmd(f):
 @cli_cmd
 def subcmd_catalog_list(config, cargs):
     catalog = get_catalog(config, cargs)
-    distro = cargs.distro
-    return client.catalog_list(catalog, distro=distro, print_versions=not cargs.no_versions)
+    return client.catalog_list(catalog, distro=cargs.distro,
+                               print_versions=not cargs.no_versions)
 
 
 def subcmd_catalog_create(config, cargs):
