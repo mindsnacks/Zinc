@@ -1,12 +1,25 @@
+# -*- coding: utf-8 -*-
+
+"""
+zinc.models
+~~~~~~~~~~~
+
+This module implements models that represent core concepts of the Zinc system.
+
+:copyright: (c) 2012-2013 by Kenneth Reitz.
+:license: ISC, see LICENSE for more details.
+
+"""
+
+
 import json
 import UserDict
 from functools import wraps
 from pkg_resources import resource_string
-
 import jsonschema
 
-from zinc.defaults import defaults
-from zinc.pathfilter import PathFilter
+from .defaults import defaults
+from .pathfilter import PathFilter
 
 
 def mutable_only(f):
@@ -19,6 +32,8 @@ def mutable_only(f):
 
 
 class ZincModel(object):
+    """Base class for all Zinc model objects. Provides methods for reading and
+    writing (JSON) and support for immutability."""
 
     _schema = None
 
