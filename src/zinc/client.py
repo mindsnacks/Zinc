@@ -88,73 +88,36 @@ class ZincClientConfig(ZincModel):
 OutputType = enum(PRETTY='pretty', JSON='json')
 
 
-class ClientOutput(list):
+class ZincCommandResult(object):
 
-    def __init__(self, b):
-        super(ClientOutput, self).__init__(tuple(b))
-        self.pretty = str
+    def __init__(self, items, pretty=None):
+        self._items = items
+        self.pretty = pretty or str
+
+    @property
+    def items(self):
+        return self._items
+
+    def __iter__(self):
+        return iter(self._items)
+
+    def __str__(self):
+        return str(self._items)
 
     def format(self, fmt):
         if fmt == OutputType.JSON:
-            return json.dumps(self)
+            return json.dumps(self._items)
         elif fmt == OutputType.PRETTY:
             return string.join([self.pretty(x) for x in self], '\n')
         else:
             raise NotImplementedError()
 
 
-#def client_cmd(f):
-#    @wraps(f)
-#    def func(self, *args, **kwargs):
-#        f.func_defaults = f.func_defaults[:-1] + (f,)
-#        f.pretty = str
-#        out = ClientOutput(x for x in f(self, *args, **kwargs))
-#        out._pretty_fmt = f.pretty
-#        return out
-#    return func
-
-
-#@client_cmd
-#def catalog_list(catalog, distro=None, print_versions=True, self=None, **kwargs):
-#
-#    index = catalog.get_index()
-#
-#    def pretty_without_versions(m):
-#        return "%s" % (m['bundle_name'])
-#
-#    def pretty_with_versions(m):
-#        distros = index.distributions_for_bundle_by_version(m['bundle_name'])
-#        versions = index.versions_for_bundle(m['bundle_name'])
-#        version_strings = list()
-#        for version in versions:
-#            version_string = str(version)
-#            if distros.get(version) is not None:
-#                distro_string = "(%s)" % (", ".join(sorted(distros.get(version))))
-#                version_string += '=' + distro_string
-#                version_strings.append(version_string)
-#
-#        final_version_string = "[%s]" % (", ".join(version_strings))
-#        return "%s %s" % (m['bundle_name'], final_version_string)
-#
-#    self.pretty = pretty_with_versions if print_versions else pretty_without_versions
-#
-#    bundle_names = sorted(index.bundle_names())
-#    for bundle_name in bundle_names:
-#        msg = dict()
-#        if distro and distro not in index.distributions_for_bundle(bundle_name):
-#            continue
-#        msg['bundle_name'] = bundle_name
-#        msg['versions'] = index.versions_for_bundle(bundle_name)
-#        msg['distros'] = index.distributions_for_bundle(bundle_name)
-#        yield msg
-
-
 def client_cmd(f):
     @wraps(f)
     def func(self, *args, **kwargs):
         msgs, pretty = f(self, *args, **kwargs)
-        out = ClientOutput(x for x in msgs())
-        out.pretty = pretty
+        out = ZincCommandResult(msgs, pretty=pretty)
         return out
     return func
 
@@ -194,7 +157,7 @@ def catalog_list(catalog, distro=None, print_versions=True, **kwargs):
 
     pretty = pretty_with_versions if print_versions else pretty_without_versions
 
-    return (msgs, pretty)
+    return (list(msgs()), pretty)
 
 
 ################################################################################

@@ -129,29 +129,6 @@ def parse_multi_versions(catalog, bundle_name, version_string):
 ### Client Commands #################################################################
 # TODO: move to zinc.client ?
 
-#def catalog_list(catalog, distro=None, print_versions=True):
-#    index = catalog.get_index()
-#    bundle_names = sorted(index.bundle_names())
-#    for bundle_name in bundle_names:
-#        if distro and distro not in index.distributions_for_bundle(bundle_name):
-#            continue
-#        distros = index.distributions_for_bundle_by_version(bundle_name)
-#        versions = index.versions_for_bundle(bundle_name)
-#        version_strings = list()
-#        for version in versions:
-#            version_string = str(version)
-#            if distros.get(version) is not None:
-#                distro_string = "(%s)" % (", ".join(sorted(distros.get(version))))
-#                version_string += '=' + distro_string
-#            version_strings.append(version_string)
-#
-#        final_version_string = "[%s]" % (", ".join(version_strings))
-#        if print_versions:
-#            print "%s %s" % (bundle_name, final_version_string)
-#        else:
-#            print "%s" % (bundle_name)
-#
-
 def bundle_list(catalog, bundle_name, version, print_sha=False, flavor_name=None):
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
     all_files = sorted(manifest.get_all_files(flavor=flavor_name))
@@ -205,7 +182,8 @@ def distro_delete(catalog, distro_name, bundle_name):
 def cli_cmd(f):
     @wraps(f)
     def func(self, *args, **kwargs):
-        print f(self, *args, **kwargs).format(args[0].format)
+        o = f(self, *args, **kwargs)
+        print o.format(args[0].format)
     return func
 
 
