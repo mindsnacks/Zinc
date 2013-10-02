@@ -199,6 +199,10 @@ def distro_delete(catalog, distro_name, bundle_name):
     catalog.delete_distribution(distro_name, bundle_name)
 
 
+def update_flavorspec(catalog, path, name):
+    catalog.update_flavorspec_from_path(path, name=name)
+
+
 ### Subcommand Parsing #################################################################
 
 
@@ -307,6 +311,12 @@ def subcmd_distro_delete(config, args):
     distro_name = args.distro
     distro_delete(catalog, distro_name, bundle_name)
 
+
+def subcmd_flavorspec_update(config, args):
+    catalog = get_catalog(config, args)
+    name = args.name
+    path = args.path
+    update_flavorspec(catalog, path, name)
 
 def subcmd_catalog_verify(config, args):
     catalog = get_catalog(config, args)
@@ -564,6 +574,18 @@ def main():
     add_bundle_arg(parser_distro_delete)
     add_distro_arg(parser_distro_delete)
     parser_distro_delete.set_defaults(func=subcmd_distro_delete)
+
+    # flavorspec:update
+    parser_flavorspec_update = subparsers.add_parser(
+        'flavorspec:update', help='update a stored flavorspec')
+    add_catalog_arg(parser_flavorspec_update)
+    parser_flavorspec_update.add_argument(
+            '-p', '--path', required=True,
+            help='Path to flavorspec file.')
+    parser_flavorspec_update.add_argument(
+            '--name', required=False,
+            help='flavorspec name. If ommitted, will use filename.')
+    parser_flavorspec_update.set_defaults(func=subcmd_flavorspec_update)
 
     # dump:index
     parser_dump_index = subparsers.add_parser(
