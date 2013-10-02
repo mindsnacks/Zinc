@@ -11,6 +11,7 @@ from zinc.storages import StorageBackend
 from zinc.client import connect, create_bundle_version
 
 import zinc.helpers as helpers
+import zinc.utils as utils
 
 from tests import *
 
@@ -282,7 +283,16 @@ class ZincCatalogTestCase(TempDirTestCase):
         expected_path = catalog._ph.path_for_flavorspec_name("dummy")
         self.path_exists_in_catalog(expected_path)
 
+    def test_list_flavorspec(self):
+        # set up
+        catalog = self._build_test_catalog()
+        flavorspec_string = json.dumps({'dummy': ['+ *']})
+        subpath = catalog.path_helper.path_for_flavorspec_name("dummy")
+        catalog._storage.puts(subpath, flavorspec_string)
 
+        # get list
+        actual_names = catalog.get_flavorspec_names()
 
-
+        # verify
+        self.assertEquals(['dummy'], actual_names)
 

@@ -445,6 +445,10 @@ class ZincCatalog(ZincAbstractCatalog):
     def delete_distribution(self, distribution_name, bundle_name):
         self.index.delete_distribution(distribution_name, bundle_name)
 
+    def get_flavorspec_names(self):
+        subpath = self.path_helper.config_flavorspec_dir
+        return [os.path.splitext(p)[0] for p in self._storage.list(prefix=subpath)]
+
     def get_flavorspec(self, flavorspec_name):
         subpath = self._ph.path_for_flavorspec_name(flavorspec_name)
         bytes = self._read(subpath)
