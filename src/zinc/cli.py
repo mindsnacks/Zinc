@@ -329,11 +329,14 @@ def subcmd_catalog_verify(config, args):
             print r
 
 
-def _dump_json(catalog, subpath, dest_path=None, should_decompress=True):
+def _dump_json(catalog, subpath, dest_path=None, should_decompress=True, gzip=True):
 
-    subpath_gz = helpers.append_file_extension_for_format(subpath, Formats.GZ)
-    data = catalog._read(subpath_gz)  # TODO: fix private method references
-    if should_decompress:
+    if gzip:
+        subpath = helpers.append_file_extension_for_format(subpath, Formats.GZ)
+
+    data = catalog._read(subpath)  # TODO: fix private method references
+
+    if gzip and should_decompress:
         out = utils.gunzip_bytes(data)
     else:
         out = data
@@ -346,19 +349,21 @@ def _dump_json(catalog, subpath, dest_path=None, should_decompress=True):
         print out
 
 
+def _dump_get_dest_path(subpath, args):
+    if args.remote_name:
+        return os.path.split(subpath)[-1]
+    else:
+        return None
+
+
 def subcmd_dump_index(config, args):
 
     # TODO: this should not load the catalog - it should just pull the file from
     # the storage
 
     catalog = get_catalog(config, args)
-
     subpath = catalog.path_helper.path_for_index()
-
-    if args.remote_name:
-        dest_path = os.path.split(subpath)[-1]
-    else:
-        dest_path = None
+    dest_path = _dump_get_dest_path(subpath, args)
 
     _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
                dest_path=dest_path)
@@ -374,14 +379,17 @@ def subcmd_dump_manifest(config, args):
     version = parse_single_version(catalog, bundle_name, args.version)
 
     subpath = catalog.path_helper.path_for_manifest_for_bundle_version(bundle_name, version)
-
-    if args.remote_name:
-        dest_path = os.path.split(subpath)[-1]
-    else:
-        dest_path = None
+    dest_path = _dump_get_dest_path(subpath, args)
 
     _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
                dest_path=dest_path)
+
+
+def subcmd_dump_flavorspec(config, args):
+    catalog = get_catalog(config, args)
+    subpath = catalog.path_helper.path_for_flavorspec_name(args.name)
+    dest_path = _dump_get_dest_path(subpath, args)
+    _dump_json(catalog, subpath, dest_path=dest_path, gzip=False)
 
 
 def subcmd_debug_flavors(config, args):
@@ -604,6 +612,16 @@ def main():
     add_remote_name_arg(parser_dump_manifest)
     add_no_decompress_arg(parser_dump_manifest)
     parser_dump_manifest.set_defaults(func=subcmd_dump_manifest)
+
+    # dump:flavorspec
+    parser_dump_flavorspec = subparsers.add_parser(
+        'dump:flavorspec', help='Dump a flavorspec file from a catalog.')
+    parser_dump_flavorspec.add_argument(
+            '--name', required=True,
+            help='flavorspec name.')
+    add_catalog_arg(parser_dump_flavorspec)
+    add_remote_name_arg(parser_dump_flavorspec)
+    parser_dump_flavorspec.set_defaults(func=subcmd_dump_flavorspec)
 
     # debug:flavors
     parser_debug_flavors = subparsers.add_parser(
