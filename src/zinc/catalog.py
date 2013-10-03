@@ -4,7 +4,7 @@ from functools import wraps
 from urlparse import urlparse
 import tempfile
 
-from zinc.models import ZincIndex, ZincManifest, ZincCatalogConfig
+from zinc.models import ZincIndex, ZincManifest, ZincCatalogConfig, ZincFlavorSpec
 from zinc.defaults import defaults
 from zinc.formats import Formats
 import zinc.helpers as helpers
@@ -39,6 +39,14 @@ class ZincCatalogPathHelper(object):
     @property
     def objects_dir(self):
         return "objects"
+
+    @property
+    def config_dir(self):
+        return "config"
+
+    @property
+    def config_flavorspec_dir(self):
+        return os.path.join(self.config_dir, "flavorspecs")
 
     def path_for_index(self):
         return defaults['catalog_index_name']
@@ -80,6 +88,10 @@ class ZincCatalogPathHelper(object):
         archive_filename = self.archive_name(bundle_name, version, flavor=flavor)
         archive_path = os.path.join(self.archives_dir, archive_filename)
         return archive_path
+
+    def path_for_flavorspec_name(self, flavorspec_name):
+        filename = '%s.json' % flavorspec_name
+        return os.path.join(self.config_flavorspec_dir, filename)
 
 
 ################################################################################
@@ -432,6 +444,30 @@ class ZincCatalog(ZincAbstractCatalog):
     @_lock_index
     def delete_distribution(self, distribution_name, bundle_name):
         self.index.delete_distribution(distribution_name, bundle_name)
+
+    def get_flavorspec_names(self):
+        subpath = self.path_helper.config_flavorspec_dir
+        return [os.path.splitext(p)[0] for p in self._storage.list(prefix=subpath)]
+
+    def get_flavorspec(self, flavorspec_name):
+        subpath = self._ph.path_for_flavorspec_name(flavorspec_name)
+        bytes = self._read(subpath)
+        return ZincFlavorSpec.from_bytes(bytes)
+
+    def update_flavorspec_from_json_string(self, name, json_string):
+        subpath = self._ph.path_for_flavorspec_name(name)
+        self._write(subpath, json_string, raw=True, gzip=False)
+
+    def update_flavorspec_from_path(self, src_path, name=None):
+        with open(src_path, 'r') as src_file:
+            json_string = src_file.read()
+        if name is None:
+            name = os.path.splitext(os.path.basename(src_path))[0]
+        self.update_flavorspec_from_json_string(name, json_string)
+
+    def delete_flavorspec(self, name):
+        subpath = self._ph.path_for_flavorspec_name(name)
+        self._storage.delete(subpath)
 
     @_lock_index
     def clean(self, dry_run=False):

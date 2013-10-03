@@ -1,5 +1,6 @@
 import os.path
 import logging
+import json
 
 from zinc.models import ZincIndex, ZincManifest, ZincFlavorSpec
 from zinc.catalog import ZincCatalogPathHelper
@@ -10,6 +11,7 @@ from zinc.storages import StorageBackend
 from zinc.client import connect, create_bundle_version
 
 import zinc.helpers as helpers
+import zinc.utils as utils
 
 from tests import *
 
@@ -35,6 +37,24 @@ def create_catalog_at_path(path, id):
     service.create_catalog(id=id, loc=path)
     catalog = service.get_catalog(loc=path)
     return catalog
+
+
+class ZincCatalogPathHelperTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.pathHelper = ZincCatalogPathHelper()
+
+    def test_config_dir(self):
+        self.assertEquals(self.pathHelper.config_dir, "config")
+
+    def test_config_flavors_spec_dir(self):
+        self.assertEquals(self.pathHelper.config_flavorspec_dir, "config/flavorspecs")
+
+    def test_path_for_flavor_spec_name(self):
+        flavor_spec_name = "games"
+        expected_path = "config/flavorspecs/%s.json" % flavor_spec_name
+        actual_path = self.pathHelper.path_for_flavorspec_name(flavor_spec_name)
+        self.assertEquals(expected_path, actual_path)
 
 
 class ZincCatalogTestCase(TempDirTestCase):
@@ -250,3 +270,44 @@ class ZincCatalogTestCase(TempDirTestCase):
         prev_distro = helpers.distro_previous_name(distro)
         prev_version = catalog.index.version_for_bundle(bundle_name, prev_distro)
         self.assertEquals(prev_version, 1)
+
+    def add_dummy_flavorspec(self, catalog, flavorspec_name):
+        flavorspec_string = json.dumps({'dummy': ['+ *']})
+        subpath = catalog.path_helper.path_for_flavorspec_name(flavorspec_name)
+        catalog._storage.puts(subpath, flavorspec_string)
+
+    def test_update_flavorspec(self):
+        #set up
+        catalog = self._build_test_catalog()
+        flavorspec_string = json.dumps({'dummy': ['+ *']})
+
+        # add the flavorspec
+        catalog.update_flavorspec_from_json_string("dummy", flavorspec_string)
+
+        # verify
+        expected_path = catalog._ph.path_for_flavorspec_name("dummy")
+        self.path_exists_in_catalog(expected_path)
+
+    def test_list_flavorspec(self):
+        # set up
+        catalog = self._build_test_catalog()
+        self.add_dummy_flavorspec(catalog, "test")
+
+        # get list
+        actual_names = catalog.get_flavorspec_names()
+
+        # verify
+        self.assertEquals(["test"], actual_names)
+
+    def test_delete_flavorspec(self):
+        # set up
+        catalog = self._build_test_catalog()
+        self.add_dummy_flavorspec(catalog, "test")
+
+        # delete flavorspec
+        catalog.delete_flavorspec("test")
+
+        # verify
+        subpath = catalog.path_helper.path_for_flavorspec_name("test")
+        self.assertFalse(os.path.exists(os.path.join(self.dir, subpath)))
+

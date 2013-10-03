@@ -199,6 +199,20 @@ def distro_delete(catalog, distro_name, bundle_name):
     catalog.delete_distribution(distro_name, bundle_name)
 
 
+def flavorspec_list(catalog):
+    for n in catalog.get_flavorspec_names():
+        print n
+
+
+def flavorspec_update(catalog, path, name):
+    catalog.update_flavorspec_from_path(path, name=name)
+
+
+def flavorspec_delete(catalog, name):
+    catalog.delete_flavorspec(name)
+
+
+
 ### Subcommand Parsing #################################################################
 
 
@@ -235,9 +249,14 @@ def subcmd_bundle_update(config, args):
 
     flavors = None
     if args.flavors is not None:
-        with open(args.flavors) as f:
-            flavors_dict = json.load(f)
-            flavors = ZincFlavorSpec.from_dict(flavors_dict)
+        try:
+            with open(args.flavors) as f:
+                flavors_dict = json.load(f)
+                flavors = ZincFlavorSpec.from_dict(flavors_dict)
+        except IOError:
+            flavors = catalog.get_flavorspec(args.flavors)
+
+        assert flavors is not None
 
     bundle_name = args.bundle
     path = args.path
@@ -308,6 +327,23 @@ def subcmd_distro_delete(config, args):
     distro_delete(catalog, distro_name, bundle_name)
 
 
+def subcmd_flavorspec_list(config, args):
+    catalog = get_catalog(config, args)
+    flavorspec_list(catalog)
+
+
+def subcmd_flavorspec_update(config, args):
+    catalog = get_catalog(config, args)
+    name = args.name
+    path = args.path
+    flavorspec_update(catalog, path, name)
+
+
+def subcmd_flavorspec_delete(config, args):
+    catalog = get_catalog(config, args)
+    flavorspec_delete(catalog, args.name)
+
+
 def subcmd_catalog_verify(config, args):
     catalog = get_catalog(config, args)
     should_lock = args.lock
@@ -319,11 +355,14 @@ def subcmd_catalog_verify(config, args):
             print r
 
 
-def _dump_json(catalog, subpath, dest_path=None, should_decompress=True):
+def _dump_json(catalog, subpath, dest_path=None, should_decompress=True, gzip=True):
 
-    subpath_gz = helpers.append_file_extension_for_format(subpath, Formats.GZ)
-    data = catalog._read(subpath_gz)  # TODO: fix private method references
-    if should_decompress:
+    if gzip:
+        subpath = helpers.append_file_extension_for_format(subpath, Formats.GZ)
+
+    data = catalog._read(subpath)  # TODO: fix private method references
+
+    if gzip and should_decompress:
         out = utils.gunzip_bytes(data)
     else:
         out = data
@@ -336,19 +375,21 @@ def _dump_json(catalog, subpath, dest_path=None, should_decompress=True):
         print out
 
 
+def _dump_get_dest_path(subpath, args):
+    if args.remote_name:
+        return os.path.split(subpath)[-1]
+    else:
+        return None
+
+
 def subcmd_dump_index(config, args):
 
     # TODO: this should not load the catalog - it should just pull the file from
     # the storage
 
     catalog = get_catalog(config, args)
-
     subpath = catalog.path_helper.path_for_index()
-
-    if args.remote_name:
-        dest_path = os.path.split(subpath)[-1]
-    else:
-        dest_path = None
+    dest_path = _dump_get_dest_path(subpath, args)
 
     _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
                dest_path=dest_path)
@@ -364,14 +405,17 @@ def subcmd_dump_manifest(config, args):
     version = parse_single_version(catalog, bundle_name, args.version)
 
     subpath = catalog.path_helper.path_for_manifest_for_bundle_version(bundle_name, version)
-
-    if args.remote_name:
-        dest_path = os.path.split(subpath)[-1]
-    else:
-        dest_path = None
+    dest_path = _dump_get_dest_path(subpath, args)
 
     _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
                dest_path=dest_path)
+
+
+def subcmd_dump_flavorspec(config, args):
+    catalog = get_catalog(config, args)
+    subpath = catalog.path_helper.path_for_flavorspec_name(args.name)
+    dest_path = _dump_get_dest_path(subpath, args)
+    _dump_json(catalog, subpath, dest_path=dest_path, gzip=False)
 
 
 def subcmd_debug_flavors(config, args):
@@ -489,7 +533,7 @@ def main():
             '-p', '--path', required=True,
             help='Path to files for this bundle.')
     parser_bundle_update.add_argument(
-            '--flavors', help='Flavor spec path. Should be JSON.')
+            '--flavors', help='The flavorspec. Will first try to read as a path. If not found, will try to read from catalog by name.')
     parser_bundle_update.add_argument(
             '-f', '--force', default=False, action='store_true',
             help='Update bundle even if no files changed.')
@@ -565,6 +609,34 @@ def main():
     add_distro_arg(parser_distro_delete)
     parser_distro_delete.set_defaults(func=subcmd_distro_delete)
 
+    # flavorspec:list
+    parser_flavorspec_list = subparsers.add_parser(
+        'flavorspec:list', help='list stored flavorspecs')
+    add_catalog_arg(parser_flavorspec_list)
+    parser_flavorspec_list.set_defaults(func=subcmd_flavorspec_list)
+
+    # flavorspec:update
+    parser_flavorspec_update = subparsers.add_parser(
+        'flavorspec:update', help='Update a stored flavorspec.')
+    add_catalog_arg(parser_flavorspec_update)
+    parser_flavorspec_update.add_argument(
+            '-p', '--path', required=True,
+            help='Path to flavorspec file.')
+    parser_flavorspec_update.add_argument(
+            '--name', required=False,
+            help='flavorspec name. If ommitted, will use filename.')
+    parser_flavorspec_update.set_defaults(func=subcmd_flavorspec_update)
+
+    # flavorspec:delte
+    parser_flavorspec_delete = subparsers.add_parser(
+        'flavorspec:delete', help='Delete a stored flavorspec.')
+    add_catalog_arg(parser_flavorspec_delete)
+    parser_flavorspec_delete.add_argument(
+            '--name', required=True,
+            help='flavorspec name.')
+    parser_flavorspec_delete.set_defaults(func=subcmd_flavorspec_delete)
+
+
     # dump:index
     parser_dump_index = subparsers.add_parser(
             'dump:index', help='Dump catalog index file (catalog.json).')
@@ -582,6 +654,16 @@ def main():
     add_remote_name_arg(parser_dump_manifest)
     add_no_decompress_arg(parser_dump_manifest)
     parser_dump_manifest.set_defaults(func=subcmd_dump_manifest)
+
+    # dump:flavorspec
+    parser_dump_flavorspec = subparsers.add_parser(
+        'dump:flavorspec', help='Dump a flavorspec file from a catalog.')
+    parser_dump_flavorspec.add_argument(
+            '--name', required=True,
+            help='flavorspec name.')
+    add_catalog_arg(parser_dump_flavorspec)
+    add_remote_name_arg(parser_dump_flavorspec)
+    parser_dump_flavorspec.set_defaults(func=subcmd_dump_flavorspec)
 
     # debug:flavors
     parser_debug_flavors = subparsers.add_parser(
