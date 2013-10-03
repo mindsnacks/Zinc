@@ -205,7 +205,12 @@ def flavorspec_list(catalog):
 
 
 def flavorspec_update(catalog, path, name):
-    catalog.flavorspec_update_from_path(path, name=name)
+    catalog.update_flavorspec_from_path(path, name=name)
+
+
+def flavorspec_delete(catalog, name):
+    catalog.delete_flavorspec(name)
+
 
 
 ### Subcommand Parsing #################################################################
@@ -244,9 +249,14 @@ def subcmd_bundle_update(config, args):
 
     flavors = None
     if args.flavors is not None:
-        with open(args.flavors) as f:
-            flavors_dict = json.load(f)
-            flavors = ZincFlavorSpec.from_dict(flavors_dict)
+        try:
+            with open(args.flavors) as f:
+                flavors_dict = json.load(f)
+                flavors = ZincFlavorSpec.from_dict(flavors_dict)
+        except IOError:
+            flavors = catalog.get_flavorspec(args.flavors)
+
+        assert flavors is not None
 
     bundle_name = args.bundle
     path = args.path
@@ -327,6 +337,11 @@ def subcmd_flavorspec_update(config, args):
     name = args.name
     path = args.path
     flavorspec_update(catalog, path, name)
+
+
+def subcmd_flavorspec_delete(config, args):
+    catalog = get_catalog(config, args)
+    flavorspec_delete(catalog, args.name)
 
 
 def subcmd_catalog_verify(config, args):
@@ -518,7 +533,7 @@ def main():
             '-p', '--path', required=True,
             help='Path to files for this bundle.')
     parser_bundle_update.add_argument(
-            '--flavors', help='Flavor spec path. Should be JSON.')
+            '--flavors', help='The flavorspec. Will first try to read as a path. If not found, will try to read from catalog by name.')
     parser_bundle_update.add_argument(
             '-f', '--force', default=False, action='store_true',
             help='Update bundle even if no files changed.')
@@ -602,7 +617,7 @@ def main():
 
     # flavorspec:update
     parser_flavorspec_update = subparsers.add_parser(
-        'flavorspec:update', help='update a stored flavorspec')
+        'flavorspec:update', help='Update a stored flavorspec.')
     add_catalog_arg(parser_flavorspec_update)
     parser_flavorspec_update.add_argument(
             '-p', '--path', required=True,
@@ -611,6 +626,16 @@ def main():
             '--name', required=False,
             help='flavorspec name. If ommitted, will use filename.')
     parser_flavorspec_update.set_defaults(func=subcmd_flavorspec_update)
+
+    # flavorspec:delte
+    parser_flavorspec_delete = subparsers.add_parser(
+        'flavorspec:delete', help='Delete a stored flavorspec.')
+    add_catalog_arg(parser_flavorspec_delete)
+    parser_flavorspec_delete.add_argument(
+            '--name', required=True,
+            help='flavorspec name.')
+    parser_flavorspec_delete.set_defaults(func=subcmd_flavorspec_delete)
+
 
     # dump:index
     parser_dump_index = subparsers.add_parser(

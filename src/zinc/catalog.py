@@ -465,6 +465,10 @@ class ZincCatalog(ZincAbstractCatalog):
             name = os.path.splitext(os.path.basename(src_path))[0]
         self.update_flavorspec_from_json_string(name, json_string)
 
+    def delete_flavorspec(self, name):
+        subpath = self._ph.path_for_flavorspec_name(name)
+        self._storage.delete(subpath)
+
     @_lock_index
     def clean(self, dry_run=False):
         verb = 'Would remove' if dry_run else 'Removing'

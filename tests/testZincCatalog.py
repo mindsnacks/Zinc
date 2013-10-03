@@ -271,6 +271,11 @@ class ZincCatalogTestCase(TempDirTestCase):
         prev_version = catalog.index.version_for_bundle(bundle_name, prev_distro)
         self.assertEquals(prev_version, 1)
 
+    def add_dummy_flavorspec(self, catalog, flavorspec_name):
+        flavorspec_string = json.dumps({'dummy': ['+ *']})
+        subpath = catalog.path_helper.path_for_flavorspec_name(flavorspec_name)
+        catalog._storage.puts(subpath, flavorspec_string)
+
     def test_update_flavorspec(self):
         #set up
         catalog = self._build_test_catalog()
@@ -286,13 +291,23 @@ class ZincCatalogTestCase(TempDirTestCase):
     def test_list_flavorspec(self):
         # set up
         catalog = self._build_test_catalog()
-        flavorspec_string = json.dumps({'dummy': ['+ *']})
-        subpath = catalog.path_helper.path_for_flavorspec_name("dummy")
-        catalog._storage.puts(subpath, flavorspec_string)
+        self.add_dummy_flavorspec(catalog, "test")
 
         # get list
         actual_names = catalog.get_flavorspec_names()
 
         # verify
-        self.assertEquals(['dummy'], actual_names)
+        self.assertEquals(["test"], actual_names)
+
+    def test_delete_flavorspec(self):
+        # set up
+        catalog = self._build_test_catalog()
+        self.add_dummy_flavorspec(catalog, "test")
+
+        # delete flavorspec
+        catalog.delete_flavorspec("test")
+
+        # verify
+        subpath = catalog.path_helper.path_for_flavorspec_name("test")
+        self.assertFalse(os.path.exists(os.path.join(self.dir, subpath)))
 
