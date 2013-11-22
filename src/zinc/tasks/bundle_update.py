@@ -1,12 +1,10 @@
-import os.path
+import os
 import logging
-import tarfile
 import tempfile
 
-import zinc.helpers as helpers
 import zinc.utils as utils
 from zinc.models import ZincFileList, ZincManifest
-from zinc.formats import Formats
+from zinc.archives import build_archive_with_manifest
 
 log = logging.getLogger(__name__)
 
@@ -14,42 +12,13 @@ log = logging.getLogger(__name__)
 IGNORE = ['.DS_Store']
 
 
-## TODO: relocate?
 def _build_archive(catalog, manifest, src_dir, flavor=None):
 
-    bundle_id = helpers.make_bundle_id(catalog.id, manifest.bundle_name)
-    bundle_descr = helpers.make_bundle_descriptor(bundle_id,
-                                                  manifest.version,
-                                                  flavor=flavor)
-    archive_filename = '%s.tar' % (bundle_descr)
-
-    archive_path = os.path.join(
-            tempfile.mkdtemp(), archive_filename)
-
-    files = manifest.get_all_files(flavor=flavor)
-
-    with tarfile.open(archive_path, 'w') as tar:
-        for f in files:
-            format, format_info = manifest.get_format_info_for_file(f)
-            assert format is not None
-            assert format_info is not None
-            sha = manifest.sha_for_file(f)
-            ext = helpers.file_extension_for_format(format)
-
-            path = os.path.join(src_dir, f)
-            arcname = helpers.append_file_extension(sha, ext)
-
-            ## TODO: write a test to ensure that file formats are written correctly
-
-            if format == Formats.RAW:
-                tar.add(path, arcname=arcname)
-
-            elif format == Formats.GZ:
-                gz_path = tempfile.mkstemp()[1]
-                utils.gzip_path(path, gz_path)
-                tar.add(gz_path, arcname=arcname)
-                os.remove(gz_path)
-
+    archive_filename = catalog.path_helper.archive_name(manifest.bundle_name,
+                                                        manifest.version,
+                                                        flavor=flavor)
+    archive_path = os.path.join(tempfile.mkdtemp(), archive_filename)
+    build_archive_with_manifest(manifest, src_dir, archive_path, flavor=flavor)
     return archive_path
 
 
@@ -87,9 +56,10 @@ class ZincBundleUpdateTask(object):
 
         for root, dirs, files in os.walk(src_dir):
             for f in files:
-                if f in IGNORE: continue # TODO: real ignore
+                if f in IGNORE:
+                    continue  # TODO: real ignore
                 full_path = os.path.join(root, f)
-                rel_dir = root[len(src_dir)+1:]
+                rel_dir = root[len(src_dir) + 1:]
                 rel_path = os.path.join(rel_dir, f)
 
                 file_info = self.catalog.import_path(full_path)
@@ -151,10 +121,10 @@ class ZincBundleUpdateTask(object):
 
             for flavor in archive_flavors:
                 tmp_tar_path = _build_archive(
-                        self.catalog, new_manifest, self.src_dir, flavor=flavor)
+                    self.catalog, new_manifest, self.src_dir, flavor=flavor)
                 self.catalog._write_archive(
-                        self.bundle_name, new_manifest.version,
-                        tmp_tar_path, flavor=flavor)
+                    self.bundle_name, new_manifest.version,
+                    tmp_tar_path, flavor=flavor)
 
                 # TODO: remove remove?
                 os.remove(tmp_tar_path)
