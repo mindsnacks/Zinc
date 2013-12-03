@@ -11,10 +11,11 @@ class TempDirTestCase(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
         #print self.dir
-    
+
     def tearDown(self):
         #shutil.rmtree(self.dir)
         pass
+
 
 def create_random_file(dir, size=1024):
     path = tempfile.mkstemp(dir=dir)[1]
@@ -25,10 +26,11 @@ def create_random_file(dir, size=1024):
     file.close()
     return path
 
+
 def abs_path_for_fixture(relpath):
     mypath = os.path.abspath(__file__)
     mydir = os.path.dirname(mypath)
     return os.path.join(mydir, 'fixtures', relpath)
 
-    
-    
+
+

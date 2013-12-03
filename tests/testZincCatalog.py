@@ -1,4 +1,4 @@
-import os.path
+import os
 import logging
 import json
 
@@ -60,7 +60,8 @@ class ZincCatalogPathHelperTestCase(unittest.TestCase):
 class ZincCatalogTestCase(TempDirTestCase):
 
     def setUp(self):
-        self.dir = tempfile.mkdtemp()
+        super(ZincCatalogTestCase, self).setUp()
+
         self.catalog_dir = os.path.join(self.dir, "catalog")
         os.mkdir(self.catalog_dir)
         self.scratch_dir = os.path.join(self.dir, "scratch")
