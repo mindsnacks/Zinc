@@ -6,7 +6,7 @@ zinc.models
 
 This module implements models that represent core concepts of the Zinc system.
 
-:copyright: (c) 2012-2013 by Kenneth Reitz.
+:copyright: (c) 2012-2013 by Andrew Mroczkowski
 :license: ISC, see LICENSE for more details.
 
 """
@@ -301,7 +301,6 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
                 return (format, format_info)
 
         return (None, None)
-
 
     #TODO: naming could be better
     def get_all_files(self, flavor=None):
