@@ -38,8 +38,10 @@ Clients
 -------
 
 - `Objective-C`_ 
+- `Java`_ 
 
 .. _`Objective-C`: https://github.com/mindsnacks/Zinc-ObjC/
+.. _`Java`: https://github.com/mindsnacks/JavaZinc/
 
 Credits
 -------
