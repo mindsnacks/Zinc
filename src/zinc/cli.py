@@ -428,8 +428,9 @@ def main():
                         default=DEFAULT_CONFIG_PATH,
                         help='Config file path. Defaults to \'%s\'.' % (DEFAULT_CONFIG_PATH))
 
-    parser.add_argument('--format', choices=(client.OutputType.PRETTY,
-                                             client.OutputType.JSON),
+    parser.add_argument('--format',
+                        choices=(client.OutputType.PRETTY,
+                                 client.OutputType.JSON),
                         default=client.OutputType.PRETTY)
 
     # TODO: embetter this
@@ -618,8 +619,8 @@ def main():
     parser_flavorspec_list.set_defaults(func=subcmd_flavorspec_list)
 
     # flavorspec:update
-    parser_flavorspec_update = subparsers.add_parser(
-        'flavorspec:update', help='Update a stored flavorspec.')
+    parser_flavorspec_update = subparsers.add_parser('flavorspec:update',
+                                                     help='Update a stored flavorspec.')
     add_catalog_arg(parser_flavorspec_update)
     parser_flavorspec_update.add_argument('-p', '--path',
                                           required=True,
@@ -667,8 +668,8 @@ def main():
     parser_dump_flavorspec.set_defaults(func=subcmd_dump_flavorspec)
 
     # debug:flavors
-    parser_debug_flavors = subparsers.add_parser(
-        'debug:flavors', help='Debug flavors.')
+    parser_debug_flavors = subparsers.add_parser('debug:flavors',
+                                                 help='Debug flavors.')
     parser_debug_flavors.add_argument('--flavors',
                                       required=True,
                                       help='Flavor spec path. Should be JSON.')
