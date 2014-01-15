@@ -381,6 +381,7 @@ def create_catalog(catalog_id=None, storage_info=None):
     catalog.save()
 
 
+
 def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs):
 
     if service_url is not None:
@@ -412,3 +413,10 @@ def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs
 
         from zinc.services import CustomServiceConsumer
         return CustomServiceConsumer(coordinator=coord, storage=storage)
+
+    raise NotImplementedError()
+
+
+def get_service(service_url=None, coordinator_info=None, storage_info=None, **kwargs):
+    return connect(service_url=service_url, coordinator_info=coordinator_info,
+            storage_info=storage_info, **kwargs)

@@ -1,5 +1,4 @@
 from urlparse import urlparse
-import random
 import time
 import uuid
 import logging
@@ -17,23 +16,27 @@ LOCK_EXPIRES = 'lock_expiry'
 
 
 class Lock(object):
-    def __init__(self, sdb_domain, key, expires=300, timeout=10):
+    def __init__(self, sdb_domain, key, expires=None, timeout=None):
+
+        self._timeout = timeout or 10
+        self._expires = expires or 300
 
         # Expiration must be 0 (never) or at least 30 seconds and greater than
         # the timeout
-        assert expires == 0 or (expires > timeout and expires >= 60)
+        assert self._expires == 0 or (self._expires > self._timeout and
+                                      self._expires >= 60)
 
         self._sdb_domain = sdb_domain
         self._key = key
-        self._timeout = timeout
-        self._expires = expires
         self._token = str(uuid.uuid1())
-        self._refresh = expires / 4
+        self._refresh = self._expires / 4
         self._timer = None
+        self._locked = False
 
     def _update_lock(self):
-        """Attempts to update the lock but incresing the lock_expires. Will fail if
-        the remote `lock_token` does not match our local `lock_token`."""
+        """Attempts to update the lock by increasing the lock expiration. Will
+        fail if the remote `lock_token` does not match our local
+        `lock_token`."""
 
         attrs = self._get_lock_attrs()
         log.debug('Refreshing lock... %s' % (attrs))
@@ -56,7 +59,14 @@ class Lock(object):
             LOCK_EXPIRES: time.time() + self._expires
         }
 
-    def __enter__(self):
+    def has_lock(self):
+        return self._locked
+
+    def lock(self):
+
+        if self.has_lock():
+            return
+
         timeout = self._timeout
         while timeout >= 0:
             try:
@@ -80,6 +90,7 @@ class Lock(object):
                         self._key, self._get_lock_attrs(),
                         expected_value=[LOCK_TOKEN, False])
 
+                    self._locked = True
                     self._schedule_timer()
                     return
 
@@ -87,6 +98,8 @@ class Lock(object):
                 if timeout >= 0:
                     log.debug('Sleeping')
                     time.sleep(1)
+                else:
+                    raise LockException("Failed to acquire lock within timeout.")
 
             except SDBResponseError, sdberr:
                 if sdberr.status == 409:
@@ -94,7 +107,7 @@ class Lock(object):
                 else:
                     raise sdberr
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def unlock(self):
         if self._timer is not None:
             self._timer.cancel()
         item = self._sdb_domain.get_item(self._key, consistent_read=True)
@@ -102,8 +115,13 @@ class Lock(object):
             self._sdb_domain.delete_attributes(
                 self._key, [LOCK_TOKEN, LOCK_EXPIRES],
                 expected_values=[LOCK_TOKEN, self._token])
-        else:
-            raise LockException("Failed to acquire lock within timeout.")
+        self._locked = False
+
+    def __enter__(self):
+        self.lock()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.unlock()
 
 
 class SimpleDBCatalogCoordinator(CatalogCoordinator):
@@ -126,9 +144,9 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
                                                 aws_secret_access_key=aws_secret)
         self._domain = self._conn.create_domain(sdb_domain)
 
-    def get_index_lock(self, domain=None):
+    def get_index_lock(self, domain=None, timeout=None, **kwargs):
         assert domain
-        return Lock(self._domain, domain)
+        return Lock(self._domain, domain, timeout=timeout)
 
     @classmethod
     def valid_url(cls, url):

@@ -188,9 +188,13 @@ class ZincCatalog(ZincAbstractCatalog):
 
         self._ph = path_helper or ZincCatalogPathHelper()
         self._manifests = {}
-        self._reload()
-
         self.lock_timeout = lock_timeout or defaults['catalog_lock_timeout']
+
+        self._reload()
+        self._lock = self._coordinator.get_index_lock(domain=self.id, timeout=lock_timeout)
+
+    def lock(self):
+        return self._lock
 
     ### Properties ###
 
@@ -229,19 +233,21 @@ class ZincCatalog(ZincAbstractCatalog):
         #config_path = pjoin(self.path, defaults['catalog_config_name'])
         #self.config = load_config(config_path)
 
-    def _lock_index(func):
+    def _ensure_index_lock(func):
         @wraps(func)
-        def with_lock_index(self, *args, **kwargs):
+        def with_ensure_index_lock(self, *args, **kwargs):
 
             assert self._coordinator
 
-            with self._coordinator.get_index_lock(domain=self.id):
-                self._reload()
-                output = func(self, *args, **kwargs)
-                self.save()
-
+            if not self._lock.has_lock():
+                with self._lock:
+                    self._reload()
+                    output = func(self, *args, **kwargs)
+                    self.save()
+            else:
+                    output = func(self, *args, **kwargs)
             return output
-        return with_lock_index
+        return with_ensure_index_lock
 
     ### I/O Helpers ###
 
@@ -342,7 +348,7 @@ class ZincCatalog(ZincAbstractCatalog):
     def get_manifest(self, bundle_name, version):
         return self._read_manifest(bundle_name, version)
 
-    @_lock_index
+    @_ensure_index_lock
     def update_bundle(self, new_manifest):
 
         assert new_manifest
@@ -421,16 +427,16 @@ class ZincCatalog(ZincAbstractCatalog):
         log.debug("Imported path: %s" % imported_path)
         return  file_info
 
-    @_lock_index
+    @_ensure_index_lock
     def _reserve_version_for_bundle(self, bundle_name):
         self.index.increment_next_version_for_bundle(bundle_name)
         return self.index.next_version_for_bundle(bundle_name)
 
-    @_lock_index
+    @_ensure_index_lock
     def delete_bundle_version(self, bundle_name, version):
         self.index.delete_bundle_version(bundle_name, version)
 
-    @_lock_index
+    @_ensure_index_lock
     def update_distribution(self, distribution_name, bundle_name, bundle_version, save_previous=True):
 
         if save_previous:
@@ -441,7 +447,7 @@ class ZincCatalog(ZincAbstractCatalog):
 
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
 
-    @_lock_index
+    @_ensure_index_lock
     def delete_distribution(self, distribution_name, bundle_name):
         self.index.delete_distribution(distribution_name, bundle_name)
 
@@ -469,7 +475,7 @@ class ZincCatalog(ZincAbstractCatalog):
         subpath = self._ph.path_for_flavorspec_name(name)
         self._storage.delete(subpath)
 
-    @_lock_index
+    @_ensure_index_lock
     def clean(self, dry_run=False):
         verb = 'Would remove' if dry_run else 'Removing'
 
