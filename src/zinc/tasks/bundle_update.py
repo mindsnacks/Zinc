@@ -41,7 +41,7 @@ class ZincBundleUpdateTask(object):
         self._src_dir = val
 
     @classmethod
-    def _build_archive(catalog, manifest, src_dir, flavor=None):
+    def _build_archive(self, catalog, manifest, src_dir, flavor=None):
 
         archive_filename = catalog.path_helper.archive_name(manifest.bundle_name,
                                                             manifest.version,

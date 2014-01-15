@@ -239,7 +239,7 @@ class ZincCatalog(ZincAbstractCatalog):
 
             assert self._coordinator
 
-            if not self._lock.has_lock():
+            if not self._lock.is_locked():
                 with self._lock:
                     self._reload()
                     output = func(self, *args, **kwargs)

@@ -192,7 +192,7 @@ def distro_update(catalog, bundle_name, distro_name, version, save_previous=True
             log.error(e)
         sys.exit()
 
-    catalog.update_distribution(distro_name, bundle_name, version, save_previous=save_previous)
+    client.update_distribution(catalog, distro_name, bundle_name, version, save_previous=save_previous)
 
 
 def distro_delete(catalog, distro_name, bundle_name):

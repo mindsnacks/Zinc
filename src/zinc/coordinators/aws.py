@@ -59,12 +59,12 @@ class Lock(object):
             LOCK_EXPIRES: time.time() + self._expires
         }
 
-    def has_lock(self):
+    def is_locked(self):
         return self._locked
 
     def lock(self):
 
-        if self.has_lock():
+        if self.is_locked():
             return
 
         timeout = self._timeout
