@@ -627,7 +627,7 @@ def main():
             help='flavorspec name. If ommitted, will use filename.')
     parser_flavorspec_update.set_defaults(func=subcmd_flavorspec_update)
 
-    # flavorspec:delte
+    # flavorspec:delete
     parser_flavorspec_delete = subparsers.add_parser(
         'flavorspec:delete', help='Delete a stored flavorspec.')
     add_catalog_arg(parser_flavorspec_delete)
