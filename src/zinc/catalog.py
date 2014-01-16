@@ -3,6 +3,7 @@ import logging
 from functools import wraps
 from urlparse import urlparse
 import tempfile
+from typecheck import accepts, Self
 
 from zinc.models import ZincIndex, ZincManifest, ZincCatalogConfig, ZincFlavorSpec
 from zinc.defaults import defaults
@@ -340,6 +341,11 @@ class ZincCatalog(ZincAbstractCatalog):
                                                                flavor=flavor)
         return self._storage.get(subpath)
 
+    @_ensure_index_lock
+    def _reserve_version_for_bundle(self, bundle_name):
+        self.index.increment_next_version_for_bundle(bundle_name)
+        return self.index.next_version_for_bundle(bundle_name)
+
     ### "Public" Methods
 
     def save(self):
@@ -348,10 +354,12 @@ class ZincCatalog(ZincAbstractCatalog):
     def get_index(self):
         return self.index.clone(mutable=False)
 
+    @accepts(Self(), str, int)
     def get_manifest(self, bundle_name, version):
         return self._read_manifest(bundle_name, version)
 
     @_ensure_index_lock
+    @accepts(Self(), ZincManifest)
     def update_bundle(self, new_manifest):
 
         assert new_manifest
@@ -392,6 +400,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.add_version_for_bundle(new_manifest.bundle_name,
                                           new_manifest.version)
 
+    @accepts(Self(), str)
     def import_path(self, src_path):
 
         sha = utils.sha1_for_path(src_path)
@@ -431,15 +440,12 @@ class ZincCatalog(ZincAbstractCatalog):
         return  file_info
 
     @_ensure_index_lock
-    def _reserve_version_for_bundle(self, bundle_name):
-        self.index.increment_next_version_for_bundle(bundle_name)
-        return self.index.next_version_for_bundle(bundle_name)
-
-    @_ensure_index_lock
+    @accepts(Self(), str, int)
     def delete_bundle_version(self, bundle_name, version):
         self.index.delete_bundle_version(bundle_name, version)
 
     @_ensure_index_lock
+    @accepts(Self(), str, str, int, bool)
     def update_distribution(self, distribution_name, bundle_name, bundle_version, save_previous=True):
 
         if save_previous:
@@ -451,6 +457,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
 
     @_ensure_index_lock
+    @accepts(Self(), str, str)
     def delete_distribution(self, distribution_name, bundle_name):
         self.index.delete_distribution(distribution_name, bundle_name)
 
