@@ -191,9 +191,12 @@ class ZincCatalog(ZincAbstractCatalog):
         self.lock_timeout = lock_timeout or defaults['catalog_lock_timeout']
 
         self._reload()
-        self._lock = self._coordinator.get_index_lock(domain=self.id, timeout=lock_timeout)
+
+        if self._coordinator is not None:
+            self._lock = self._coordinator.get_index_lock(domain=self.id, timeout=lock_timeout)
 
     def lock(self):
+        assert self._lock
         return self._lock
 
     ### Properties ###
@@ -239,8 +242,8 @@ class ZincCatalog(ZincAbstractCatalog):
 
             assert self._coordinator
 
-            if not self._lock.is_locked():
-                with self._lock:
+            if not self.lock().is_locked():
+                with self.lock():
                     self._reload()
                     output = func(self, *args, **kwargs)
                     self.save()
