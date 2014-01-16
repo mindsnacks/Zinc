@@ -175,6 +175,24 @@ class ZincAbstractCatalog(object):
 ################################################################################
 
 
+class ZincCatalogLock(object):
+
+    def __init__(self, catalog, lock):
+        self._catalog = catalog
+        self._lock = lock
+
+    def __enter__(self):
+        self._lock.acquire()
+        self._catalog._reload()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._catalog.save()
+        self._lock.release()
+
+    def is_locked(self):
+        return self._lock.is_locked()
+
+
 class ZincCatalog(ZincAbstractCatalog):
 
     def __init__(self, storage=None, coordinator=None, path_helper=None,
@@ -193,7 +211,10 @@ class ZincCatalog(ZincAbstractCatalog):
         self._reload()
 
         if self._coordinator is not None:
-            self._lock = self._coordinator.get_index_lock(domain=self.id, timeout=lock_timeout)
+            self._lock = ZincCatalogLock(self,
+                    self._coordinator.get_index_lock(
+                        domain=self.id,
+                        timeout=lock_timeout))
 
     def lock(self):
         assert self._lock
@@ -244,11 +265,9 @@ class ZincCatalog(ZincAbstractCatalog):
 
             if not self.lock().is_locked():
                 with self.lock():
-                    self._reload()
                     output = func(self, *args, **kwargs)
-                    self.save()
             else:
-                    output = func(self, *args, **kwargs)
+                output = func(self, *args, **kwargs)
             return output
         return with_ensure_index_lock
 
