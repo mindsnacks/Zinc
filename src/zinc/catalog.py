@@ -470,8 +470,11 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
 
     @_ensure_index_lock
-    def delete_distribution(self, distribution_name, bundle_name):
+    def delete_distribution(self, distribution_name, bundle_name, delete_previous=True):
         self.index.delete_distribution(distribution_name, bundle_name)
+        if delete_previous:
+            prev_distro = helpers.distro_previous_name(distribution_name)
+            self.index.delete_distribution(prev_distro, bundle_name)
 
     def get_flavorspec_names(self):
         subpath = self.path_helper.config_flavorspec_dir

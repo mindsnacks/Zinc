@@ -181,7 +181,7 @@ def bundle_delete(catalog, bundle_name, versions, dry_run=False):
 
     if not dry_run:
         for v in versions:
-            catalog.delete_bundle_version(bundle_name, v)
+            client.delete_bundle_version(catalog, bundle_name, v)
 
 
 def distro_update(catalog, bundle_name, distro_name, version, save_previous=True):
