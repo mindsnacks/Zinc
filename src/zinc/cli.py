@@ -181,10 +181,11 @@ def bundle_delete(catalog, bundle_name, versions, dry_run=False):
 
     if not dry_run:
         for v in versions:
-            catalog.delete_bundle_version(bundle_name, v)
+            client.delete_bundle_version(catalog, bundle_name, v)
 
 
-def distro_update(catalog, bundle_name, distro_name, version, save_previous=True):
+def distro_update(catalog, bundle_name, distro_name, version,
+        save_previous=True):
 
     errors = helpers.distro_name_errors(distro_name)
     if len(errors) > 0:
@@ -192,7 +193,8 @@ def distro_update(catalog, bundle_name, distro_name, version, save_previous=True
             log.error(e)
         sys.exit()
 
-    client.update_distribution(catalog, distro_name, bundle_name, version, save_previous=save_previous)
+    client.update_distribution(catalog, distro_name, bundle_name, version,
+            save_previous=save_previous)
 
 
 def distro_delete(catalog, distro_name, bundle_name):
@@ -212,9 +214,7 @@ def flavorspec_delete(catalog, name):
     catalog.delete_flavorspec(name)
 
 
-
 ### Subcommand Parsing #################################################################
-
 
 def subcmd_catalog_list(config, args):
     catalog = get_catalog(config, args)
@@ -427,12 +427,11 @@ def subcmd_debug_flavors(config, args):
         for root, dirs, files in os.walk(src_dir):
             for f in files:
                 #if f in IGNORE: continue # TODO: integrate ignore system
-                full_path = os.path.join(root, f)
-                rel_dir = root[len(src_dir)+1:]
+                rel_dir = root[len(src_dir) + 1:]
                 rel_path = os.path.join(rel_dir, f)
                 matched = filter.match(rel_path)
                 print '%s %s' % ('+' if matched else '-', rel_path)
-        print "" # blank line
+        print ""  # blank line
 
 
 ### Main #####################################################################
@@ -581,7 +580,7 @@ def main():
 
     # bundle:verify
     parser_bundle_verify = subparsers.add_parser(
-            'bundle:verify', help = 'Verify all contents of a bundle.')
+            'bundle:verify', help='Verify all contents of a bundle.')
     add_catalog_arg(parser_bundle_verify)
     add_bundle_arg(parser_bundle_verify)
     add_version_arg(parser_bundle_verify)
@@ -635,7 +634,6 @@ def main():
             '--name', required=True,
             help='flavorspec name.')
     parser_flavorspec_delete.set_defaults(func=subcmd_flavorspec_delete)
-
 
     # dump:index
     parser_dump_index = subparsers.add_parser(

@@ -98,6 +98,13 @@ def update_distribution(catalog, distro_name, bundle_name, version,
     catalog.update_distribution(distro_name, bundle_name, version,
                                 save_previous=save_previous)
 
+
+def delete_distribution(catalog, distribution_name, bundle_name,
+                        delete_previous=True):
+    catalog.delete_distribution(distribution_name, bundle_name,
+                                delete_previous=delete_previous)
+
+
 ################################################################################
 
 

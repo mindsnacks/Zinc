@@ -31,7 +31,7 @@ class Lock(object):
         self._token = str(uuid.uuid1())
         self._refresh = self._expires / 4
         self._timer = None
-        self._locked = False
+        self._is_locked = False
 
     def _update_lock(self):
         """Attempts to update the lock by increasing the lock expiration. Will
@@ -60,9 +60,9 @@ class Lock(object):
         }
 
     def is_locked(self):
-        return self._locked
+        return self._is_locked
 
-    def lock(self):
+    def acquire(self):
 
         if self.is_locked():
             return
@@ -90,7 +90,7 @@ class Lock(object):
                         self._key, self._get_lock_attrs(),
                         expected_value=[LOCK_TOKEN, False])
 
-                    self._locked = True
+                    self._is_locked = True
                     self._schedule_timer()
                     return
 
@@ -107,7 +107,7 @@ class Lock(object):
                 else:
                     raise sdberr
 
-    def unlock(self):
+    def release(self):
         if self._timer is not None:
             self._timer.cancel()
         item = self._sdb_domain.get_item(self._key, consistent_read=True)
@@ -115,13 +115,13 @@ class Lock(object):
             self._sdb_domain.delete_attributes(
                 self._key, [LOCK_TOKEN, LOCK_EXPIRES],
                 expected_values=[LOCK_TOKEN, self._token])
-        self._locked = False
+        self._is_locked = False
 
     def __enter__(self):
-        self.lock()
+        self.acquire()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.unlock()
+        self.release()
 
 
 class SimpleDBCatalogCoordinator(CatalogCoordinator):

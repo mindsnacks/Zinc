@@ -176,6 +176,24 @@ class ZincAbstractCatalog(object):
 ################################################################################
 
 
+class ZincCatalogLock(object):
+
+    def __init__(self, catalog, lock):
+        self._catalog = catalog
+        self._lock = lock
+
+    def __enter__(self):
+        self._lock.acquire()
+        self._catalog._reload()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._catalog.save()
+        self._lock.release()
+
+    def is_locked(self):
+        return self._lock.is_locked()
+
+
 class ZincCatalog(ZincAbstractCatalog):
 
     def __init__(self, storage=None, coordinator=None, path_helper=None,
@@ -194,7 +212,10 @@ class ZincCatalog(ZincAbstractCatalog):
         self._reload()
 
         if self._coordinator is not None:
-            self._lock = self._coordinator.get_index_lock(domain=self.id, timeout=lock_timeout)
+            self._lock = ZincCatalogLock(self,
+                    self._coordinator.get_index_lock(
+                        domain=self.id,
+                        timeout=lock_timeout))
 
     def lock(self):
         assert self._lock
@@ -245,11 +266,9 @@ class ZincCatalog(ZincAbstractCatalog):
 
             if not self.lock().is_locked():
                 with self.lock():
-                    self._reload()
                     output = func(self, *args, **kwargs)
-                    self.save()
             else:
-                    output = func(self, *args, **kwargs)
+                output = func(self, *args, **kwargs)
             return output
         return with_ensure_index_lock
 
@@ -458,8 +477,11 @@ class ZincCatalog(ZincAbstractCatalog):
 
     @_ensure_index_lock
     @accepts(Self(), str, str)
-    def delete_distribution(self, distribution_name, bundle_name):
+    def delete_distribution(self, distribution_name, bundle_name, delete_previous=True):
         self.index.delete_distribution(distribution_name, bundle_name)
+        if delete_previous:
+            prev_distro = helpers.distro_previous_name(distribution_name)
+            self.index.delete_distribution(prev_distro, bundle_name)
 
     def get_flavorspec_names(self):
         subpath = self.path_helper.config_flavorspec_dir
