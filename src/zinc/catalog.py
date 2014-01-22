@@ -476,7 +476,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
 
     @_ensure_index_lock
-    @accepts(Self(), str, str)
+    @accepts(Self(), str, str, bool)
     def delete_distribution(self, distribution_name, bundle_name, delete_previous=True):
         self.index.delete_distribution(distribution_name, bundle_name)
         if delete_previous:
