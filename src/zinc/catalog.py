@@ -373,7 +373,7 @@ class ZincCatalog(ZincAbstractCatalog):
     def get_index(self):
         return self.index.clone(mutable=False)
 
-    @accepts(Self(), str, int)
+    @accepts(Self(), basestring, int)
     def get_manifest(self, bundle_name, version):
         return self._read_manifest(bundle_name, version)
 
@@ -419,7 +419,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.add_version_for_bundle(new_manifest.bundle_name,
                                           new_manifest.version)
 
-    @accepts(Self(), str)
+    @accepts(Self(), basestring)
     def import_path(self, src_path):
 
         sha = utils.sha1_for_path(src_path)
@@ -459,12 +459,12 @@ class ZincCatalog(ZincAbstractCatalog):
         return  file_info
 
     @_ensure_index_lock
-    @accepts(Self(), str, int)
+    @accepts(Self(), basestring, int)
     def delete_bundle_version(self, bundle_name, version):
         self.index.delete_bundle_version(bundle_name, version)
 
     @_ensure_index_lock
-    @accepts(Self(), str, str, int, bool)
+    @accepts(Self(), basestring, basestring, int, bool)
     def update_distribution(self, distribution_name, bundle_name, bundle_version, save_previous=True):
 
         if save_previous:
@@ -476,7 +476,7 @@ class ZincCatalog(ZincAbstractCatalog):
         self.index.update_distribution(distribution_name, bundle_name, bundle_version)
 
     @_ensure_index_lock
-    @accepts(Self(), str, str, bool)
+    @accepts(Self(), basestring, basestring, bool)
     def delete_distribution(self, distribution_name, bundle_name, delete_previous=True):
         self.index.delete_distribution(distribution_name, bundle_name)
         if delete_previous:
