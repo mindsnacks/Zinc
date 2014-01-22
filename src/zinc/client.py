@@ -93,6 +93,10 @@ def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
     return task.run()
 
 
+def delete_bundle_version(catalog, bundle_name, version):
+    catalog.delete_bundle_version(bundle_name, version)
+
+
 def update_distribution(catalog, distro_name, bundle_name, version,
                         save_previous=True):
     catalog.update_distribution(distro_name, bundle_name, version,
