@@ -17,6 +17,7 @@ install_requires = [
     "atomicfile==0.1",
     "redis==2.7.2",
     "jsonschema==1.3.0",
+    "typecheck==0.3.5",
 ]
 
 
