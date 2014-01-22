@@ -176,6 +176,18 @@ def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
     return task.run()
 
 
+def update_distribution(catalog, distro_name, bundle_name, version,
+                        save_previous=True):
+    catalog.update_distribution(distro_name, bundle_name, version,
+                                save_previous=save_previous)
+
+
+def delete_distribution(catalog, distribution_name, bundle_name,
+                        delete_previous=True):
+    catalog.delete_distribution(distribution_name, bundle_name,
+                                delete_previous=delete_previous)
+
+
 ################################################################################
 
 
@@ -464,7 +476,7 @@ def create_catalog(catalog_id=None, storage_info=None):
     catalog.save()
 
 
-def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs):
+def get_service(service_url=None, coordinator_info=None, storage_info=None, **kwargs):
 
     if service_url is not None:
 
@@ -495,3 +507,11 @@ def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs
 
         from zinc.services import CustomServiceConsumer
         return CustomServiceConsumer(coordinator=coord, storage=storage)
+
+    raise NotImplementedError()
+
+
+def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs):
+    return get_service(service_url=service_url,
+                       coordinator_info=coordinator_info,
+                       storage_info=storage_info, **kwargs)

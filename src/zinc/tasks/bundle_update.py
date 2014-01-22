@@ -12,16 +12,6 @@ log = logging.getLogger(__name__)
 IGNORE = ['.DS_Store']
 
 
-def _build_archive(catalog, manifest, src_dir, flavor=None):
-
-    archive_filename = catalog.path_helper.archive_name(manifest.bundle_name,
-                                                        manifest.version,
-                                                        flavor=flavor)
-    archive_path = os.path.join(tempfile.mkdtemp(), archive_filename)
-    build_archive_with_manifest(manifest, src_dir, archive_path, flavor=flavor)
-    return archive_path
-
-
 class ZincBundleUpdateTask(object):
 
     def __init__(self,
@@ -49,6 +39,16 @@ class ZincBundleUpdateTask(object):
         if val is not None:
             val = utils.canonical_path(val)
         self._src_dir = val
+
+    @classmethod
+    def _build_archive(self, catalog, manifest, src_dir, flavor=None):
+
+        archive_filename = catalog.path_helper.archive_name(manifest.bundle_name,
+                                                            manifest.version,
+                                                            flavor=flavor)
+        archive_path = os.path.join(tempfile.mkdtemp(), archive_filename)
+        build_archive_with_manifest(manifest, src_dir, archive_path, flavor=flavor)
+        return archive_path
 
     def _import_files(self, src_dir, flavor_spec=None):
 
@@ -120,7 +120,7 @@ class ZincBundleUpdateTask(object):
                 archive_flavors.extend(new_manifest.flavors)
 
             for flavor in archive_flavors:
-                tmp_tar_path = _build_archive(
+                tmp_tar_path = self._build_archive(
                     self.catalog, new_manifest, self.src_dir, flavor=flavor)
                 self.catalog._write_archive(
                     self.bundle_name, new_manifest.version,

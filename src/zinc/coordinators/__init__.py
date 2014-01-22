@@ -21,7 +21,7 @@ class CatalogCoordinator(object):
     def url(self):
         return self._url
 
-    def get_index_lock(self, domain=None):
+    def get_index_lock(self, **kwargs):
         raise NotImplementedError()
 
 

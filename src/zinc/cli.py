@@ -159,10 +159,11 @@ def bundle_delete(catalog, bundle_name, versions, dry_run=False):
 
     if not dry_run:
         for v in versions:
-            catalog.delete_bundle_version(bundle_name, v)
+            client.delete_bundle_version(catalog, bundle_name, v)
 
 
-def distro_update(catalog, bundle_name, distro_name, version, save_previous=True):
+def distro_update(catalog, bundle_name, distro_name, version,
+        save_previous=True):
 
     errors = helpers.distro_name_errors(distro_name)
     if len(errors) > 0:
@@ -170,7 +171,8 @@ def distro_update(catalog, bundle_name, distro_name, version, save_previous=True
             log.error(e)
         sys.exit()
 
-    catalog.update_distribution(distro_name, bundle_name, version, save_previous=save_previous)
+    client.update_distribution(catalog, distro_name, bundle_name, version,
+            save_previous=save_previous)
 
 
 def distro_delete(catalog, distro_name, bundle_name):
