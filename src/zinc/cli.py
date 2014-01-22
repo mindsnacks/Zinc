@@ -180,8 +180,7 @@ def bundle_delete(catalog, bundle_name, versions, dry_run=False):
         print "%s versions %s" % (verb, versions)
 
     if not dry_run:
-        for v in versions:
-            client.delete_bundle_version(catalog, bundle_name, v)
+        client.delete_bundle_versions(catalog, bundle_name, versions)
 
 
 def distro_update(catalog, bundle_name, distro_name, version,
