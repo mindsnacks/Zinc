@@ -93,7 +93,7 @@ def get_catalog(config, args):
 
 def parse_single_version(catalog, bundle_name, version_string):
 
-    if version_string == 'latest':
+    if version_string == ':latest':
         index = catalog.get_index()
         bundle_version = index.versions_for_bundle(bundle_name)[-1]
 
@@ -109,11 +109,11 @@ def parse_single_version(catalog, bundle_name, version_string):
 
 def parse_multi_versions(catalog, bundle_name, version_string):
 
-    if version_string == 'all':
+    if version_string == ':all':
         index = catalog.get_index()
         bundle_versions = index.versions_for_bundle(bundle_name)
 
-    elif version_string == 'unreferenced':
+    elif version_string == ':unreferenced':
         index = catalog.get_index()
         all_versions = index.versions_for_bundle(bundle_name)
         referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
