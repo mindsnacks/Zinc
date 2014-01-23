@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 from urlparse import urlparse
+from functools import wraps
 
 from zinc.utils import canonical_path
 from zinc.models import ZincFlavorSpec
@@ -39,10 +40,10 @@ def load_config(path):
     return ZincClientConfig.from_path(path)
 
 
-def set_loglevel(args):
+def set_loglevel(cargs):
     # TODO: this could be a lot cleaner
 
-    if args.loglevel == 'debug':
+    if cargs.loglevel == 'debug':
         logging.basicConfig(level=logging.DEBUG,
                             format='%(asctime)s %(levelname)s [%(name)s] %(message)s')
     else:
@@ -78,15 +79,15 @@ def resolve_storage_info(config, storage_ref):
     return {'url': 'file://%s' % (path)}
 
 
-def get_catalog(config, args):
-    catalog_id, coordinator_info, storage_info = catalog_from_config(config, args.catalog)
-    timeout = vars(args).get('timeout')
+def get_catalog(config, cargs):
+    catalog_id, coordinator_info, storage_info = catalog_from_config(config, cargs.catalog)
+    timeout = vars(cargs).get('timeout')
     if coordinator_info is not None and storage_info is not None:
         service = client.connect(coordinator_info=coordinator_info, storage_info=storage_info)
         catalog = service.get_catalog(id=catalog_id, lock_timeout=timeout)
     else:
         # TODO: not sure if this is correct for general case
-        service = client.connect(args.catalog)
+        service = client.connect(cargs.catalog)
         catalog = service.get_catalog(lock_timeout=timeout)
     return catalog
 
@@ -127,29 +128,6 @@ def parse_multi_versions(catalog, bundle_name, version_string):
 
 ### Client Commands #################################################################
 # TODO: move to zinc.client ?
-
-def catalog_list(catalog, distro=None, print_versions=True):
-    index = catalog.get_index()
-    bundle_names = sorted(index.bundle_names())
-    for bundle_name in bundle_names:
-        if distro and distro not in index.distributions_for_bundle(bundle_name):
-            continue
-        distros = index.distributions_for_bundle_by_version(bundle_name)
-        versions = index.versions_for_bundle(bundle_name)
-        version_strings = list()
-        for version in versions:
-            version_string = str(version)
-            if distros.get(version) is not None:
-                distro_string = "(%s)" % (", ".join(sorted(distros.get(version))))
-                version_string += '=' + distro_string
-            version_strings.append(version_string)
-
-        final_version_string = "[%s]" % (", ".join(version_strings))
-        if print_versions:
-            print "%s %s" % (bundle_name, final_version_string)
-        else:
-            print "%s" % (bundle_name)
-
 
 def bundle_list(catalog, bundle_name, version, print_sha=False, flavor_name=None):
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)
@@ -215,66 +193,75 @@ def flavorspec_delete(catalog, name):
 
 ### Subcommand Parsing #################################################################
 
-def subcmd_catalog_list(config, args):
-    catalog = get_catalog(config, args)
-    distro = args.distro
-    catalog_list(catalog, distro=distro, print_versions=not args.no_versions)
+def cli_cmd(f):
+    @wraps(f)
+    def func(self, *args, **kwargs):
+        o = f(self, *args, **kwargs)
+        print o.format(args[0].format)
+    return func
 
 
-def subcmd_catalog_create(config, args):
-    storage_ref = args.storage
-    catalog_id = args.catalog_id
+@cli_cmd
+def subcmd_catalog_list(config, cargs):
+    catalog = get_catalog(config, cargs)
+    return client.catalog_list(catalog, distro=cargs.distro,
+                               print_versions=not cargs.no_versions)
+
+
+def subcmd_catalog_create(config, cargs):
+    storage_ref = cargs.storage
+    catalog_id = cargs.catalog_id
     storage_info = resolve_storage_info(config, storage_ref)
     client.create_catalog(catalog_id=catalog_id, storage_info=storage_info)
     print "Catalog '%s' successfully created." % (catalog_id)
 
 
-def subcmd_catalog_clean(config, args):
-    catalog = get_catalog(config, args)
-    catalog.clean(dry_run=not args.force)
+def subcmd_catalog_clean(config, cargs):
+    catalog = get_catalog(config, cargs)
+    catalog.clean(dry_run=not cargs.force)
 
 
-def subcmd_bundle_list(config, args):
-    catalog = get_catalog(config, args)
-    bundle_name = args.bundle
-    version = parse_single_version(catalog, bundle_name, args.version)
-    print_sha = args.sha
-    flavor_name = args.flavor
+def subcmd_bundle_list(config, cargs):
+    catalog = get_catalog(config, cargs)
+    bundle_name = cargs.bundle
+    version = parse_single_version(catalog, bundle_name, cargs.version)
+    print_sha = cargs.sha
+    flavor_name = cargs.flavor
     bundle_list(catalog, bundle_name, version, print_sha=print_sha, flavor_name=flavor_name)
 
 
-def subcmd_bundle_update(config, args):
-    catalog = get_catalog(config, args)
+def subcmd_bundle_update(config, cargs):
+    catalog = get_catalog(config, cargs)
 
     flavors = None
-    if args.flavors is not None:
+    if cargs.flavors is not None:
         try:
-            with open(args.flavors) as f:
+            with open(cargs.flavors) as f:
                 flavors_dict = json.load(f)
                 flavors = ZincFlavorSpec.from_dict(flavors_dict)
         except IOError:
-            flavors = catalog.get_flavorspec(args.flavors)
+            flavors = catalog.get_flavorspec(cargs.flavors)
 
         assert flavors is not None
 
-    bundle_name = args.bundle
-    path = args.path
-    force = args.force
-    skip_master_archive = args.skip_master_archive
+    bundle_name = cargs.bundle
+    path = cargs.path
+    force = cargs.force
+    skip_master_archive = cargs.skip_master_archive
 
     bundle_update(catalog, bundle_name, path, flavors=flavors, force=force,
                   skip_master_archive=skip_master_archive)
 
 
-def subcmd_bundle_clone(config, args):
-    catalog = get_catalog(config, args)
-    bundle_name = args.bundle
+def subcmd_bundle_clone(config, cargs):
+    catalog = get_catalog(config, cargs)
+    bundle_name = cargs.bundle
     bundle_id = helpers.make_bundle_id(catalog.id, bundle_name)
-    version = parse_single_version(catalog, bundle_name, args.version)
-    flavor = args.flavor
-    root_path = args.path
+    version = parse_single_version(catalog, bundle_name, cargs.version)
+    flavor = cargs.flavor
+    root_path = cargs.path
 
-    if args.no_versions:
+    if cargs.no_versions:
         bundle_dir_name = bundle_id
     else:
         bundle_dir_name = None
@@ -282,8 +269,8 @@ def subcmd_bundle_clone(config, args):
     client.clone_bundle(catalog, bundle_name, version, root_path=root_path,
                         bundle_dir_name=bundle_dir_name, flavor=flavor)
 
-    if args.include_manifest:
-        if args.no_versions:
+    if cargs.include_manifest:
+        if cargs.no_versions:
             manifest_name = '%s.json' % (bundle_id)
         else:
             manifest_name = '%s.json' % (helpers.make_bundle_descriptor(bundle_id, version))
@@ -293,59 +280,59 @@ def subcmd_bundle_clone(config, args):
         _dump_json(catalog, manifest_src_path, dest_path=manifest_dest_path)
 
 
-def subcmd_bundle_delete(config, args):
-    catalog = get_catalog(config, args)
-    bundle_name = args.bundle
-    versions = parse_multi_versions(catalog, bundle_name, args.version)
-    dry_run = args.dry_run
+def subcmd_bundle_delete(config, cargs):
+    catalog = get_catalog(config, cargs)
+    bundle_name = cargs.bundle
+    versions = parse_multi_versions(catalog, bundle_name, cargs.version)
+    dry_run = cargs.dry_run
     bundle_delete(catalog, bundle_name, versions, dry_run=dry_run)
 
 
-def subcmd_bundle_verify(config, args):
-    catalog = get_catalog(config, args)
-    bundle_name = args.bundle
-    version = parse_single_version(catalog, bundle_name, args.version)
+def subcmd_bundle_verify(config, cargs):
+    catalog = get_catalog(config, cargs)
+    bundle_name = cargs.bundle
+    version = parse_single_version(catalog, bundle_name, cargs.version)
     client.verify_bundle(catalog, bundle_name=bundle_name, version=version)
 
 
-def subcmd_distro_update(config, args):
+def subcmd_distro_update(config, cargs):
 
-    catalog = get_catalog(config, args)
-    bundle_name = args.bundle
-    distro_name = args.distro
-    version = parse_single_version(catalog, bundle_name, args.version)
-    save_previous = not args.no_prev_distro
+    catalog = get_catalog(config, cargs)
+    bundle_name = cargs.bundle
+    distro_name = cargs.distro
+    version = parse_single_version(catalog, bundle_name, cargs.version)
+    save_previous = not cargs.no_prev_distro
     distro_update(catalog, bundle_name, distro_name, version,
                   save_previous=save_previous)
 
 
-def subcmd_distro_delete(config, args):
-    catalog = get_catalog(config, args)
-    bundle_name = args.bundle
-    distro_name = args.distro
+def subcmd_distro_delete(config, cargs):
+    catalog = get_catalog(config, cargs)
+    bundle_name = cargs.bundle
+    distro_name = cargs.distro
     distro_delete(catalog, distro_name, bundle_name)
 
 
-def subcmd_flavorspec_list(config, args):
-    catalog = get_catalog(config, args)
+def subcmd_flavorspec_list(config, cargs):
+    catalog = get_catalog(config, cargs)
     flavorspec_list(catalog)
 
 
-def subcmd_flavorspec_update(config, args):
-    catalog = get_catalog(config, args)
-    name = args.name
-    path = args.path
+def subcmd_flavorspec_update(config, cargs):
+    catalog = get_catalog(config, cargs)
+    name = cargs.name
+    path = cargs.path
     flavorspec_update(catalog, path, name)
 
 
-def subcmd_flavorspec_delete(config, args):
-    catalog = get_catalog(config, args)
-    flavorspec_delete(catalog, args.name)
+def subcmd_flavorspec_delete(config, cargs):
+    catalog = get_catalog(config, cargs)
+    flavorspec_delete(catalog, cargs.name)
 
 
-def subcmd_catalog_verify(config, args):
-    catalog = get_catalog(config, args)
-    should_lock = args.lock
+def subcmd_catalog_verify(config, cargs):
+    catalog = get_catalog(config, cargs)
+    should_lock = cargs.lock
     results = client.verify_catalog(catalog, should_lock=should_lock)
     if len(results) == 0:
         print 'All ok!'
@@ -374,55 +361,55 @@ def _dump_json(catalog, subpath, dest_path=None, should_decompress=True, gzip=Tr
         print out
 
 
-def _dump_get_dest_path(subpath, args):
-    if args.remote_name:
+def _dump_get_dest_path(subpath, cargs):
+    if cargs.remote_name:
         return os.path.split(subpath)[-1]
     else:
         return None
 
 
-def subcmd_dump_index(config, args):
+def subcmd_dump_index(config, cargs):
 
     # TODO: this should not load the catalog - it should just pull the file from
     # the storage
 
-    catalog = get_catalog(config, args)
+    catalog = get_catalog(config, cargs)
     subpath = catalog.path_helper.path_for_index()
-    dest_path = _dump_get_dest_path(subpath, args)
+    dest_path = _dump_get_dest_path(subpath, cargs)
 
-    _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
+    _dump_json(catalog, subpath, should_decompress=not cargs.no_decompress,
                dest_path=dest_path)
 
 
-def subcmd_dump_manifest(config, args):
+def subcmd_dump_manifest(config, cargs):
 
     # TODO: this should not load the catalog - it should just pull the file from
     # the storage
 
-    catalog = get_catalog(config, args)
-    bundle_name = args.bundle
-    version = parse_single_version(catalog, bundle_name, args.version)
+    catalog = get_catalog(config, cargs)
+    bundle_name = cargs.bundle
+    version = parse_single_version(catalog, bundle_name, cargs.version)
 
     subpath = catalog.path_helper.path_for_manifest_for_bundle_version(bundle_name, version)
-    dest_path = _dump_get_dest_path(subpath, args)
+    dest_path = _dump_get_dest_path(subpath, cargs)
 
-    _dump_json(catalog, subpath, should_decompress=not args.no_decompress,
+    _dump_json(catalog, subpath, should_decompress=not cargs.no_decompress,
                dest_path=dest_path)
 
 
-def subcmd_dump_flavorspec(config, args):
-    catalog = get_catalog(config, args)
-    subpath = catalog.path_helper.path_for_flavorspec_name(args.name)
-    dest_path = _dump_get_dest_path(subpath, args)
+def subcmd_dump_flavorspec(config, cargs):
+    catalog = get_catalog(config, cargs)
+    subpath = catalog.path_helper.path_for_flavorspec_name(cargs.name)
+    dest_path = _dump_get_dest_path(subpath, cargs)
     _dump_json(catalog, subpath, dest_path=dest_path, gzip=False)
 
 
-def subcmd_debug_flavors(config, args):
-    flavors = ZincFlavorSpec.from_path(args.flavors)
+def subcmd_debug_flavors(config, cargs):
+    flavors = ZincFlavorSpec.from_path(cargs.flavors)
     for flavor_name in flavors.flavors:
         print '[%s]' % flavor_name
         filter = flavors.filter_for_flavor(flavor_name)
-        src_dir = args.path
+        src_dir = cargs.path
         for root, dirs, files in os.walk(src_dir):
             for f in files:
                 #if f in IGNORE: continue # TODO: integrate ignore system
@@ -438,8 +425,14 @@ def subcmd_debug_flavors(config, args):
 def main():
     parser = argparse.ArgumentParser(description='')
 
-    parser.add_argument('-C', '--config', default=DEFAULT_CONFIG_PATH,
-            help='Config file path. Defaults to \'%s\'.' % (DEFAULT_CONFIG_PATH))
+    parser.add_argument('-C', '--config',
+                        default=DEFAULT_CONFIG_PATH,
+                        help='Config file path. Defaults to \'%s\'.' % (DEFAULT_CONFIG_PATH))
+
+    parser.add_argument('--format',
+                        choices=(client.OutputType.PRETTY,
+                                 client.OutputType.JSON),
+                        default=client.OutputType.PRETTY)
 
     # TODO: embetter this
     parser.add_argument('--loglevel', default='error',
@@ -462,16 +455,15 @@ def main():
         '--timeout', required=required, default=None,
         help='Timeout for acquiring catalog locks. 0 = wait forever.')
     add_remote_name_arg = lambda parser, required=False: parser.add_argument(
-            '-O', '--remote-name', required=required, default=False,
-                action='store_true', help='Write to file using remote name \
-                instead of stdout.')
+        '-O', '--remote-name', required=required, default=False,
+        action='store_true', help='Write to file using remote name instead of stdout.')
     add_no_decompress_arg = lambda parser, required=False: parser.add_argument(
-            '--no-decompress', required=required, default=False,
-            action='store_true', help='Don\'t decompress file after downloading.')
+        '--no-decompress', required=required, default=False,
+        action='store_true', help='Don\'t decompress file after downloading.')
 
     # catalog:create
-    parser_catalog_create = subparsers.add_parser(
-            'catalog:create', help='catalog:create help')
+    parser_catalog_create = subparsers.add_parser('catalog:create',
+                                                  help='catalog:create help')
     parser_catalog_create.add_argument('catalog_id')
     parser_catalog_create.add_argument('-s', '--storage',
                                        help='Storage descriptor. Defaults to "file://."',
@@ -479,107 +471,119 @@ def main():
     parser_catalog_create.set_defaults(func=subcmd_catalog_create)
 
     # catalog:clean
-    parser_catalog_clean = subparsers.add_parser(
-            'catalog:clean', help='catalog:clean help')
+    parser_catalog_clean = subparsers.add_parser('catalog:clean',
+                                                 help='catalog:clean help')
     add_catalog_arg(parser_catalog_clean)
     add_timeout_arg(parser_catalog_clean)
-    parser_catalog_clean.add_argument(
-            '-f', '--force', default=False, action='store_true',
-            help='This command does a dry run by default. Specifying this flag '
-            'will cause files to actually be removed.')
+    parser_catalog_clean.add_argument('-f', '--force',
+                                      default=False,
+                                      action='store_true',
+                                      help='This command does a dry run by default. Specifying this flag will cause files to actually be removed.')
     parser_catalog_clean.set_defaults(func=subcmd_catalog_clean)
 
     # catalog:verify
-    parser_catalog_verify = subparsers.add_parser(
-            'catalog:verify', help='catalog:verify help')
+    parser_catalog_verify = subparsers.add_parser('catalog:verify',
+                                                  help='catalog:verify help')
     add_catalog_arg(parser_catalog_verify)
-    parser_catalog_verify.add_argument(
-            '--lock', default=False, action='store_true',
-            help='Lock the catalog while verifying.')
+    parser_catalog_verify.add_argument('--lock',
+                                       default=False,
+                                       action='store_true',
+                                       help='Lock the catalog while verifying.')
     parser_catalog_verify.set_defaults(func=subcmd_catalog_verify)
 
     # catalog:list
-    parser_catalog_list = subparsers.add_parser(
-            'catalog:list', help='List contents of catalog')
+    parser_catalog_list = subparsers.add_parser('catalog:list',
+                                                help='List contents of catalog')
     add_catalog_arg(parser_catalog_list)
     add_distro_arg(parser_catalog_list, required=False)
-    parser_catalog_list.add_argument(
-            '--no-versions', default=False, action='store_true',
-            help='Omit version information for bundles.')
+    parser_catalog_list.add_argument('--no-versions',
+                                     default=False,
+                                     action='store_true',
+                                     help='Omit version information for bundles.')
     parser_catalog_list.set_defaults(func=subcmd_catalog_list)
 
     # bundle:list
-    parser_bundle_list = subparsers.add_parser(
-            'bundle:list', help='List contents of a bundle')
+    parser_bundle_list = subparsers.add_parser('bundle:list',
+                                               help='List contents of a bundle')
     add_catalog_arg(parser_bundle_list)
     add_bundle_arg(parser_bundle_list)
     add_version_arg(parser_bundle_list)
-    parser_bundle_list.add_argument(
-            '--sha', default=False, action='store_true',
-            help='Print file SHA hash.')
-    parser_bundle_list.add_argument(
-        '--flavor', help='Name of flavor.')
+    parser_bundle_list.add_argument('--sha',
+                                    default=False,
+                                    action='store_true',
+                                    help='Print file SHA hash.')
+    parser_bundle_list.add_argument('--flavor',
+                                    help='Name of flavor.')
     parser_bundle_list.set_defaults(func=subcmd_bundle_list)
 
     # bundle:update
-    parser_bundle_update = subparsers.add_parser(
-            'bundle:update', help='bundle:update help')
+    parser_bundle_update = subparsers.add_parser('bundle:update',
+                                                 help='bundle:update help')
     add_catalog_arg(parser_bundle_update)
     add_timeout_arg(parser_bundle_update)
     add_bundle_arg(parser_bundle_update)
-    parser_bundle_update.add_argument(
-            '-p', '--path', required=True,
-            help='Path to files for this bundle.')
-    parser_bundle_update.add_argument(
-            '--flavors', help='The flavorspec. Will first try to read as a path. If not found, will try to read from catalog by name.')
-    parser_bundle_update.add_argument(
-            '-f', '--force', default=False, action='store_true',
-            help='Update bundle even if no files changed.')
+    parser_bundle_update.add_argument('-p', '--path',
+                                      required=True,
+                                      help='Path to files for this bundle.')
+    parser_bundle_update.add_argument('--flavors',
+                                      help='The flavorspec. Will first try to read as a path. If not found, will try to read from catalog by name.')
+    parser_bundle_update.add_argument('-f', '--force',
+                                      default=False,
+                                      action='store_true',
+                                      help='Update bundle even if no files changed.')
 
     parser_bundle_update_master_archive_group = parser_bundle_update.add_mutually_exclusive_group()
-    parser_bundle_update_master_archive_group.add_argument(
-            '--skip-master-archive', default=True, action='store_true', dest='skip_master_archive',
-            help='Skips creating master archive if flavors are specified. This is the default behavior.')
-    parser_bundle_update_master_archive_group.add_argument(
-            '--include-master-archive', default=False, action='store_true', dest='skip_master_archive',
-            help='Also creates master archive if flavors are specified.')
+    parser_bundle_update_master_archive_group.add_argument('--skip-master-archive',
+                                                           default=True,
+                                                           action='store_true',
+                                                           dest='skip_master_archive',
+                                                           help='Skips creating master archive if flavors are specified. This is the default behavior.')
+    parser_bundle_update_master_archive_group.add_argument('--include-master-archive',
+                                                           default=False,
+                                                           action='store_true',
+                                                           dest='skip_master_archive',
+                                                           help='Also creates master archive if flavors are specified.')
 
     parser_bundle_update.set_defaults(func=subcmd_bundle_update)
 
     # bundle:clone
-    parser_bundle_clone = subparsers.add_parser(
-            'bundle:clone', help='Clones a bundle to a local directory.')
+    parser_bundle_clone = subparsers.add_parser('bundle:clone',
+                                                help='Clones a bundle to a local directory.')
     add_catalog_arg(parser_bundle_clone)
     add_bundle_arg(parser_bundle_clone)
     add_version_arg(parser_bundle_clone)
-    parser_bundle_clone.add_argument(
-            '-p', '--path', required=False, default='.',
-            help='Destination path for bundle clone.')
-    parser_bundle_clone.add_argument(
-            '--flavor', help='Name of flavor.')
-    parser_bundle_clone.add_argument(
-            '--include-manifest', required=False, action='store_true',
-            help='Also dump bundle manifest.')
-    parser_bundle_clone.add_argument(
-            '--no-versions', default=False, action='store_true',
-            help='Omit version when writing bundle file names.')
+    parser_bundle_clone.add_argument('-p', '--path',
+                                     required=False,
+                                     default='.',
+                                     help='Destination path for bundle clone.')
+    parser_bundle_clone.add_argument('--flavor',
+                                     help='Name of flavor.')
+    parser_bundle_clone.add_argument('--include-manifest',
+                                     required=False,
+                                     action='store_true',
+                                     help='Also dump bundle manifest.')
+    parser_bundle_clone.add_argument('--no-versions',
+                                     default=False,
+                                     action='store_true',
+                                     help='Omit version when writing bundle file names.')
     parser_bundle_clone.set_defaults(func=subcmd_bundle_clone)
 
     # bundle:delete
-    parser_bundle_delete = subparsers.add_parser(
-            'bundle:delete', help='bundle:delete help')
+    parser_bundle_delete = subparsers.add_parser('bundle:delete',
+                                                 help='bundle:delete help')
     add_catalog_arg(parser_bundle_delete)
     add_timeout_arg(parser_bundle_delete)
     add_bundle_arg(parser_bundle_delete)
     add_version_arg(parser_bundle_delete)
-    parser_bundle_delete.add_argument(
-            '-n', '--dry-run', default=False, action='store_true',
-            help='Dry run. Don\' actually delete anything.')
+    parser_bundle_delete.add_argument('-n', '--dry-run',
+                                      default=False,
+                                      action='store_true',
+                                      help='Dry run. Don\' actually delete anything.')
     parser_bundle_delete.set_defaults(func=subcmd_bundle_delete)
 
     # bundle:verify
-    parser_bundle_verify = subparsers.add_parser(
-            'bundle:verify', help='Verify all contents of a bundle.')
+    parser_bundle_verify = subparsers.add_parser('bundle:verify',
+                                                 help='Verify all contents of a bundle.')
     add_catalog_arg(parser_bundle_verify)
     add_bundle_arg(parser_bundle_verify)
     add_version_arg(parser_bundle_verify)
@@ -587,20 +591,22 @@ def main():
     parser_bundle_verify.set_defaults(func=subcmd_bundle_verify)
 
     # distro:update
-    parser_distro_update = subparsers.add_parser(
-            'distro:update', help='distro:update help')
+    parser_distro_update = subparsers.add_parser('distro:update',
+                                                 help='distro:update help')
     add_catalog_arg(parser_distro_update)
     add_timeout_arg(parser_distro_update)
     add_bundle_arg(parser_distro_update)
     add_version_arg(parser_distro_update)
     add_distro_arg(parser_distro_update)
-    parser_distro_update.add_argument('--no-prev-distro', default=False, action='store_true',
+    parser_distro_update.add_argument('--no-prev-distro',
+                                      default=False,
+                                      action='store_true',
                                       help='Do not preserve previous version for distro.')
     parser_distro_update.set_defaults(func=subcmd_distro_update)
 
     # distro:delete
-    parser_distro_delete = subparsers.add_parser(
-            'distro:delete', help='distro:delete help')
+    parser_distro_delete = subparsers.add_parser('distro:delete',
+                                                 help='distro:delete help')
     add_catalog_arg(parser_distro_delete)
     add_timeout_arg(parser_distro_delete)
     add_bundle_arg(parser_distro_delete)
@@ -608,43 +614,43 @@ def main():
     parser_distro_delete.set_defaults(func=subcmd_distro_delete)
 
     # flavorspec:list
-    parser_flavorspec_list = subparsers.add_parser(
-        'flavorspec:list', help='list stored flavorspecs')
+    parser_flavorspec_list = subparsers.add_parser('flavorspec:list',
+                                                   help='list stored flavorspecs')
     add_catalog_arg(parser_flavorspec_list)
     parser_flavorspec_list.set_defaults(func=subcmd_flavorspec_list)
 
     # flavorspec:update
-    parser_flavorspec_update = subparsers.add_parser(
-        'flavorspec:update', help='Update a stored flavorspec.')
+    parser_flavorspec_update = subparsers.add_parser('flavorspec:update',
+                                                     help='Update a stored flavorspec.')
     add_catalog_arg(parser_flavorspec_update)
-    parser_flavorspec_update.add_argument(
-            '-p', '--path', required=True,
-            help='Path to flavorspec file.')
-    parser_flavorspec_update.add_argument(
-            '--name', required=False,
-            help='flavorspec name. If ommitted, will use filename.')
+    parser_flavorspec_update.add_argument('-p', '--path',
+                                          required=True,
+                                          help='Path to flavorspec file.')
+    parser_flavorspec_update.add_argument('--name',
+                                          required=False,
+                                          help='flavorspec name. If ommitted, will use filename.')
     parser_flavorspec_update.set_defaults(func=subcmd_flavorspec_update)
 
-    # flavorspec:delete
-    parser_flavorspec_delete = subparsers.add_parser(
-        'flavorspec:delete', help='Delete a stored flavorspec.')
+    # flavorspec:delte
+    parser_flavorspec_delete = subparsers.add_parser('flavorspec:delete',
+                                                     help='Delete a stored flavorspec.')
     add_catalog_arg(parser_flavorspec_delete)
-    parser_flavorspec_delete.add_argument(
-            '--name', required=True,
-            help='flavorspec name.')
+    parser_flavorspec_delete.add_argument('--name',
+                                          required=True,
+                                          help='flavorspec name.')
     parser_flavorspec_delete.set_defaults(func=subcmd_flavorspec_delete)
 
     # dump:index
-    parser_dump_index = subparsers.add_parser(
-            'dump:index', help='Dump catalog index file (catalog.json).')
+    parser_dump_index = subparsers.add_parser('dump:index',
+                                              help='Dump catalog index file (catalog.json).')
     add_catalog_arg(parser_dump_index)
     add_remote_name_arg(parser_dump_index)
     add_no_decompress_arg(parser_dump_index)
     parser_dump_index.set_defaults(func=subcmd_dump_index)
 
     # dump:manifest
-    parser_dump_manifest = subparsers.add_parser(
-            'dump:manifest', help='Dump a manifest file from a catalog.')
+    parser_dump_manifest = subparsers.add_parser('dump:manifest',
+                                                 help='Dump a manifest file from a catalog.')
     add_catalog_arg(parser_dump_manifest)
     add_bundle_arg(parser_dump_manifest)
     add_version_arg(parser_dump_manifest)
@@ -653,23 +659,25 @@ def main():
     parser_dump_manifest.set_defaults(func=subcmd_dump_manifest)
 
     # dump:flavorspec
-    parser_dump_flavorspec = subparsers.add_parser(
-        'dump:flavorspec', help='Dump a flavorspec file from a catalog.')
-    parser_dump_flavorspec.add_argument(
-            '--name', required=True,
-            help='flavorspec name.')
+    parser_dump_flavorspec = subparsers.add_parser('dump:flavorspec',
+                                                   help='Dump a flavorspec file from a catalog.')
+    parser_dump_flavorspec.add_argument('--name',
+                                        required=True,
+                                        help='flavorspec name.')
     add_catalog_arg(parser_dump_flavorspec)
     add_remote_name_arg(parser_dump_flavorspec)
     parser_dump_flavorspec.set_defaults(func=subcmd_dump_flavorspec)
 
     # debug:flavors
-    parser_debug_flavors = subparsers.add_parser(
-        'debug:flavors', help='Debug flavors.')
+    parser_debug_flavors = subparsers.add_parser('debug:flavors',
+                                                 help='Debug flavors.')
     parser_debug_flavors.add_argument('--flavors',
-        required=True, help='Flavor spec path. Should be JSON.')
-    parser_debug_flavors.add_argument(
-        '-p', '--path', required=False, default='.',
-        help='Root folder to test')
+                                      required=True,
+                                      help='Flavor spec path. Should be JSON.')
+    parser_debug_flavors.add_argument('-p', '--path',
+                                      required=False,
+                                      default='.',
+                                      help='Root folder to test')
     parser_debug_flavors.set_defaults(func=subcmd_debug_flavors)
 
     args = parser.parse_args()
