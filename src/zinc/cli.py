@@ -180,9 +180,15 @@ def cli_cmd(f):
     @wraps(f)
     def func(self, *args, **kwargs):
         results = f(self, *args, **kwargs)
-        #print o.format(args[0].format)  ## old way
         for result in results:
             print result.format(args[0].format)
+
+        errors = results.errors()
+        if len(errors) > 0:
+            print "\n\nERRORS:"
+            for error in errors:
+                print error.format(args[0].format)
+
     return func
 
 

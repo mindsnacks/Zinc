@@ -199,6 +199,9 @@ class ResultSet(object):
     def __str__(self):
         return str(self.items)
 
+    def errors(self):
+        return [i for i in self.items if isinstance(i, Message) and i.type == MessageTypes.ERROR]
+
     # TODO: reimplement
     #def dump(self, fmt):
     #    if fmt == OutputType.JSON:
