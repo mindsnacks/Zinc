@@ -9,7 +9,6 @@ from urlparse import urlparse
 import toml
 import json
 import string
-from functools import wraps
 
 import zinc.helpers as helpers
 import zinc.utils as utils
@@ -23,6 +22,19 @@ from .tasks.bundle_update import ZincBundleUpdateTask
 from .utils import enum, memoized
 
 log = logging.getLogger(__name__)
+
+SymbolicBundleVersions = utils.enum(
+        ALL=':all',
+        UNREFERENCED=':unreferenced',
+        LATEST=':latest')
+
+# TODO: why doesn't this work?
+#SymbolicSingleBundleVersions = utils.enum(
+#        LATEST=SymbolicBundleVersions.LATEST)
+SymbolicSingleBundleVersions = utils.enum(
+        LATEST=':latest')
+
+BundleVersionDistroPrefix = '@'
 
 
 class ZincClientConfig(ZincModel):
@@ -88,6 +100,89 @@ class ZincClientConfig(ZincModel):
 OutputType = enum(PRETTY='pretty', JSON='json')
 
 
+class _Result(object):
+
+    def __init__(self, pretty=None):
+        self._pretty = pretty or str
+
+    def to_dict(self):
+        raise NotImplementedError()
+
+    def format(self, fmt):
+        if fmt == OutputType.JSON:
+            return json.dumps(self.to_dict())
+        elif fmt == OutputType.PRETTY:
+            return self._pretty(self)
+        else:
+            raise NotImplementedError()
+
+
+class DictResult(_Result):
+
+    def __init__(self, d, **kwargs):
+        super(DictResult, self).__init__(**kwargs)
+        self._dict = d
+
+    def to_dict(self):
+        return self._dict
+
+    def __str__(self):
+        return str(self._dict)
+
+    def __getitem__(self, k):
+        return self._dict[k]
+
+
+MessageTypes = enum(
+    INFO='info',
+    WARNING='warning',
+    ERROR='error')
+
+
+class Message(_Result):
+
+    def __init__(self, type, text, **kwargs):
+        super(Message, self).__init__(**kwargs)
+        self._type = type
+        self._text = text
+
+    @classmethod
+    def info(cls, s):
+        return cls(MessageTypes.INFO, s)
+
+    @classmethod
+    def warn(cls, s):
+        return cls(MessageTypes.WARNING, s)
+
+    @classmethod
+    def error(cls, s):
+        return cls(MessageTypes.ERROR, s)
+
+    @property
+    def text(self):
+        return self._text
+
+    @property
+    def type(self):
+        return self._type
+
+    @type.setter
+    def type(self, val):
+        assert val in MessageTypes
+        self._type = val
+
+    def to_dict(self):
+        return {
+            'message': {
+                'type': self.type,
+                'text': self.text,
+            }
+        }
+
+    def __str__(self):
+        return '[%s] %s' % (self._type, self._text)
+
+
 class ResultSet(object):
 
     def __init__(self, items, pretty=None):
@@ -105,26 +200,17 @@ class ResultSet(object):
     def __str__(self):
         return str(self.items)
 
-    def dump(self, fmt):
-        if fmt == OutputType.JSON:
-            return json.dumps(list(self.items))
-        elif fmt == OutputType.PRETTY:
-            return string.join([self.pretty(x) for x in self], '\n')
-            #return [self.pretty(x) for x in self]
-        else:
-            raise NotImplementedError()
+    # TODO: reimplement
+    #def dump(self, fmt):
+    #    if fmt == OutputType.JSON:
+    #        return json.dumps(list(self.items))
+    #    elif fmt == OutputType.PRETTY:
+    #        return string.join([self.pretty(x) for x in self], '\n')
+    #    else:
+    #        raise NotImplementedError()
 
 
-def client_cmd(f):
-    @wraps(f)
-    def func(self, *args, **kwargs):
-        run, pretty = f(self, *args, **kwargs)
-        result = ResultSet(run, pretty=pretty)
-        #for m in result:
-        #    print m
-        return result
-    return func
-
+################################################################################
 
 def catalog_list(catalog, distro=None, print_versions=True, **kwargs):
 
@@ -194,224 +280,6 @@ def bundle_verify(catalog, bundle_name, version_ish, check_shas=True,
 
     return verify_bundle_with_manifest(catalog, manifest, check_shas=check_shas,
                                        should_lock=should_lock, **kwargs)
-
-
-################################################################################
-
-SymbolicBundleVersions = utils.enum(
-        ALL=':all',
-        UNREFERENCED=':unreferenced',
-        LATEST=':latest')
-
-# TODO: why doesn't this work?
-#SymbolicSingleBundleVersions = utils.enum(
-#        LATEST=SymbolicBundleVersions.LATEST)
-SymbolicSingleBundleVersions = utils.enum(
-        LATEST=':latest')
-
-BundleVersionDistroPrefix = '@'
-
-
-def _resolve_single_bundle_version(catalog, bundle_name, version_ish):
-
-    if isinstance(version_ish, int):
-        version = version_ish
-
-    elif version_ish == SymbolicBundleVersions.LATEST:
-        index = catalog.get_index()
-        version = index.versions_for_bundle(bundle_name)[-1]
-
-    elif version_ish.startswith('@'):
-        source_distro = version_ish[1:]
-        version = catalog.index.version_for_bundle(bundle_name, source_distro)
-
-    return version
-
-
-def _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish):
-
-    if version_ish == SymbolicBundleVersions.ALL:
-        index = catalog.get_index()
-        versions = index.versions_for_bundle(bundle_name)
-
-    elif version_ish == SymbolicBundleVersions.UNREFERENCED:
-        index = catalog.get_index()
-        all_versions = index.versions_for_bundle(bundle_name)
-        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
-        versions = [v for v in all_versions if v not in referenced_versions]
-
-    single_version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
-    if single_version is not None:
-        versions = [single_version]
-
-    return versions
-
-
-def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
-                          force=False, skip_master_archive=False):
-
-    task = ZincBundleUpdateTask()
-    task.catalog = catalog
-    task.bundle_name = bundle_name
-    task.src_dir = src_dir
-    task.flavor_spec = flavor_spec
-    task.skip_master_archive = skip_master_archive
-    task.force = force
-    return task.run()
-
-
-def delete_bundle_versions(catalog, bundle_name, version_ish):
-    version_list = _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish)
-    with catalog.lock():
-        for version in version_list:
-            catalog.delete_bundle_version(bundle_name, version)
-
-
-def update_distribution(catalog, distro_name, bundle_name, version,
-                        save_previous=True):
-    catalog.update_distribution(distro_name, bundle_name, version,
-                                save_previous=save_previous)
-
-
-def delete_distribution(catalog, distribution_name, bundle_name,
-                        delete_previous=True):
-    catalog.delete_distribution(distribution_name, bundle_name,
-                                delete_previous=delete_previous)
-
-
-################################################################################
-
-
-MessageTypes = enum(
-    INFO='info',
-    WARNING='warning',
-    ERROR='error')
-
-
-class _Result(object):
-
-    def __init__(self, pretty=None):
-        self._pretty = pretty or str
-
-    def to_dict(self):
-        raise NotImplementedError()
-
-    def format(self, fmt):
-        if fmt == OutputType.JSON:
-            return json.dumps(self.to_dict())
-        elif fmt == OutputType.PRETTY:
-            return self._pretty(self)
-        else:
-            raise NotImplementedError()
-
-
-class DictResult(_Result):
-
-    def __init__(self, d, **kwargs):
-        super(DictResult, self).__init__(**kwargs)
-        self._dict = d
-
-    def to_dict(self):
-        return self._dict
-
-    def __str__(self):
-        return str(self._dict)
-
-    def __getitem__(self, k):
-        return self._dict[k]
-
-
-class Message(_Result):
-
-    def __init__(self, type, text, **kwargs):
-        super(Message, self).__init__(**kwargs)
-        self._type = type
-        self._text = text
-
-    @classmethod
-    def info(cls, s):
-        return cls(MessageTypes.INFO, s)
-
-    @classmethod
-    def warn(cls, s):
-        return cls(MessageTypes.WARNING, s)
-
-    @classmethod
-    def error(cls, s):
-        return cls(MessageTypes.ERROR, s)
-
-    @property
-    def text(self):
-        return self._text
-
-    @property
-    def type(self):
-        return self._type
-
-    @type.setter
-    def type(self, val):
-        assert val in MessageTypes
-        self._type = val
-
-    def to_dict(self):
-        return {
-            'message': {
-                'type': self.type,
-                'text': self.text,
-            }
-        }
-
-    def __str__(self):
-        return '[%s] %s' % (self._type, self._text)
-
-
-def _verify_archive(catalog, manifest, flavor=None, check_shas=True):
-
-    if not check_shas:
-        yield Message.warn('Skipping SHA digest verification for archive members.')
-
-    archive_name = catalog.path_helper.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
-    all_files = manifest.get_all_files(flavor=flavor)
-
-    with catalog._read_archive(manifest.bundle_name, manifest.version, flavor=flavor) as fileobj:
-
-        tar = tarfile.open(fileobj=fileobj)
-
-        # Note: getmembers and getnames return objects in the same order
-        members = tar.getmembers()
-        member_names = tar.getnames()
-
-        found_error = False
-
-        for file in all_files:
-            sha = manifest.sha_for_file(file)
-            format, info = manifest.get_format_info_for_file(file, preferred_formats=defaults['catalog_preferred_formats'])
-            target_member_name = helpers.append_file_extension_for_format(sha, format)
-            if target_member_name not in member_names:
-                found_error = True
-                yield Message.error('File \'%s\' not found in %s.' % (target_member_name, helpers.make_bundle_descriptor(manifest.bundle_name, manifest.version, flavor=flavor)))
-            else:
-                member = members[member_names.index(target_member_name)]
-                if check_shas:
-                    f = tar.extractfile(member)
-                    b = f.read()
-                    f.close()
-                    if format == Formats.GZ:
-                        b = utils.gunzip_bytes(b)
-                    digest = hashlib.sha1(b).hexdigest()
-                    if digest != sha:
-                        found_error = True
-                        yield Message.error('File \'%s\' digest does not match: %s.' % (target_member_name, digest))
-                else:
-                    # check length only
-                    if info['size'] != member.size:
-                        found_error = True
-                        yield Message.error('File \'%s\' has size %d, expected %d.' % (target_member_name, info['size'], member.size))
-
-        tar.close()
-
-    if not found_error:
-        yield Message.info('Archive %s OK' % (archive_name))
 
 
 def verify_bundle_with_manifest(catalog, manifest, check_shas=True,
@@ -520,7 +388,36 @@ def verify_catalog(catalog, should_lock=False, **kwargs):
     return errors
 
 
-################################################################################
+def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
+                          force=False, skip_master_archive=False):
+
+    task = ZincBundleUpdateTask()
+    task.catalog = catalog
+    task.bundle_name = bundle_name
+    task.src_dir = src_dir
+    task.flavor_spec = flavor_spec
+    task.skip_master_archive = skip_master_archive
+    task.force = force
+    return task.run()
+
+
+def delete_bundle_versions(catalog, bundle_name, version_ish):
+    version_list = _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish)
+    with catalog.lock():
+        for version in version_list:
+            catalog.delete_bundle_version(bundle_name, version)
+
+
+def update_distribution(catalog, distro_name, bundle_name, version,
+                        save_previous=True):
+    catalog.update_distribution(distro_name, bundle_name, version,
+                                save_previous=save_previous)
+
+
+def delete_distribution(catalog, distribution_name, bundle_name,
+                        delete_previous=True):
+    catalog.delete_distribution(distribution_name, bundle_name,
+                                delete_previous=delete_previous)
 
 
 def clone_bundle(catalog, bundle_name, version, root_path=None, bundle_dir_name=None, flavor=None):
@@ -676,3 +573,90 @@ def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs
     return get_service(service_url=service_url,
                        coordinator_info=coordinator_info,
                        storage_info=storage_info, **kwargs)
+
+
+################################################################################
+
+def _verify_archive(catalog, manifest, flavor=None, check_shas=True):
+
+    if not check_shas:
+        yield Message.warn('Skipping SHA digest verification for archive members.')
+
+    archive_name = catalog.path_helper.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
+    all_files = manifest.get_all_files(flavor=flavor)
+
+    with catalog._read_archive(manifest.bundle_name, manifest.version, flavor=flavor) as fileobj:
+
+        tar = tarfile.open(fileobj=fileobj)
+
+        # Note: getmembers and getnames return objects in the same order
+        members = tar.getmembers()
+        member_names = tar.getnames()
+
+        found_error = False
+
+        for file in all_files:
+            sha = manifest.sha_for_file(file)
+            format, info = manifest.get_format_info_for_file(file, preferred_formats=defaults['catalog_preferred_formats'])
+            target_member_name = helpers.append_file_extension_for_format(sha, format)
+            if target_member_name not in member_names:
+                found_error = True
+                yield Message.error('File \'%s\' not found in %s.' % (target_member_name, helpers.make_bundle_descriptor(manifest.bundle_name, manifest.version, flavor=flavor)))
+            else:
+                member = members[member_names.index(target_member_name)]
+                if check_shas:
+                    f = tar.extractfile(member)
+                    b = f.read()
+                    f.close()
+                    if format == Formats.GZ:
+                        b = utils.gunzip_bytes(b)
+                    digest = hashlib.sha1(b).hexdigest()
+                    if digest != sha:
+                        found_error = True
+                        yield Message.error('File \'%s\' digest does not match: %s.' % (target_member_name, digest))
+                else:
+                    # check length only
+                    if info['size'] != member.size:
+                        found_error = True
+                        yield Message.error('File \'%s\' has size %d, expected %d.' % (target_member_name, info['size'], member.size))
+
+        tar.close()
+
+    if not found_error:
+        yield Message.info('Archive %s OK' % (archive_name))
+
+
+def _resolve_single_bundle_version(catalog, bundle_name, version_ish):
+
+    if isinstance(version_ish, int):
+        version = version_ish
+
+    elif version_ish == SymbolicBundleVersions.LATEST:
+        index = catalog.get_index()
+        version = index.versions_for_bundle(bundle_name)[-1]
+
+    elif version_ish.startswith('@'):
+        source_distro = version_ish[1:]
+        version = catalog.index.version_for_bundle(bundle_name, source_distro)
+
+    return version
+
+
+def _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish):
+
+    if version_ish == SymbolicBundleVersions.ALL:
+        index = catalog.get_index()
+        versions = index.versions_for_bundle(bundle_name)
+
+    elif version_ish == SymbolicBundleVersions.UNREFERENCED:
+        index = catalog.get_index()
+        all_versions = index.versions_for_bundle(bundle_name)
+        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
+        versions = [v for v in all_versions if v not in referenced_versions]
+
+    single_version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
+    if single_version is not None:
+        versions = [single_version]
+
+    return versions
+
