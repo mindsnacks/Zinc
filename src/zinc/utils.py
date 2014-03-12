@@ -8,15 +8,43 @@ This module provides utility functions that are used within Zinc.
 
 """
 
+from __future__ import absolute_import
+
 import hashlib
 import gzip
 import zlib
 import os
 import StringIO
 
+from types import GeneratorType
+from itertools import tee
 
-def enum(**enums):
-    return type('Enum', (), enums)
+Tee = tee([], 1)[0].__class__
+
+
+class EnumMC(type):
+    def __contains__(self, val):
+        return val in vars(self).values()
+
+
+def enum(*sequential, **named):
+    enums = dict(zip(sequential, range(len(sequential))), **named)
+    return EnumMC('Enum', (), enums)
+
+
+def memoized(f):
+    cache = dict()
+
+    def ret(*args):
+        if args not in cache:
+            cache[args] = f(*args)
+        if isinstance(cache[args], (GeneratorType, Tee)):
+            # the original can't be used any more,
+            # so we need to change the cache as well
+            cache[args], r = tee(cache[args])
+            return r
+        return cache[args]
+    return ret
 
 
 def sha1_for_path(path):

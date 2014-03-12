@@ -92,15 +92,11 @@ def get_catalog(config, cargs):
     return catalog
 
 
-def parse_single_version(catalog, bundle_name, version_string):
+def parse_single_version_ish(catalog, bundle_name, version_string):
 
-    if version_string == ':latest':
-        index = catalog.get_index()
-        bundle_version = index.versions_for_bundle(bundle_name)[-1]
-
-    elif version_string.startswith('@'):
-        source_distro = version_string[1:]
-        bundle_version = catalog.index.version_for_bundle(bundle_name, source_distro)
+    if version_string in client.SymbolicSingleBundleVersions or \
+            version_string.startswith(client.BundleVersionDistroPrefix):
+        bundle_version = version_string
 
     else:
         bundle_version = int(version_string)
@@ -108,35 +104,22 @@ def parse_single_version(catalog, bundle_name, version_string):
     return bundle_version
 
 
-def parse_multi_versions(catalog, bundle_name, version_string):
+def parse_multi_version_ish(catalog, bundle_name, version_list):
 
-    if version_string == ':all':
-        index = catalog.get_index()
-        bundle_versions = index.versions_for_bundle(bundle_name)
+    parsed_version_list = list()
 
-    elif version_string == ':unreferenced':
-        index = catalog.get_index()
-        all_versions = index.versions_for_bundle(bundle_name)
-        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
-        bundle_versions = [v for v in all_versions if v not in referenced_versions]
+    for version in version_list:
+        if version in client.SymbolicBundleVersions:
+            parsed_version = version
+        else:
+            parsed_version = int(version)
+        parsed_version_list.append(parsed_version)
 
-    else:
-        bundle_versions = [parse_single_version(catalog, bundle_name, version_string)]
-
-    return bundle_versions
+    return parsed_version_list
 
 
 ### Client Commands #################################################################
 # TODO: move to zinc.client ?
-
-def bundle_list(catalog, bundle_name, version, print_sha=False, flavor_name=None):
-    manifest = catalog.manifest_for_bundle(bundle_name, version=version)
-    all_files = sorted(manifest.get_all_files(flavor=flavor_name))
-    for f in all_files:
-        if print_sha:
-            print f, 'sha=%s' % (manifest.sha_for_file(f))
-        else:
-            print f
 
 
 def bundle_update(catalog, bundle_name, path, flavors=None, force=False,
@@ -196,8 +179,10 @@ def flavorspec_delete(catalog, name):
 def cli_cmd(f):
     @wraps(f)
     def func(self, *args, **kwargs):
-        o = f(self, *args, **kwargs)
-        print o.format(args[0].format)
+        results = f(self, *args, **kwargs)
+        #print o.format(args[0].format)  ## old way
+        for result in results:
+            print result.format(args[0].format)
     return func
 
 
@@ -221,13 +206,15 @@ def subcmd_catalog_clean(config, cargs):
     catalog.clean(dry_run=not cargs.force)
 
 
+@cli_cmd
 def subcmd_bundle_list(config, cargs):
     catalog = get_catalog(config, cargs)
     bundle_name = cargs.bundle
-    version = parse_single_version(catalog, bundle_name, cargs.version)
+    version = parse_single_version_ish(catalog, bundle_name, cargs.version)
     print_sha = cargs.sha
     flavor_name = cargs.flavor
-    bundle_list(catalog, bundle_name, version, print_sha=print_sha, flavor_name=flavor_name)
+    return client.bundle_list(catalog, bundle_name, version,
+            print_sha=print_sha, flavor_name=flavor_name)
 
 
 def subcmd_bundle_update(config, cargs):
@@ -257,7 +244,7 @@ def subcmd_bundle_clone(config, cargs):
     catalog = get_catalog(config, cargs)
     bundle_name = cargs.bundle
     bundle_id = helpers.make_bundle_id(catalog.id, bundle_name)
-    version = parse_single_version(catalog, bundle_name, cargs.version)
+    version = parse_single_version_ish(catalog, bundle_name, cargs.version)
     flavor = cargs.flavor
     root_path = cargs.path
 
@@ -283,16 +270,17 @@ def subcmd_bundle_clone(config, cargs):
 def subcmd_bundle_delete(config, cargs):
     catalog = get_catalog(config, cargs)
     bundle_name = cargs.bundle
-    versions = parse_multi_versions(catalog, bundle_name, cargs.version)
+    versions = parse_multi_version_ish(catalog, bundle_name, cargs.versions)
     dry_run = cargs.dry_run
     bundle_delete(catalog, bundle_name, versions, dry_run=dry_run)
 
 
+@cli_cmd
 def subcmd_bundle_verify(config, cargs):
     catalog = get_catalog(config, cargs)
     bundle_name = cargs.bundle
-    version = parse_single_version(catalog, bundle_name, cargs.version)
-    client.verify_bundle(catalog, bundle_name=bundle_name, version=version)
+    version_ish = parse_single_version_ish(catalog, bundle_name, cargs.version)
+    return client.bundle_verify(catalog, bundle_name, version_ish)
 
 
 def subcmd_distro_update(config, cargs):
@@ -300,7 +288,7 @@ def subcmd_distro_update(config, cargs):
     catalog = get_catalog(config, cargs)
     bundle_name = cargs.bundle
     distro_name = cargs.distro
-    version = parse_single_version(catalog, bundle_name, cargs.version)
+    version = parse_single_version_ish(catalog, bundle_name, cargs.version)
     save_previous = not cargs.no_prev_distro
     distro_update(catalog, bundle_name, distro_name, version,
                   save_previous=save_previous)
@@ -388,7 +376,7 @@ def subcmd_dump_manifest(config, cargs):
 
     catalog = get_catalog(config, cargs)
     bundle_name = cargs.bundle
-    version = parse_single_version(catalog, bundle_name, cargs.version)
+    version = parse_single_version_ish(catalog, bundle_name, cargs.version)
 
     subpath = catalog.path_helper.path_for_manifest_for_bundle_version(bundle_name, version)
     dest_path = _dump_get_dest_path(subpath, cargs)
@@ -449,8 +437,11 @@ def main():
         '-b', '--bundle', required=True, help='Bundle name.')
     add_distro_arg = lambda parser, required=True: parser.add_argument(
         '-d', '--distro', required=required, help='Name of the distro.')
-    add_version_arg = lambda parser, required=True: parser.add_argument(
+    add_single_version_arg = lambda parser, required=True: parser.add_argument(
         '-v', '--version', required=required, help='Version.')
+    add_multiple_versions_arg = lambda parser, required=True: \
+        parser.add_argument('-v', '--versions', nargs='+', required=required,
+            help='Versions, separated by spaces.')
     add_timeout_arg = lambda parser, required=False: parser.add_argument(
         '--timeout', required=required, default=None,
         help='Timeout for acquiring catalog locks. 0 = wait forever.')
@@ -507,7 +498,7 @@ def main():
                                                help='List contents of a bundle')
     add_catalog_arg(parser_bundle_list)
     add_bundle_arg(parser_bundle_list)
-    add_version_arg(parser_bundle_list)
+    add_single_version_arg(parser_bundle_list)
     parser_bundle_list.add_argument('--sha',
                                     default=False,
                                     action='store_true',
@@ -551,7 +542,7 @@ def main():
                                                 help='Clones a bundle to a local directory.')
     add_catalog_arg(parser_bundle_clone)
     add_bundle_arg(parser_bundle_clone)
-    add_version_arg(parser_bundle_clone)
+    add_single_version_arg(parser_bundle_clone)
     parser_bundle_clone.add_argument('-p', '--path',
                                      required=False,
                                      default='.',
@@ -574,7 +565,7 @@ def main():
     add_catalog_arg(parser_bundle_delete)
     add_timeout_arg(parser_bundle_delete)
     add_bundle_arg(parser_bundle_delete)
-    add_version_arg(parser_bundle_delete)
+    add_multiple_versions_arg(parser_bundle_delete)
     parser_bundle_delete.add_argument('-n', '--dry-run',
                                       default=False,
                                       action='store_true',
@@ -586,7 +577,7 @@ def main():
                                                  help='Verify all contents of a bundle.')
     add_catalog_arg(parser_bundle_verify)
     add_bundle_arg(parser_bundle_verify)
-    add_version_arg(parser_bundle_verify)
+    add_single_version_arg(parser_bundle_verify)
     # TODO: allow for version OR distro
     parser_bundle_verify.set_defaults(func=subcmd_bundle_verify)
 
@@ -596,7 +587,7 @@ def main():
     add_catalog_arg(parser_distro_update)
     add_timeout_arg(parser_distro_update)
     add_bundle_arg(parser_distro_update)
-    add_version_arg(parser_distro_update)
+    add_single_version_arg(parser_distro_update)
     add_distro_arg(parser_distro_update)
     parser_distro_update.add_argument('--no-prev-distro',
                                       default=False,
@@ -653,7 +644,7 @@ def main():
                                                  help='Dump a manifest file from a catalog.')
     add_catalog_arg(parser_dump_manifest)
     add_bundle_arg(parser_dump_manifest)
-    add_version_arg(parser_dump_manifest)
+    add_single_version_arg(parser_dump_manifest)
     add_remote_name_arg(parser_dump_manifest)
     add_no_decompress_arg(parser_dump_manifest)
     parser_dump_manifest.set_defaults(func=subcmd_dump_manifest)

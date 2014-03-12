@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import os
 import logging
 import tarfile
@@ -9,17 +11,16 @@ import json
 import string
 from functools import wraps
 
-from .utils import enum
-
-from zinc.formats import Formats
-from zinc.models import ZincModel, ZincIndex, ZincCatalogConfig
-from zinc.tasks.bundle_update import ZincBundleUpdateTask
-from zinc.coordinators import coordinator_for_url
-from zinc.storages import storage_for_url
-from zinc.catalog import ZincCatalog
-from zinc.defaults import defaults
 import zinc.helpers as helpers
 import zinc.utils as utils
+from .catalog import ZincCatalog
+from .defaults import defaults
+from .coordinators import coordinator_for_url
+from .formats import Formats
+from .models import ZincModel, ZincIndex, ZincCatalogConfig
+from .storages import storage_for_url
+from .tasks.bundle_update import ZincBundleUpdateTask
+from .utils import enum, memoized
 
 log = logging.getLogger(__name__)
 
@@ -82,33 +83,34 @@ class ZincClientConfig(ZincModel):
         return self._d.get('storage')
 
 
-
 ################################################################################
 
 OutputType = enum(PRETTY='pretty', JSON='json')
 
 
-class ZincCommandResult(object):
+class ResultSet(object):
 
     def __init__(self, items, pretty=None):
         self._items = items
         self.pretty = pretty or str
 
     @property
+    @memoized
     def items(self):
-        return self._items
+        return self._items()
 
     def __iter__(self):
-        return iter(self._items)
+        return iter(self.items)
 
     def __str__(self):
-        return str(self._items)
+        return str(self.items)
 
-    def format(self, fmt):
+    def dump(self, fmt):
         if fmt == OutputType.JSON:
-            return json.dumps(self._items)
+            return json.dumps(list(self.items))
         elif fmt == OutputType.PRETTY:
             return string.join([self.pretty(x) for x in self], '\n')
+            #return [self.pretty(x) for x in self]
         else:
             raise NotImplementedError()
 
@@ -116,23 +118,24 @@ class ZincCommandResult(object):
 def client_cmd(f):
     @wraps(f)
     def func(self, *args, **kwargs):
-        msgs, pretty = f(self, *args, **kwargs)
-        out = ZincCommandResult(msgs, pretty=pretty)
-        return out
+        run, pretty = f(self, *args, **kwargs)
+        result = ResultSet(run, pretty=pretty)
+        #for m in result:
+        #    print m
+        return result
     return func
 
 
-@client_cmd
 def catalog_list(catalog, distro=None, print_versions=True, **kwargs):
 
     index = catalog.get_index()
 
-    def pretty_without_versions(m):
-        return "%s" % (m['bundle_name'])
+    def pretty_without_versions(result):
+        return "%s" % (result['bundle_name'])
 
-    def pretty_with_versions(m):
-        distros = index.distributions_for_bundle_by_version(m['bundle_name'])
-        versions = index.versions_for_bundle(m['bundle_name'])
+    def pretty_with_versions(result):
+        distros = index.distributions_for_bundle_by_version(result['bundle_name'])
+        versions = index.versions_for_bundle(result['bundle_name'])
         version_strings = list()
         for version in versions:
             version_string = str(version)
@@ -142,25 +145,106 @@ def catalog_list(catalog, distro=None, print_versions=True, **kwargs):
                 version_strings.append(version_string)
 
         final_version_string = "[%s]" % (", ".join(version_strings))
-        return "%s %s" % (m['bundle_name'], final_version_string)
-
-    def msgs():
-        bundle_names = sorted(index.bundle_names())
-        for bundle_name in bundle_names:
-            msg = dict()
-            if distro and distro not in index.distributions_for_bundle(bundle_name):
-                continue
-            msg['bundle_name'] = bundle_name
-            msg['versions'] = index.versions_for_bundle(bundle_name)
-            msg['distros'] = index.distributions_for_bundle(bundle_name)
-            yield msg
+        return "%s %s" % (result['bundle_name'], final_version_string)
 
     pretty = pretty_with_versions if print_versions else pretty_without_versions
 
-    return (list(msgs()), pretty)
+    def results():
+        bundle_names = sorted(index.bundle_names())
+        for bundle_name in bundle_names:
+            d = dict()
+            if distro and distro not in index.distributions_for_bundle(bundle_name):
+                continue
+            d['bundle_name'] = bundle_name
+            d['versions'] = index.versions_for_bundle(bundle_name)
+            d['distros'] = index.distributions_for_bundle(bundle_name)
+            yield DictResult(d, pretty=pretty)
+
+    return ResultSet(results)
+
+
+def bundle_list(catalog, bundle_name, version_ish, print_sha=False, flavor_name=None):
+
+    version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
+    manifest = catalog.manifest_for_bundle(bundle_name, version=version)
+
+    def pretty(r):
+        if print_sha:
+            return "%s sha=%s" % (r['file'], r['sha'])
+        else:
+            return "%s" % (r['file'])
+
+    def results():
+        all_files = sorted(manifest.get_all_files(flavor=flavor_name))
+        for f in all_files:
+            d = {
+                'file':  f,
+                'sha': manifest.sha_for_file(f)
+            }
+            yield DictResult(d, pretty=pretty)
+
+    return ResultSet(results)
+
+
+def bundle_verify(catalog, bundle_name, version_ish, check_shas=True,
+        should_lock=False, **kwargs):
+
+    version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
+    manifest = catalog.get_manifest(bundle_name, version)
+
+    return verify_bundle_with_manifest(catalog, manifest, check_shas=check_shas,
+                                       should_lock=should_lock, **kwargs)
 
 
 ################################################################################
+
+SymbolicBundleVersions = utils.enum(
+        ALL=':all',
+        UNREFERENCED=':unreferenced',
+        LATEST=':latest')
+
+# TODO: why doesn't this work?
+#SymbolicSingleBundleVersions = utils.enum(
+#        LATEST=SymbolicBundleVersions.LATEST)
+SymbolicSingleBundleVersions = utils.enum(
+        LATEST=':latest')
+
+BundleVersionDistroPrefix = '@'
+
+
+def _resolve_single_bundle_version(catalog, bundle_name, version_ish):
+
+    if isinstance(version_ish, int):
+        version = version_ish
+
+    elif version_ish == SymbolicBundleVersions.LATEST:
+        index = catalog.get_index()
+        version = index.versions_for_bundle(bundle_name)[-1]
+
+    elif version_ish.startswith('@'):
+        source_distro = version_ish[1:]
+        version = catalog.index.version_for_bundle(bundle_name, source_distro)
+
+    return version
+
+
+def _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish):
+
+    if version_ish == SymbolicBundleVersions.ALL:
+        index = catalog.get_index()
+        versions = index.versions_for_bundle(bundle_name)
+
+    elif version_ish == SymbolicBundleVersions.UNREFERENCED:
+        index = catalog.get_index()
+        all_versions = index.versions_for_bundle(bundle_name)
+        referenced_versions = catalog.index.distributions_for_bundle_by_version(bundle_name).keys()
+        versions = [v for v in all_versions if v not in referenced_versions]
+
+    single_version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
+    if single_version is not None:
+        versions = [single_version]
+
+    return versions
 
 
 def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
@@ -176,7 +260,8 @@ def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
     return task.run()
 
 
-def delete_bundle_versions(catalog, bundle_name, version_list):
+def delete_bundle_versions(catalog, bundle_name, version_ish):
+    version_list = _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish)
     with catalog.lock():
         for version in version_list:
             catalog.delete_bundle_version(bundle_name, version)
@@ -197,97 +282,174 @@ def delete_distribution(catalog, distribution_name, bundle_name,
 ################################################################################
 
 
-class ZincVerificationError(Exception):
-    pass
+MessageTypes = enum(
+    INFO='info',
+    WARNING='warning',
+    ERROR='error')
 
 
-def _verify_archive(manifest, fileobj=None, flavor=None, check_shas=True):
+class _Result(object):
 
-    assert fileobj
+    def __init__(self, pretty=None):
+        self._pretty = pretty or str
+
+    def to_dict(self):
+        raise NotImplementedError()
+
+    def format(self, fmt):
+        if fmt == OutputType.JSON:
+            return json.dumps(self.to_dict())
+        elif fmt == OutputType.PRETTY:
+            return self._pretty(self)
+        else:
+            raise NotImplementedError()
+
+
+class DictResult(_Result):
+
+    def __init__(self, d, **kwargs):
+        super(DictResult, self).__init__(**kwargs)
+        self._dict = d
+
+    def to_dict(self):
+        return self._dict
+
+    def __str__(self):
+        return str(self._dict)
+
+    def __getitem__(self, k):
+        return self._dict[k]
+
+
+class Message(_Result):
+
+    def __init__(self, type, text, **kwargs):
+        super(Message, self).__init__(**kwargs)
+        self._type = type
+        self._text = text
+
+    @classmethod
+    def info(cls, s):
+        return cls(MessageTypes.INFO, s)
+
+    @classmethod
+    def warn(cls, s):
+        return cls(MessageTypes.WARNING, s)
+
+    @classmethod
+    def error(cls, s):
+        return cls(MessageTypes.ERROR, s)
+
+    @property
+    def text(self):
+        return self._text
+
+    @property
+    def type(self):
+        return self._type
+
+    @type.setter
+    def type(self, val):
+        assert val in MessageTypes
+        self._type = val
+
+    def to_dict(self):
+        return {
+            'message': {
+                'type': self.type,
+                'text': self.text,
+            }
+        }
+
+    def __str__(self):
+        return '[%s] %s' % (self._type, self._text)
+
+
+def _verify_archive(catalog, manifest, flavor=None, check_shas=True):
 
     if not check_shas:
-        log.warning('Skipping SHA digest verification for archive members.')
+        yield Message.warn('Skipping SHA digest verification for archive members.')
 
+    archive_name = catalog.path_helper.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
     all_files = manifest.get_all_files(flavor=flavor)
 
-    tar = tarfile.open(fileobj=fileobj)
+    with catalog._read_archive(manifest.bundle_name, manifest.version, flavor=flavor) as fileobj:
 
-    # Note: getmembers and getnames return objects in the same order
-    members = tar.getmembers()
-    member_names = tar.getnames()
+        tar = tarfile.open(fileobj=fileobj)
 
-    errors = list()
+        # Note: getmembers and getnames return objects in the same order
+        members = tar.getmembers()
+        member_names = tar.getnames()
 
-    for file in all_files:
-        sha = manifest.sha_for_file(file)
-        format, info = manifest.get_format_info_for_file(file, preferred_formats=defaults['catalog_preferred_formats'])
-        target_member_name = helpers.append_file_extension_for_format(sha, format)
-        if target_member_name not in member_names:
-            errors.append(ZincVerificationError('File \'%s\' not found in %s.' % (target_member_name, helpers.make_bundle_descriptor(manifest.bundle_name, manifest.version, flavor=flavor))))
-        else:
-            member = members[member_names.index(target_member_name)]
-            if check_shas:
-                f = tar.extractfile(member)
-                b = f.read()
-                f.close()
-                if format == Formats.GZ:
-                    b = utils.gunzip_bytes(b)
-                digest = hashlib.sha1(b).hexdigest()
-                if digest != sha:
-                    errors.append(ZincVerificationError('File \'%s\' digest does not match: %s.' % (target_member_name, digest)))
+        found_error = False
+
+        for file in all_files:
+            sha = manifest.sha_for_file(file)
+            format, info = manifest.get_format_info_for_file(file, preferred_formats=defaults['catalog_preferred_formats'])
+            target_member_name = helpers.append_file_extension_for_format(sha, format)
+            if target_member_name not in member_names:
+                found_error = True
+                yield Message.error('File \'%s\' not found in %s.' % (target_member_name, helpers.make_bundle_descriptor(manifest.bundle_name, manifest.version, flavor=flavor)))
             else:
-                # check length only
-                if info['size'] != member.size:
-                    errors.append(ZincVerificationError('File \'%s\' has size %d, expected %d.' % (target_member_name, info['size'], member.size)))
+                member = members[member_names.index(target_member_name)]
+                if check_shas:
+                    f = tar.extractfile(member)
+                    b = f.read()
+                    f.close()
+                    if format == Formats.GZ:
+                        b = utils.gunzip_bytes(b)
+                    digest = hashlib.sha1(b).hexdigest()
+                    if digest != sha:
+                        found_error = True
+                        yield Message.error('File \'%s\' digest does not match: %s.' % (target_member_name, digest))
+                else:
+                    # check length only
+                    if info['size'] != member.size:
+                        found_error = True
+                        yield Message.error('File \'%s\' has size %d, expected %d.' % (target_member_name, info['size'], member.size))
 
-    tar.close()
+        tar.close()
 
-    return errors
+    if not found_error:
+        yield Message.info('Archive %s OK' % (archive_name))
 
 
-def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
-                  distro=None, check_shas=True, should_lock=False, **kwargs):
+def verify_bundle_with_manifest(catalog, manifest, check_shas=True,
+        should_lock=False, **kwargs):
 
-    assert catalog
-    assert manifest or bundle_name
-    if bundle_name is not None:
-        assert version or distro
+    def results():
 
-    if not check_shas:
-        log.warning('Skipping SHA digest verification for bundle files.')
+        if not check_shas:
+            yield Message.warn('Skipping SHA digest verification for bundle files.')
 
-    if manifest is None:
-        if version is None:
-            index = catalog.get_index()
-            index.version_for_bundle(bundle_name, distro)
-        manifest = catalog.get_manifest(bundle_name, version)
+        ## Check individual files
 
-    ## Check individual files
+        for path, info in manifest.files.iteritems():
+            sha = manifest.sha_for_file(path)
 
-    for path, info in manifest.files.iteritems():
-        sha = manifest.sha_for_file(path)
+            ## Note: it's important to used the reference in kwargs directly
+            ##  or else changes won't be propagated to the calling code
 
-        ## Note: it's important to used the reference in kwargs directly
-        ##  or else changes won't be propagated to the calling code
+            if kwargs.get('verified_files') is not None:
+                if sha in kwargs['verified_files']:
+                    log.debug('Skipping %s' % (sha))
+                    continue
+                else:
+                    kwargs['verified_files'].add(sha)
 
-        if kwargs.get('verified_files') is not None:
-            if sha in kwargs['verified_files']:
-                log.debug('Skipping %s' % (sha))
-                continue
-            else:
-                kwargs['verified_files'].add(sha)
-
-        try:
             meta = catalog._get_file_info(sha)
             if meta is None:
-                raise ZincVerificationError('File %s not exist' % (sha))
+                #run.append(VerificationError('File %s not exist' % (sha)))
+                yield Message.error('File %s not exist' % (sha))
+                continue
 
             format = meta['format']
             meta_size = meta['size']
             manifest_size = info['formats'][format]['size']
             log.debug("file=%s format=%s meta_size=%s manifest_size=%s" % (sha, format, meta_size, manifest_size))
             if  meta_size != manifest_size:
-                raise ZincVerificationError('File %s wrong size' % (sha))
+                yield Message.error('File %s wrong size' % (sha))
+                continue
 
             if check_shas:
                 ext = helpers.file_extension_for_format(format)
@@ -297,21 +459,18 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
                         b = utils.gunzip_bytes(b)
                     digest = hashlib.sha1(b).hexdigest()
                     if digest != sha:
-                        raise ZincVerificationError('File %s wrong hash' % (sha))
+                        yield Message.error('File %s wrong hash' % (sha))
+                        continue
 
-            log.info('File %s OK' % (sha))
+            yield Message.info('File %s OK' % (sha))
 
-        except ZincVerificationError as e:
-            log.error(e)
+        ## Check archives
 
-    ## Check archives
+        flavors = list(manifest.flavors)
+        flavors.append(None)  # no flavor
 
-    flavors = list(manifest.flavors)
-    flavors.append(None)  # no flavor
-
-    for flavor in flavors:
-        archive_name = catalog.path_helper.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
-        try:
+        for flavor in flavors:
+            archive_name = catalog.path_helper.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
             # TODO: private reference to _get_archive_info
             meta = catalog._get_archive_info(manifest.bundle_name, manifest.version, flavor=flavor)
             if meta is None:
@@ -322,21 +481,16 @@ def verify_bundle(catalog, manifest=None, bundle_name=None, version=None,
                 elif flavor is None and len(flavors) > 1:
                     # If there is more than 1 flavor, we usually don't need the
                     # master archive. This is probably OK, but warn anyway.
-                    log.warn('Archive %s not found.' % (archive_name))
+                    #log.warn('Archive %s not found.' % (archive_name))
+                    Message.warn('Archive %s not found.' % (archive_name))
                     continue
                 else:
-                    raise ZincVerificationError('Archive %s not found.' % (archive_name))
+                    yield Message.error('Archive %s not found.' % (archive_name))
 
-            with catalog._read_archive(manifest.bundle_name, manifest.version, flavor=flavor) as a:
-                archive_errors = _verify_archive(manifest, fileobj=a, flavor=flavor, check_shas=check_shas)
-                if len(archive_errors) > 0:
-                    for archive_err in archive_errors:
-                        log.error(archive_err)
-                else:
-                    log.info('Archive %s OK' % (archive_name))
+            for m in _verify_archive(catalog, manifest, flavor=flavor, check_shas=check_shas):
+                yield m
 
-        except ZincVerificationError as e:
-            log.error(e)
+    return ResultSet(results)
 
 
 def verify_catalog(catalog, should_lock=False, **kwargs):
@@ -360,7 +514,8 @@ def verify_catalog(catalog, should_lock=False, **kwargs):
     verified_files = set()
     for manifest in manifests:
         log.info("Verifying %s-%d" % (manifest.bundle_name, manifest.version))
-        verify_bundle(catalog, manifest=manifest, verified_files=verified_files)
+        verify_bundle_with_manifest(catalog, manifest,
+                verified_files=verified_files)
 
     return errors
 
