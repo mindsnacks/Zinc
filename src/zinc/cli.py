@@ -318,15 +318,11 @@ def subcmd_flavorspec_delete(config, cargs):
     flavorspec_delete(catalog, cargs.name)
 
 
+@cli_cmd
 def subcmd_catalog_verify(config, cargs):
     catalog = get_catalog(config, cargs)
     should_lock = cargs.lock
-    results = client.verify_catalog(catalog, should_lock=should_lock)
-    if len(results) == 0:
-        print 'All ok!'
-    else:
-        for r in results:
-            print r
+    return client.verify_catalog(catalog, should_lock=should_lock)
 
 
 def _dump_json(catalog, subpath, dest_path=None, should_decompress=True, gzip=True):

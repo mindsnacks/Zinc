@@ -8,7 +8,6 @@ from collections import namedtuple
 from urlparse import urlparse
 import toml
 import json
-import string
 
 import zinc.helpers as helpers
 import zinc.utils as utils
@@ -278,114 +277,45 @@ def bundle_verify(catalog, bundle_name, version_ish, check_shas=True,
     version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
     manifest = catalog.get_manifest(bundle_name, version)
 
-    return verify_bundle_with_manifest(catalog, manifest, check_shas=check_shas,
-                                       should_lock=should_lock, **kwargs)
-
-
-def verify_bundle_with_manifest(catalog, manifest, check_shas=True,
-        should_lock=False, **kwargs):
-
     def results():
 
-        if not check_shas:
-            yield Message.warn('Skipping SHA digest verification for bundle files.')
-
-        ## Check individual files
-
-        for path, info in manifest.files.iteritems():
-            sha = manifest.sha_for_file(path)
-
-            ## Note: it's important to used the reference in kwargs directly
-            ##  or else changes won't be propagated to the calling code
-
-            if kwargs.get('verified_files') is not None:
-                if sha in kwargs['verified_files']:
-                    log.debug('Skipping %s' % (sha))
-                    continue
-                else:
-                    kwargs['verified_files'].add(sha)
-
-            meta = catalog._get_file_info(sha)
-            if meta is None:
-                #run.append(VerificationError('File %s not exist' % (sha)))
-                yield Message.error('File %s not exist' % (sha))
-                continue
-
-            format = meta['format']
-            meta_size = meta['size']
-            manifest_size = info['formats'][format]['size']
-            log.debug("file=%s format=%s meta_size=%s manifest_size=%s" % (sha, format, meta_size, manifest_size))
-            if  meta_size != manifest_size:
-                yield Message.error('File %s wrong size' % (sha))
-                continue
-
-            if check_shas:
-                ext = helpers.file_extension_for_format(format)
-                with catalog._read_file(sha, ext=ext) as f:
-                    b = f.read()
-                    if format == Formats.GZ:
-                        b = utils.gunzip_bytes(b)
-                    digest = hashlib.sha1(b).hexdigest()
-                    if digest != sha:
-                        yield Message.error('File %s wrong hash' % (sha))
-                        continue
-
-            yield Message.info('File %s OK' % (sha))
-
-        ## Check archives
-
-        flavors = list(manifest.flavors)
-        flavors.append(None)  # no flavor
-
-        for flavor in flavors:
-            archive_name = catalog.path_helper.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
-            # TODO: private reference to _get_archive_info
-            meta = catalog._get_archive_info(manifest.bundle_name, manifest.version, flavor=flavor)
-            if meta is None:
-                if len(manifest.get_all_files(flavor=flavor)) == 1:
-                    # If there is only 1 file in the bundle there should not be
-                    # an archive
-                    continue
-                elif flavor is None and len(flavors) > 1:
-                    # If there is more than 1 flavor, we usually don't need the
-                    # master archive. This is probably OK, but warn anyway.
-                    #log.warn('Archive %s not found.' % (archive_name))
-                    Message.warn('Archive %s not found.' % (archive_name))
-                    continue
-                else:
-                    yield Message.error('Archive %s not found.' % (archive_name))
-
-            for m in _verify_archive(catalog, manifest, flavor=flavor, check_shas=check_shas):
-                yield m
+        for result in _verify_bundle_with_manifest(catalog, manifest,
+                                                   check_shas=check_shas,
+                                                   should_lock=should_lock,
+                                                   **kwargs):
+            yield result
 
     return ResultSet(results)
 
 
 def verify_catalog(catalog, should_lock=False, **kwargs):
 
-    errors = []
     index = catalog.get_index()
-    manifests = []
+    manifests = list()
     ph = catalog.path_helper
 
-    # TODO: fix private ref to _bundle_info_by_name
-    for (bundle_name, bundle_info) in index._bundle_info_by_name.iteritems():
-        for version in bundle_info['versions']:
-            manifest_name = ph.manifest_name(bundle_name, version)
-            log.info("Loading %s" % (manifest_name))
-            manifest = catalog.get_manifest(bundle_name, version)
-            if manifest is None:
-                errors.append("manifest not found: %s" % (manifest_name))
-                continue
-            manifests.append(manifest)
+    def results():
 
-    verified_files = set()
-    for manifest in manifests:
-        log.info("Verifying %s-%d" % (manifest.bundle_name, manifest.version))
-        verify_bundle_with_manifest(catalog, manifest,
-                verified_files=verified_files)
+        # TODO: fix private ref to _bundle_info_by_name
+        for (bundle_name, bundle_info) in index._bundle_info_by_name.iteritems():
+            for version in bundle_info['versions']:
+                manifest_name = ph.manifest_name(bundle_name, version)
+                yield Message.info("Loading %s" % (manifest_name))
+                manifest = catalog.get_manifest(bundle_name, version)
+                if manifest is None:
+                    yield Message.error("manifest not found: %s" % (manifest_name))
+                    continue
+                manifests.append(manifest)
 
-    return errors
+        verified_files = set()
+        for manifest in manifests:
+            yield Message.info("Verifying %s-%d" % (manifest.bundle_name,
+                                                    manifest.version))
+            for result in _verify_bundle_with_manifest(catalog, manifest,
+                                                       verified_files=verified_files):
+                yield result
+
+    return ResultSet(results)
 
 
 def create_bundle_version(catalog, bundle_name, src_dir, flavor_spec=None,
@@ -576,6 +506,82 @@ def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs
 
 
 ################################################################################
+## Verification Helpers
+
+def _verify_bundle_with_manifest(catalog, manifest, check_shas=True,
+        should_lock=False, **kwargs):
+
+    if not check_shas:
+        yield Message.warn('Skipping SHA digest verification for bundle files.')
+
+    ## Check individual files
+
+    for path, info in manifest.files.iteritems():
+        sha = manifest.sha_for_file(path)
+
+        ## Note: it's important to used the reference in kwargs directly
+        ##  or else changes won't be propagated to the calling code
+
+        if kwargs.get('verified_files') is not None:
+            if sha in kwargs['verified_files']:
+                log.debug('Skipping %s' % (sha))
+                continue
+            else:
+                kwargs['verified_files'].add(sha)
+
+        meta = catalog._get_file_info(sha)
+        if meta is None:
+            #run.append(VerificationError('File %s not exist' % (sha)))
+            yield Message.error('File %s not exist' % (sha))
+            continue
+
+        format = meta['format']
+        meta_size = meta['size']
+        manifest_size = info['formats'][format]['size']
+        log.debug("file=%s format=%s meta_size=%s manifest_size=%s" % (sha, format, meta_size, manifest_size))
+        if  meta_size != manifest_size:
+            yield Message.error('File %s wrong size' % (sha))
+            continue
+
+        if check_shas:
+            ext = helpers.file_extension_for_format(format)
+            with catalog._read_file(sha, ext=ext) as f:
+                b = f.read()
+                if format == Formats.GZ:
+                    b = utils.gunzip_bytes(b)
+                digest = hashlib.sha1(b).hexdigest()
+                if digest != sha:
+                    yield Message.error('File %s wrong hash' % (sha))
+                    continue
+
+        yield Message.info('File %s OK' % (sha))
+
+    ## Check archives
+
+    flavors = list(manifest.flavors)
+    flavors.append(None)  # no flavor
+
+    for flavor in flavors:
+        archive_name = catalog.path_helper.archive_name(manifest.bundle_name, manifest.version, flavor=flavor)
+        # TODO: private reference to _get_archive_info
+        meta = catalog._get_archive_info(manifest.bundle_name, manifest.version, flavor=flavor)
+        if meta is None:
+            if len(manifest.get_all_files(flavor=flavor)) == 1:
+                # If there is only 1 file in the bundle there should not be
+                # an archive
+                continue
+            elif flavor is None and len(flavors) > 1:
+                # If there is more than 1 flavor, we usually don't need the
+                # master archive. This is probably OK, but warn anyway.
+                #log.warn('Archive %s not found.' % (archive_name))
+                Message.warn('Archive %s not found.' % (archive_name))
+                continue
+            else:
+                yield Message.error('Archive %s not found.' % (archive_name))
+
+        for result in _verify_archive(catalog, manifest, flavor=flavor, check_shas=check_shas):
+            yield result
+
 
 def _verify_archive(catalog, manifest, flavor=None, check_shas=True):
 
@@ -642,6 +648,9 @@ def _resolve_single_bundle_version(catalog, bundle_name, version_ish):
     return version
 
 
+################################################################################
+## Version Resolution Helpers
+
 def _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish):
 
     if version_ish == SymbolicBundleVersions.ALL:
@@ -659,4 +668,3 @@ def _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish):
         versions = [single_version]
 
     return versions
-
