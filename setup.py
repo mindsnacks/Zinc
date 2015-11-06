@@ -13,7 +13,7 @@ install_requires = [
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
     "toml==0.8.1",
     "lockfile==0.9.1",
-    "boto==2.38.0",
+    "-e git+https://github.com/boto/boto.git@d8c62b79f1c4f6dd856909241656e56933b39bee#egg=boto-7theo_fix-for-gsutil-with-dotted-buckets",
     "atomicfile==0.1",
     "redis==2.7.2",
     "jsonschema==1.3.0",
