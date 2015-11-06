@@ -13,7 +13,7 @@ install_requires = [
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
     "toml==0.8.1",
     "lockfile==0.9.1",
-    "-e git+https://github.com/boto/boto.git@d8c62b79f1c4f6dd856909241656e56933b39bee#egg=boto-7theo_fix-for-gsutil-with-dotted-buckets",
+    "boto==boto-7theo_fix-for-gsutil-with-dotted-buckets",
     "atomicfile==0.1",
     "redis==2.7.2",
     "jsonschema==1.3.0",
@@ -38,6 +38,9 @@ setup(name='zinc',
       package_data = {'': ['*.json']},
       zip_safe=False,
       install_requires=install_requires,
+      dependency_links=[
+          'git+https://github.com/boto/boto.git@d8c62b79f1c4f6dd856909241656e56933b39bee#egg=boto-7theo_fix-for-gsutil-with-dotted-buckets'
+      ],
       entry_points={
           'console_scripts':
           ['zinc=zinc.cli:main']
