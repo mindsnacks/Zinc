@@ -38,9 +38,6 @@ setup(name='zinc',
       package_data = {'': ['*.json']},
       zip_safe=False,
       install_requires=install_requires,
-      dependency_links=[
-          'git+https://github.com/mindsnacks/boto.git@5256be0f69a55a5d6b0ae5c081926f1e90c7b8c1#egg=boto-fixedboto'
-      ],
       entry_points={
           'console_scripts':
           ['zinc=zinc.cli:main']
