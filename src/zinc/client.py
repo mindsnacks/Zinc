@@ -224,7 +224,6 @@ def catalog_list(catalog, distro=None, print_versions=True, **kwargs):
     def pretty_with_versions(result):
         distros = index.distributions_for_bundle_by_version(result['bundle_name'])
         versions = index.versions_for_bundle(result['bundle_name'])
-        print versions
         version_strings = list()
         for version in versions:
             version_string = str(version)
