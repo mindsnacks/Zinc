@@ -141,7 +141,8 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
 
         self._conn = boto.sdb.connect_to_region(sdb_region,
                                                 aws_access_key_id=aws_key,
-                                                aws_secret_access_key=aws_secret)
+                                                aws_secret_access_key=aws_secret,
+                                                validate_certs=False)
         self._domain = self._conn.create_domain(sdb_domain)
 
     def get_index_lock(self, domain=None, timeout=None, **kwargs):
