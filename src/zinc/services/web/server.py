@@ -6,7 +6,7 @@ import hmac, hashlib
 from redis import Redis
 from rq import Queue
 from flask import Flask, request, abort, make_response, Response
-from boto.s3.connection import S3Connection
+from boto.s3.connection import S3Connection, OrdinaryCallingFormat
 
 from zinc.catalog import ZincCatalogPathHelper
 from zinc.services import ZincCatalog
@@ -19,7 +19,11 @@ from config import CONFIG
 API_VERSION = '1.0'
 REDIS_URL = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379')
 REDIS = Redis.from_url(REDIS_URL)
-S3 = S3Connection(CONFIG['aws_key'], CONFIG['aws_secret'])
+
+if '.' in CONFIG['s3_bucket']:
+    S3 = S3Connection(CONFIG['aws_key'], CONFIG['aws_secret'], calling_format=OrdinaryCallingFormat())
+else:
+    S3 = S3Connection(CONFIG['aws_key'], CONFIG['aws_secret'])
 
 Coordinator = RedisCatalogCoordinator(redis=REDIS)
 Q = Queue(connection=REDIS)
