@@ -17,19 +17,20 @@ log = logging.getLogger(__name__)
 class S3StorageBackend(StorageBackend):
 
     def __init__(self, url=None, aws_key=None, aws_secret=None,
-                 s3connection=None, bucket=None, prefix=None, **kwargs):
+                 s3connection=None, bucket=None, prefix=None, host=None, **kwargs):
 
         super(S3StorageBackend, self).__init__(**kwargs)
 
         assert bucket or url
-        # bucket_name = bucket or urlparse(url).netloc
-        bucket_name = 'zinc2.mindsnacks.com'
+        bucket_name = bucket or urlparse(url).netloc
 
         assert s3connection or (aws_key and aws_secret)
 
         if s3connection is None:
             if '.' in bucket_name:
-                s3connection = S3Connection(aws_key, aws_secret, host='s3.us-west-1.amazonaws.com', calling_format=OrdinaryCallingFormat())
+                s3connection = S3Connection(aws_key, aws_secret,
+                                            host='s3.us-west-1.amazonaws.com',
+                                            calling_format=OrdinaryCallingFormat())
             else:
                 s3connection = S3Connection(aws_key, aws_secret, host='s3.us-west-1.amazonaws.com')
 
