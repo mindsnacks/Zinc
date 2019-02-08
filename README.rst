@@ -59,7 +59,8 @@ License
 
 Zinc is distributed under a BSD-style license.
 
-    Copyright (c) 2011-2012 MindSnacks (http://mindsnacks.com/)
+    Copyright (c) 2011-2013 MindSnacks (http://mindsnacks.com/)
+    Copyright (c) 2014-Present Andy Mroczkowski
         
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
