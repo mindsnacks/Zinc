@@ -5,7 +5,7 @@ import logging
 import tarfile
 import hashlib
 from collections import namedtuple
-from urlparse import urlparse
+from urllib.parse import urlparse
 import toml
 import json
 
@@ -23,15 +23,15 @@ from .utils import enum, memoized
 log = logging.getLogger(__name__)
 
 SymbolicBundleVersions = utils.enum(
-        ALL=':all',
-        UNREFERENCED=':unreferenced',
-        LATEST=':latest')
+    ALL=':all',
+    UNREFERENCED=':unreferenced',
+    LATEST=':latest')
 
 # TODO: why doesn't this work?
 #SymbolicSingleBundleVersions = utils.enum(
 #        LATEST=SymbolicBundleVersions.LATEST)
 SymbolicSingleBundleVersions = utils.enum(
-        LATEST=':latest')
+    LATEST=':latest')
 
 BundleVersionDistroPrefix = '@'
 
@@ -43,7 +43,7 @@ class ZincClientConfig(ZincModel):
 
     def __init__(self, d=None, **kwargs):
         super(ZincClientConfig, self).__init__(**kwargs)
-        self._d = d
+        self._d = d or dict()
 
     @classmethod
     def from_bytes(cls, b, mutable=True):
@@ -60,12 +60,10 @@ class ZincClientConfig(ZincModel):
     def _replace_vars(cls, indict, vars):
         # TODO: this could probably be a filter or something
         outdict = dict()
-        for key, value in indict.iteritems():
+        for key, value in indict.items():
             if isinstance(value, dict):
                 outdict[key] = cls._replace_vars(value, vars)
-            elif isinstance(value, basestring) \
-                    and (value.startswith(cls.VARS + ':')
-                         or value.startswith(cls.ENV + ':')):
+            elif isinstance(value, str) and (value.startswith(cls.VARS + ':') or value.startswith(cls.ENV + ':')):
                 if value.startswith(cls.VARS + ':'):
                     varname = value[len(cls.VARS) + 1:]
                     var = vars[varname]
@@ -79,19 +77,19 @@ class ZincClientConfig(ZincModel):
 
     @property
     def vars(self):
-        return self._d.get('vars')
+        return self._d.get('vars') or {}
 
     @property
     def bookmarks(self):
-        return self._d.get('bookmark')
+        return self._d.get('bookmark') or {}
 
     @property
     def coordinators(self):
-        return self._d.get('coordinator')
+        return self._d.get('coordinator') or {}
 
     @property
     def storages(self):
-        return self._d.get('storage')
+        return self._d.get('storage') or {}
 
 
 ################################################################################
@@ -227,11 +225,11 @@ def catalog_list(catalog, distro=None, print_versions=True, **kwargs):
         version_strings = list()
         for version in versions:
             version_string = str(version)
-            
+
             if distros.get(version) is not None:
                 distro_string = "(%s)" % (", ".join(sorted(distros.get(version))))
                 version_string += '=' + distro_string
-           
+
             version_strings.append(version_string)
 
         final_version_string = "[%s]" % (", ".join(version_strings))
@@ -268,7 +266,7 @@ def bundle_list(catalog, bundle_name, version_ish, print_sha=False, flavor_name=
         all_files = sorted(manifest.get_all_files(flavor=flavor_name))
         for f in all_files:
             d = {
-                'file':  f,
+                'file': f,
                 'sha': manifest.sha_for_file(f)
             }
             yield DictResult(d, pretty=pretty)
@@ -277,7 +275,7 @@ def bundle_list(catalog, bundle_name, version_ish, print_sha=False, flavor_name=
 
 
 def bundle_verify(catalog, bundle_name, version_ish, check_shas=True,
-        should_lock=False, **kwargs):
+                  should_lock=False, **kwargs):
 
     version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
     manifest = catalog.get_manifest(bundle_name, version)
@@ -302,7 +300,7 @@ def verify_catalog(catalog, should_lock=False, **kwargs):
     def results():
 
         # TODO: fix private ref to _bundle_info_by_name
-        for (bundle_name, bundle_info) in index._bundle_info_by_name.iteritems():
+        for (bundle_name, bundle_info) in index._bundle_info_by_name.items():
             for version in bundle_info['versions']:
                 manifest_name = ph.manifest_name(bundle_name, version)
                 yield Message.info("Loading %s" % (manifest_name))
@@ -450,7 +448,7 @@ def catalog_ref_split(catalog_ref):
         return CatalogRefSplitResult(catalog_ref, CatalogInfo(None, '.'))
 
 
-## TODO: fix cloning between this and zinc.services.simple
+# TODO: fix cloning between this and zinc.services.simple
 def create_catalog(catalog_id=None, storage_info=None):
     assert catalog_id
     assert storage_info
@@ -511,21 +509,21 @@ def connect(service_url=None, coordinator_info=None, storage_info=None, **kwargs
 
 
 ################################################################################
-## Verification Helpers
+# Verification Helpers
 
 def _verify_bundle_with_manifest(catalog, manifest, check_shas=True,
-        should_lock=False, **kwargs):
+                                 should_lock=False, **kwargs):
 
     if not check_shas:
         yield Message.warn('Skipping SHA digest verification for bundle files.')
 
-    ## Check individual files
+    # Check individual files
 
-    for path, info in manifest.files.iteritems():
+    for path, info in manifest.files.items():
         sha = manifest.sha_for_file(path)
 
-        ## Note: it's important to used the reference in kwargs directly
-        ##  or else changes won't be propagated to the calling code
+        # Note: it's important to used the reference in kwargs directly
+        #  or else changes won't be propagated to the calling code
 
         if kwargs.get('verified_files') is not None:
             if sha in kwargs['verified_files']:
@@ -544,7 +542,7 @@ def _verify_bundle_with_manifest(catalog, manifest, check_shas=True,
         meta_size = meta['size']
         manifest_size = info['formats'][format]['size']
         log.debug("file=%s format=%s meta_size=%s manifest_size=%s" % (sha, format, meta_size, manifest_size))
-        if  meta_size != manifest_size:
+        if meta_size != manifest_size:
             yield Message.error('File %s wrong size' % (sha))
             continue
 
@@ -561,7 +559,7 @@ def _verify_bundle_with_manifest(catalog, manifest, check_shas=True,
 
         yield Message.info('File %s OK' % (sha))
 
-    ## Check archives
+    # Check archives
 
     flavors = list(manifest.flavors)
     flavors.append(None)  # no flavor
@@ -612,7 +610,11 @@ def _verify_archive(catalog, manifest, flavor=None, check_shas=True):
             target_member_name = helpers.append_file_extension_for_format(sha, format)
             if target_member_name not in member_names:
                 found_error = True
-                yield Message.error('File \'%s\' not found in %s.' % (target_member_name, helpers.make_bundle_descriptor(manifest.bundle_name, manifest.version, flavor=flavor)))
+                yield Message.error('File \'%s\' not found in %s.'
+                                    % (target_member_name,
+                                       helpers.make_bundle_descriptor(manifest.bundle_name,
+                                                                      manifest.version,
+                                                                      flavor=flavor)))
             else:
                 member = members[member_names.index(target_member_name)]
                 if check_shas:
@@ -629,7 +631,8 @@ def _verify_archive(catalog, manifest, flavor=None, check_shas=True):
                     # check length only
                     if info['size'] != member.size:
                         found_error = True
-                        yield Message.error('File \'%s\' has size %d, expected %d.' % (target_member_name, info['size'], member.size))
+                        yield Message.error('File \'%s\' has size %d, expected %d.'
+                                            % (target_member_name, info['size'], member.size))
 
         tar.close()
 
@@ -654,7 +657,7 @@ def _resolve_single_bundle_version(catalog, bundle_name, version_ish):
 
 
 ################################################################################
-## Version Resolution Helpers
+# Version Resolution Helpers
 
 def _resolve_multiple_bundle_versions(catalog, bundle_name, version_ish):
 

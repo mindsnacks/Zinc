@@ -1,25 +1,20 @@
-import zinc.helpers as helpers
+import unittest
 
-from tests import *
+import zinc.helpers as helpers
 
 
 class TestZincHelpers(unittest.TestCase):
 
     def test_make_bundle_id(self):
-        self.assertEquals(helpers.make_bundle_id('com.foo', 'bundle'),
-                          'com.foo.bundle')
+        self.assertEqual(helpers.make_bundle_id('com.foo', 'bundle'), 'com.foo.bundle')
         self.assertRaises(Exception, helpers.make_bundle_id, 'com.foo', None)
         self.assertRaises(Exception, helpers.make_bundle_id, None, 'bundle')
 
     def test_make_bundle_descriptor(self):
-        self.assertEquals(helpers.make_bundle_descriptor('com.foo.bundle', 1),
-                          'com.foo.bundle-1')
-        self.assertEquals(helpers.make_bundle_descriptor('com.foo.bundle', 1,
-                                                         'small'),
-                          'com.foo.bundle-1~small')
+        self.assertEqual(helpers.make_bundle_descriptor('com.foo.bundle', 1), 'com.foo.bundle-1')
+        self.assertEqual(helpers.make_bundle_descriptor('com.foo.bundle', 1, 'small'), 'com.foo.bundle-1~small')
         self.assertRaises(Exception, helpers.make_bundle_descriptor, None, 1)
-        self.assertRaises(Exception, helpers.make_bundle_descriptor,
-                          'com.foo.bundle', None)
+        self.assertRaises(Exception, helpers.make_bundle_descriptor, 'com.foo.bundle', None)
 
     def test_distro_name_errors_ok(self):
         errors = helpers.distro_name_errors("meep")

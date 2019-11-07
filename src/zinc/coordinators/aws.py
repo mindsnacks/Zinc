@@ -1,4 +1,4 @@
-from urlparse import urlparse
+from urllib.parse import urlparse
 import time
 import uuid
 import logging
@@ -23,8 +23,7 @@ class Lock(object):
 
         # Expiration must be 0 (never) or at least 30 seconds and greater than
         # the timeout
-        assert self._expires == 0 or (self._expires > self._timeout and
-                                      self._expires >= 60)
+        assert self._expires == 0 or (self._expires > self._timeout and self._expires >= 60)
 
         self._sdb_domain = sdb_domain
         self._key = key
@@ -101,7 +100,7 @@ class Lock(object):
                 else:
                     raise LockException("Failed to acquire lock within timeout.")
 
-            except SDBResponseError, sdberr:
+            except SDBResponseError as sdberr:
                 if sdberr.status == 409:
                     pass  # we will retry
                 else:
@@ -151,5 +150,4 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
     @classmethod
     def valid_url(cls, url):
         urlcomps = urlparse(url)
-        return urlcomps.scheme == 'sdb' \
-                and urlcomps.netloc in [r.name for r in boto.sdb.regions()]
+        return urlcomps.scheme == 'sdb' and urlcomps.netloc in [r.name for r in boto.sdb.regions()]

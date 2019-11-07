@@ -6,14 +6,14 @@ zinc.models
 
 This module implements models that represent core concepts of the Zinc system.
 
-:copyright: (c) 2012-2013 by Andrew Mroczkowski
+:copyright: (c) 2012-2019 by Andrew Mroczkowski
 :license: ISC, see LICENSE for more details.
 
 """
 
 
 import json
-import UserDict
+from collections import MutableMapping
 from functools import wraps
 from pkg_resources import resource_string
 import jsonschema
@@ -31,7 +31,7 @@ def mutable_only(f):
     return func
 
 
-class ZincModel(object):
+class ZincModel:
     """Base class for all Zinc model objects. Provides methods for reading and
     writing (JSON) and support for immutability."""
 
@@ -44,8 +44,8 @@ class ZincModel(object):
     def is_mutable(self):
         return self._mutable
 
-    def to_bytes(self):
-        return json.dumps(self.to_dict())
+    def to_bytes(self) -> bytearray:
+        return json.dumps(self.to_dict()).encode('utf8')
 
     @classmethod
     def from_dict(cls, d, mutable=True):
@@ -77,7 +77,7 @@ class ZincModel(object):
             return cls.from_bytes(f.read(), mutable=mutable)
 
     def write(self, path):
-        with open(path, 'w') as f:
+        with open(path, 'wb') as f:
             f.write(self.to_bytes())
 
     def clone(self, mutable=True):
@@ -86,12 +86,12 @@ class ZincModel(object):
         return o
 
 
-### ZincIndex ################################################################
+# ZincIndex
 
 class ZincIndex(ZincModel):
 
     def __init__(self, id=None, **kwargs):
-        super(ZincIndex, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._format = defaults['zinc_format']
         self._id = id
         self._bundle_info_by_name = dict()
@@ -123,7 +123,7 @@ class ZincIndex(ZincModel):
 
     @classmethod
     def _load_schema(cls):
-        schema_string = resource_string('zinc.resources.schemas.v1', 'catalog.json')
+        schema_string = resource_string('zinc.resources.schemas.v1', 'catalog.json').decode('utf-8')
         return json.loads(schema_string)
 
     def _get_bundle_info(self, bundle_name):
@@ -181,7 +181,7 @@ class ZincIndex(ZincModel):
         bundle_info = self._bundle_info_by_name.get(bundle_name)
         if bundle_info is None:
             raise Exception("Unknown bundle %s" % (bundle_name))
-        for distro_name, distro_version in bundle_info['distributions'].iteritems():
+        for distro_name, distro_version in bundle_info['distributions'].items():
             if distro_version == bundle_version:
                 raise Exception("bundle '%s' v%d is referenced by the distribution '%s'"
                                 % (bundle_name, bundle_version, distro_name))
@@ -202,7 +202,7 @@ class ZincIndex(ZincModel):
     def distributions_for_bundle_by_version(self, bundle_name):
         distros = self.distributions_for_bundle(bundle_name)
         distros_by_version = dict()
-        for distro, version in distros.iteritems():
+        for distro, version in distros.items():
             if distros_by_version.get(version) is None:
                 distros_by_version[version] = list()
             distros_by_version[version].append(distro)
@@ -230,12 +230,13 @@ class ZincIndex(ZincModel):
         del bundle_info['distributions'][distribution_name]
 
 
-### ZincFileList #############################################################
+# ZincFileList
 
-class ZincFileList(ZincModel, UserDict.DictMixin):
+class ZincFileList(ZincModel, MutableMapping):
 
     def __init__(self, **kwargs):
-        super(ZincFileList, self).__init__(**kwargs)
+        ZincModel.__init__(self, **kwargs)
+        MutableMapping.__init__(self)
         self._files = dict()
 
     @classmethod
@@ -255,6 +256,12 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
     def __delitem__(self, key):
         del self._files[key]
 
+    def __len__(self):
+        return len(self._files)
+
+    def __iter__(self):
+        return iter(self._files)
+
     def keys(self):
         return self._files.keys()
 
@@ -272,7 +279,7 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
     def add_flavor_for_file(self, path, flavor):
         props = self._files[path]
         flavors = props.get('flavors') or []
-        if not flavor in flavors:
+        if flavor not in flavors:
             flavors.append(flavor)
         props['flavors'] = flavors
 
@@ -336,12 +343,12 @@ class ZincFileList(ZincModel, UserDict.DictMixin):
         return True
 
 
-### ZincManifest #############################################################
+# ZincManifest
 
 class ZincManifest(ZincModel):
 
     def __init__(self, catalog_id, bundle_name, version, **kwargs):
-        super(ZincManifest, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._format = defaults['zinc_format']
         self._catalog_id = catalog_id
         self._bundle_name = bundle_name
@@ -351,7 +358,7 @@ class ZincManifest(ZincModel):
 
     @classmethod
     def _load_schema(cls):
-        schema_string = resource_string('zinc.resources.schemas.v1', 'manifest.json')
+        schema_string = resource_string('zinc.resources.schemas.v1', 'manifest.json').decode('utf-8')
         return json.loads(schema_string)
 
     @classmethod
@@ -449,18 +456,18 @@ class ZincManifest(ZincModel):
 
     def __eq__(self, other):
         return self._version == other.version \
-                and self._catalog_id == other.catalog_id \
-                and self._bundle_name == other.bundle_name \
-                and self.files == other.files \
-                and set(self.flavors) == set(other.flavors)
+            and self._catalog_id == other.catalog_id \
+            and self._bundle_name == other.bundle_name \
+            and self.files == other.files \
+            and set(self.flavors) == set(other.flavors)
 
 
-### ZincFlavorSpec ############################################################
+# ZincFlavorSpec
 
 class ZincFlavorSpec(ZincModel):
 
     def __init__(self, **kwargs):
-        super(ZincFlavorSpec, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._filters_by_name = dict()
         self._created_unified_bundle = True
 
@@ -478,18 +485,18 @@ class ZincFlavorSpec(ZincModel):
     @classmethod
     def from_dict(cls, d, mutable=True):
         spec = cls(mutable=mutable)
-        for k, v in d.iteritems():
+        for k, v in d.items():
             pf = PathFilter.from_rule_list(v)
             spec.add_flavor(k, pf)
         return spec
 
 
-### ZincCatalogConfig ###############################################################
+# ZincCatalogConfig
 
 class ZincCatalogConfig(ZincModel):
 
     def __init__(self, **kwargs):
-        super(ZincCatalogConfig, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.gzip_threshhold = 0.85
 
     @classmethod

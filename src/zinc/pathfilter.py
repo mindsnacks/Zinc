@@ -1,5 +1,4 @@
 import fnmatch
-import string
 
 
 class Match:
@@ -48,6 +47,6 @@ class PathFilter(object):
             else:
                 raise ValueError("unknown match type: %s" %
                                  (match_action_string))
-            pattern = string.join(rule_comps[1:], ' ')
+            pattern = ' '.join(rule_comps[1:])
             rules.append(PathFilter.Rule(pattern, match_action))
         return PathFilter(rules)

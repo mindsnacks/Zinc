@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import sys
-from urlparse import urlparse
+from urllib.parse import urlparse
 from functools import wraps
 
 from zinc.utils import canonical_path
@@ -21,9 +21,9 @@ log = logging.getLogger(__name__)
 DEFAULT_CONFIG_PATH = '~/.zinc'
 
 
-### Helpers ##################################################################
+# Helpers ##################################################################
 
-def load_config(path):
+def load_config(path: str) -> ZincClientConfig:
 
     path = canonical_path(path)
     is_default = path == canonical_path(DEFAULT_CONFIG_PATH)
@@ -118,7 +118,7 @@ def parse_multi_version_ish(catalog, bundle_name, version_list):
     return parsed_version_list
 
 
-### Client Commands #################################################################
+# Client Commands #################################################################
 # TODO: move to zinc.client ?
 
 
@@ -127,25 +127,24 @@ def bundle_update(catalog, bundle_name, path, flavors=None, force=False,
     manifest = client.create_bundle_version(catalog, bundle_name, path,
                                             flavor_spec=flavors, force=force,
                                             skip_master_archive=skip_master_archive)
-    #print "Updated %s v%d" % (manifest.bundle_name, manifest.version)
+    #print("Updated %s v%d" % (manifest.bundle_name, manifest.version))
     # TODO: add some nice human readable and machine readable output options
-    print "%d" % (manifest.version)
+    print("%d" % (manifest.version))
 
 
 def bundle_delete(catalog, bundle_name, versions, dry_run=False):
 
     if len(versions) == 0:
-        print 'Nothing to do'
+        print('Nothing to do')
     else:
         verb = 'Would remove' if dry_run else 'Removing'
-        print "%s versions %s" % (verb, versions)
+        print("%s versions %s" % (verb, versions))
 
     if not dry_run:
         client.delete_bundle_versions(catalog, bundle_name, versions)
 
 
-def distro_update(catalog, bundle_name, distro_name, version,
-        save_previous=True):
+def distro_update(catalog, bundle_name, distro_name, version, save_previous=True):
 
     errors = helpers.distro_name_errors(distro_name)
     if len(errors) > 0:
@@ -154,7 +153,7 @@ def distro_update(catalog, bundle_name, distro_name, version,
         sys.exit()
 
     client.update_distribution(catalog, distro_name, bundle_name, version,
-            save_previous=save_previous)
+                               save_previous=save_previous)
 
 
 def distro_delete(catalog, distro_name, bundle_name):
@@ -163,7 +162,7 @@ def distro_delete(catalog, distro_name, bundle_name):
 
 def flavorspec_list(catalog):
     for n in catalog.get_flavorspec_names():
-        print n
+        print(n)
 
 
 def flavorspec_update(catalog, path, name):
@@ -174,20 +173,20 @@ def flavorspec_delete(catalog, name):
     catalog.delete_flavorspec(name)
 
 
-### Subcommand Parsing #################################################################
+# Subcommand Parsing #################################################################
 
 def cli_cmd(f):
     @wraps(f)
     def func(self, *args, **kwargs):
         results = f(self, *args, **kwargs)
         for result in results:
-            print result.format(args[0].format)
+            print(result.format(args[0].format))
 
         errors = results.errors()
         if len(errors) > 0:
-            print "\n\nERRORS:"
+            print("\n\nERRORS:")
             for error in errors:
-                print error.format(args[0].format)
+                print(error.format(args[0].format))
 
     return func
 
@@ -204,7 +203,7 @@ def subcmd_catalog_create(config, cargs):
     catalog_id = cargs.catalog_id
     storage_info = resolve_storage_info(config, storage_ref)
     client.create_catalog(catalog_id=catalog_id, storage_info=storage_info)
-    print "Catalog '%s' successfully created." % (catalog_id)
+    print("Catalog '%s' successfully created." % (catalog_id))
 
 
 def subcmd_catalog_clean(config, cargs):
@@ -220,7 +219,7 @@ def subcmd_bundle_list(config, cargs):
     print_sha = cargs.sha
     flavor_name = cargs.flavor
     return client.bundle_list(catalog, bundle_name, version,
-            print_sha=print_sha, flavor_name=flavor_name)
+                              print_sha=print_sha, flavor_name=flavor_name)
 
 
 def subcmd_bundle_update(config, cargs):
@@ -348,7 +347,7 @@ def _dump_json(catalog, subpath, dest_path=None, should_decompress=True, gzip=Tr
             f.write(out)
         log.info('Wrote %s' % (dest_path))
     else:
-        print out
+        print(out)
 
 
 def _dump_get_dest_path(subpath, cargs):
@@ -397,7 +396,7 @@ def subcmd_dump_flavorspec(config, cargs):
 def subcmd_debug_flavors(config, cargs):
     flavors = ZincFlavorSpec.from_path(cargs.flavors)
     for flavor_name in flavors.flavors:
-        print '[%s]' % flavor_name
+        print('[%s]' % flavor_name)
         filter = flavors.filter_for_flavor(flavor_name)
         src_dir = cargs.path
         for root, dirs, files in os.walk(src_dir):
@@ -406,11 +405,11 @@ def subcmd_debug_flavors(config, cargs):
                 rel_dir = root[len(src_dir) + 1:]
                 rel_path = os.path.join(rel_dir, f)
                 matched = filter.match(rel_path)
-                print '%s %s' % ('+' if matched else '-', rel_path)
-        print ""  # blank line
+                print('%s %s' % ('+' if matched else '-', rel_path))
+        print("")  # blank line
 
 
-### Main #####################################################################
+# Main #####################################################################
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -430,29 +429,40 @@ def main():
                         help='Log level.')
 
     subparsers = parser.add_subparsers(title='subcommands',
+                                       dest='subcommands',
                                        description='valid subcommands',
                                        help='additional help')
+    subparsers.required = True
 
-    add_catalog_arg = lambda parser, required=True: parser.add_argument(
-        '-c', '--catalog', required=required, help='Catalog reference.')
-    add_bundle_arg = lambda parser, required=True: parser.add_argument(
-        '-b', '--bundle', required=True, help='Bundle name.')
-    add_distro_arg = lambda parser, required=True: parser.add_argument(
-        '-d', '--distro', required=required, help='Name of the distro.')
-    add_single_version_arg = lambda parser, required=True: parser.add_argument(
-        '-v', '--version', required=required, help='Version.')
-    add_multiple_versions_arg = lambda parser, required=True: \
+    # Helpers
+
+    def add_catalog_arg(parser, required=True):
+        parser.add_argument('-c', '--catalog', required=required, help='Catalog reference.')
+
+    def add_bundle_arg(parser, required=True):
+        parser.add_argument('-b', '--bundle', required=True, help='Bundle name.')
+
+    def add_distro_arg(parser, required=True):
+        parser.add_argument('-d', '--distro', required=required, help='Name of the distro.')
+
+    def add_single_version_arg(parser, required=True):
+        parser.add_argument('-v', '--version', required=required, help='Version.')
+
+    def add_multiple_versions_arg(parser, required=True):
         parser.add_argument('-v', '--versions', nargs='+', required=required,
-            help='Versions, separated by spaces.')
-    add_timeout_arg = lambda parser, required=False: parser.add_argument(
-        '--timeout', required=required, default=None,
-        help='Timeout for acquiring catalog locks. 0 = wait forever.')
-    add_remote_name_arg = lambda parser, required=False: parser.add_argument(
-        '-O', '--remote-name', required=required, default=False,
-        action='store_true', help='Write to file using remote name instead of stdout.')
-    add_no_decompress_arg = lambda parser, required=False: parser.add_argument(
-        '--no-decompress', required=required, default=False,
-        action='store_true', help='Don\'t decompress file after downloading.')
+                            help='Versions, separated by spaces.')
+
+    def add_timeout_arg(parser, required=False):
+        parser.add_argument('--timeout', required=required, default=None,
+                            help='Timeout for acquiring catalog locks. 0 = wait forever.')
+
+    def add_remote_name_arg(parser, required=False):
+        parser.add_argument('-O', '--remote-name', required=required, default=False,
+                            action='store_true', help='Write to file using remote name instead of stdout.')
+
+    def add_no_decompress_arg(parser, required=False):
+        parser.add_argument('--no-decompress', required=required, default=False,
+                            action='store_true', help='Don\'t decompress file after downloading.')
 
     # catalog:create
     parser_catalog_create = subparsers.add_parser('catalog:create',
@@ -471,7 +481,9 @@ def main():
     parser_catalog_clean.add_argument('-f', '--force',
                                       default=False,
                                       action='store_true',
-                                      help='This command does a dry run by default. Specifying this flag will cause files to actually be removed.')
+                                      help='This command does a dry run by default. \
+                                          Specifying this flag will cause files to \
+                                          actually be removed.')
     parser_catalog_clean.set_defaults(func=subcmd_catalog_clean)
 
     # catalog:verify
@@ -519,7 +531,8 @@ def main():
                                       required=True,
                                       help='Path to files for this bundle.')
     parser_bundle_update.add_argument('--flavors',
-                                      help='The flavorspec. Will first try to read as a path. If not found, will try to read from catalog by name.')
+                                      help=('The flavorspec. Will first try to read as a path. '
+                                            'If not found, will try to read from catalog by name.'))
     parser_bundle_update.add_argument('-f', '--force',
                                       default=False,
                                       action='store_true',
@@ -530,7 +543,9 @@ def main():
                                                            default=True,
                                                            action='store_true',
                                                            dest='skip_master_archive',
-                                                           help='Skips creating master archive if flavors are specified. This is the default behavior.')
+                                                           help=('Skips creating master archive if '
+                                                                 'flavors are specified. This is the '
+                                                                 'default behavior.'))
     parser_bundle_update_master_archive_group.add_argument('--include-master-archive',
                                                            default=False,
                                                            action='store_true',

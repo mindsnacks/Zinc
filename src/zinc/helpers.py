@@ -1,5 +1,5 @@
 
-### Utils
+# Utils
 
 from .formats import Formats
 from .defaults import defaults
@@ -20,7 +20,7 @@ def make_bundle_descriptor(bundle_id, version, flavor=None):
     return descriptor
 
 
-def _bundle_descriptor_without_flavor(bundle_descriptor):
+def _bundle_descriptor_without_flavor(bundle_descriptor: str) -> str:
     index = bundle_descriptor.rfind('~')
     if index == -1:
         return bundle_descriptor
@@ -28,12 +28,12 @@ def _bundle_descriptor_without_flavor(bundle_descriptor):
         return bundle_descriptor[:index]
 
 
-def bundle_id_from_bundle_descriptor(bundle_descriptor):
+def bundle_id_from_bundle_descriptor(bundle_descriptor: str) -> str:
     bundle_desc_without_flavor = _bundle_descriptor_without_flavor(bundle_descriptor)
     return bundle_desc_without_flavor[:bundle_desc_without_flavor.rfind('-')]
 
 
-def bundle_version_from_bundle_descriptor(bundle_descriptor):
+def bundle_version_from_bundle_descriptor(bundle_descriptor: str) -> str:
     bundle_desc_without_flavor = _bundle_descriptor_without_flavor(bundle_descriptor)
     version_flavor = bundle_desc_without_flavor[bundle_desc_without_flavor.rfind('-') + 1:]
     version = int(version_flavor.split('~')[0])
@@ -41,7 +41,7 @@ def bundle_version_from_bundle_descriptor(bundle_descriptor):
 
 
 # TODO: move to formats.py?
-def file_extension_for_format(format):
+def file_extension_for_format(format: Formats) -> str:
     """Returns proper file extension for the given format, or `None` if no
     extension is necessary."""
 
@@ -50,7 +50,7 @@ def file_extension_for_format(format):
     return format
 
 
-def append_file_extension(path, ext):
+def append_file_extension(path: str, ext: str) -> str:
     """Appends the given extension to the path. If `ext` is `None`,
     `path` is returned."""
 

@@ -1,6 +1,9 @@
-from zinc.client import *
+import unittest
 
-from tests import *
+from zinc.client import ZincClientConfig, catalog_ref_split
+
+from tests import abs_path_for_fixture
+
 
 class TestZincClientConfigFromFile(unittest.TestCase):
 
@@ -13,11 +16,11 @@ class TestZincClientConfigFromFile(unittest.TestCase):
 
     def test_load_bookmark(self):
         remote = self.config.bookmarks["remote"]
-        self.assertEquals(remote['ref'], "http://foo.com/catalog/")
+        self.assertEqual(remote['ref'], "http://foo.com/catalog/")
 
     def test_replace_vars(self):
         local = self.config.bookmarks["local"]
-        self.assertEquals(local['password'], "abc123")
+        self.assertEqual(local['password'], "abc123")
 
 
 class TestCatalogRefParsing(unittest.TestCase):
@@ -25,14 +28,13 @@ class TestCatalogRefParsing(unittest.TestCase):
     def test_web(self):
         catalog_ref = 'http://localhost:5000/com.foo'
         r = catalog_ref_split(catalog_ref)
-        self.assertEquals(r.service, 'http://localhost:5000/')
-        self.assertEquals(r.catalog.id, 'com.foo')
+        self.assertEqual(r.service, 'http://localhost:5000/')
+        self.assertEqual(r.catalog.id, 'com.foo')
         self.assertIsNone(r.catalog.loc)
 
     def test_path(self):
         catalog_ref = '/tmp/com.foo'
         r = catalog_ref_split(catalog_ref)
-        self.assertEquals(r.service, catalog_ref)
-        self.assertEquals(r.catalog.loc, '.')
+        self.assertEqual(r.service, catalog_ref)
+        self.assertEqual(r.catalog.loc, '.')
         self.assertIsNone(r.catalog.id)
-
