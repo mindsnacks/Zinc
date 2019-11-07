@@ -1,9 +1,6 @@
 Zinc
 ====
 
-.. image:: https://travis-ci.org/mindsnacks/Zinc.png?branch=develop
- :target: https://travis-ci.org/mindsnacks/Zinc
-
 Zinc is asset distribution system for designed mobile apps. Common use cases
 are for downloading content purchased through an in-app-purchase mechanism, or 
 to avoid packaging large files inside your app package if they may not be
