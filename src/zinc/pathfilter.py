@@ -1,10 +1,11 @@
 import fnmatch
-import string
+
 
 class Match:
-    ACCEPT=1
-    REJECT=2
-    UNKNOWN=3
+    ACCEPT = 1
+    REJECT = 2
+    UNKNOWN = 3
+
 
 class PathFilter(object):
 
@@ -41,12 +42,11 @@ class PathFilter(object):
             match_action_string = rule_comps[0]
             if match_action_string == '+':
                 match_action = Match.ACCEPT
-            elif match_action_string == '-': 
+            elif match_action_string == '-':
                 match_action = Match.REJECT
             else:
                 raise ValueError("unknown match type: %s" %
-                        (match_action_string))
-            pattern = string.join(rule_comps[1:], ' ')
+                                 (match_action_string))
+            pattern = ' '.join(rule_comps[1:])
             rules.append(PathFilter.Rule(pattern, match_action))
         return PathFilter(rules)
-    

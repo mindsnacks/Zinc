@@ -1,33 +1,34 @@
-from tests import *
-from zinc import *
-import os.path
+import unittest
+
+from zinc.pathfilter import PathFilter
 from zinc.pathfilter import Match
+
 
 class TestPathFilterRuleMatching(unittest.TestCase):
 
     def test_no_match_accept(self):
         r = PathFilter.Rule('a', Match.ACCEPT)
-        self.assertEquals(r.match('b'), Match.UNKNOWN)
+        self.assertEqual(r.match('b'), Match.UNKNOWN)
 
     def test_no_match_reject(self):
         r = PathFilter.Rule('a', Match.REJECT)
-        self.assertEquals(r.match('b'), Match.UNKNOWN)
+        self.assertEqual(r.match('b'), Match.UNKNOWN)
 
     def test_exact_accept(self):
         r = PathFilter.Rule('/path', Match.ACCEPT)
-        self.assertEquals(r.match('/path'), Match.ACCEPT)
+        self.assertEqual(r.match('/path'), Match.ACCEPT)
 
     def test_exact_reject(self):
         r = PathFilter.Rule('/path', Match.REJECT)
-        self.assertEquals(r.match('/path'), Match.REJECT)
+        self.assertEqual(r.match('/path'), Match.REJECT)
 
     def test_end_of_path_match(self):
         r = PathFilter.Rule('*/honk', Match.ACCEPT)
-        self.assertEquals(r.match('beep/honk'), Match.ACCEPT)
+        self.assertEqual(r.match('beep/honk'), Match.ACCEPT)
 
     def test_middle_of_path_match(self):
         r = PathFilter.Rule('*/honk/*', Match.ACCEPT)
-        self.assertEquals(r.match('/beep/honk/boop'), Match.ACCEPT)
+        self.assertEqual(r.match('/beep/honk/boop'), Match.ACCEPT)
 
 
 class TestPathFilterMatching(unittest.TestCase):
@@ -62,10 +63,8 @@ class TestPathFilterMatching(unittest.TestCase):
     def test_read_json(self):
         pf = PathFilter.from_rule_list(['+ a'])
         self.assertTrue(pf is not None)
+        pf = PathFilter.from_rule_list(['- a'])
+        self.assertTrue(pf is not None)
 
     def test_read_json_invalid(self):
         self.assertRaises(Exception, PathFilter.from_rule_list, ['? a'])
-
-
-
-
