@@ -186,7 +186,7 @@ class ResultSet(object):
         self._items = items
         self.pretty = pretty or str
 
-    @property
+    @property  # type: ignore
     @memoized
     def items(self):
         return self._items()
@@ -212,7 +212,7 @@ class ResultSet(object):
 
 ################################################################################
 
-def catalog_list(catalog, distro=None, print_versions=True, **kwargs):
+def catalog_list(catalog: ZincCatalog, distro: str = None, print_versions: bool = True, **kwargs):
 
     index = catalog.get_index()
 
@@ -251,7 +251,7 @@ def catalog_list(catalog, distro=None, print_versions=True, **kwargs):
     return ResultSet(results)
 
 
-def bundle_list(catalog, bundle_name, version_ish, print_sha=False, flavor_name=None):
+def bundle_list(catalog: ZincCatalog, bundle_name: str, version_ish, print_sha: bool = False, flavor_name: str = None):
 
     version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)

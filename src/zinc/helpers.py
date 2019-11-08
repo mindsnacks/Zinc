@@ -4,14 +4,16 @@
 from .formats import Formats
 from .defaults import defaults
 
+from typing import List, Optional
 
-def make_bundle_id(catalog_id, bundle_name):
+
+def make_bundle_id(catalog_id: str, bundle_name: str) -> str:
     assert catalog_id
     assert bundle_name
     return '%s.%s' % (catalog_id, bundle_name)
 
 
-def make_bundle_descriptor(bundle_id, version, flavor=None):
+def make_bundle_descriptor(bundle_id: str, version: int, flavor: str = None) -> str:
     assert bundle_id
     assert version
     descriptor = '%s-%d' % (bundle_id, version)
@@ -33,7 +35,7 @@ def bundle_id_from_bundle_descriptor(bundle_descriptor: str) -> str:
     return bundle_desc_without_flavor[:bundle_desc_without_flavor.rfind('-')]
 
 
-def bundle_version_from_bundle_descriptor(bundle_descriptor: str) -> str:
+def bundle_version_from_bundle_descriptor(bundle_descriptor: str) -> int:
     bundle_desc_without_flavor = _bundle_descriptor_without_flavor(bundle_descriptor)
     version_flavor = bundle_desc_without_flavor[bundle_desc_without_flavor.rfind('-') + 1:]
     version = int(version_flavor.split('~')[0])
@@ -41,7 +43,7 @@ def bundle_version_from_bundle_descriptor(bundle_descriptor: str) -> str:
 
 
 # TODO: move to formats.py?
-def file_extension_for_format(format: Formats) -> str:
+def file_extension_for_format(format: Formats) -> Optional[str]:
     """Returns proper file extension for the given format, or `None` if no
     extension is necessary."""
 
@@ -50,7 +52,7 @@ def file_extension_for_format(format: Formats) -> str:
     return format
 
 
-def append_file_extension(path: str, ext: str) -> str:
+def append_file_extension(path: str, ext: Optional[str]) -> str:
     """Appends the given extension to the path. If `ext` is `None`,
     `path` is returned."""
 
@@ -59,18 +61,18 @@ def append_file_extension(path: str, ext: str) -> str:
     return path
 
 
-def append_file_extension_for_format(path, format):
+def append_file_extension_for_format(path: str, format: Formats) -> str:
     """Appends the proper filename extension for the given format."""
 
     ext = file_extension_for_format(format)
     return append_file_extension(path, ext)
 
 
-def distro_previous_name(distro_name):
+def distro_previous_name(distro_name: str) -> str:
     return '%s%s' % (defaults['catalog_prev_distro_prefix'], distro_name)
 
 
-def distro_name_errors(distro_name):
+def distro_name_errors(distro_name) -> List[str]:
     """Returns a list of errors in the distro name. Empty list means distro name
     is valid."""
 

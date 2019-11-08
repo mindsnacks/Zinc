@@ -1,4 +1,5 @@
 import fnmatch
+from typing import List
 
 
 class Match:
@@ -10,20 +11,20 @@ class Match:
 class PathFilter(object):
 
     class Rule(object):
-        def __init__(self, pattern, match_action):
+        def __init__(self, pattern: str, match_action: Match):
             assert match_action in (Match.ACCEPT, Match.REJECT)
             self.pattern = pattern
             self.match_action = match_action
 
-        def match(self, path):
+        def match(self, path: str):
             if fnmatch.fnmatch(path, self.pattern):
                 return self.match_action
             return Match.UNKNOWN
 
-    def __init__(self, rules):
+    def __init__(self, rules: List[Rule]):
         self._rules = rules
 
-    def match(self, path):
+    def match(self, path: str):
         """Tests the path against all rules in this filter"""
         for rule in self._rules:
             if rule.match(path) == Match.ACCEPT:

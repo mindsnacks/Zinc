@@ -3,6 +3,7 @@ import logging
 from functools import wraps
 from urllib.parse import urlparse
 import tempfile
+from typing import List, Optional
 
 from zinc.models import ZincIndex, ZincManifest, ZincCatalogConfig, ZincFlavorSpec
 from zinc.defaults import defaults
@@ -19,7 +20,7 @@ log = logging.getLogger(__name__)
 # TODO: rename to CatalogPathHelper?
 class ZincCatalogPathHelper(object):
 
-    def __init__(self, format='1'):
+    def __init__(self, format: str = '1'):
         if format != defaults['zinc_format']:
             raise Exception("Incompatible format %s" % (format))
         self._format = format
@@ -45,25 +46,25 @@ class ZincCatalogPathHelper(object):
         return "config"
 
     @property
-    def config_flavorspec_dir(self):
+    def config_flavorspec_dir(self) -> str:
         return os.path.join(self.config_dir, "flavorspecs")
 
-    def path_for_index(self):
+    def path_for_index(self) -> str:
         return defaults['catalog_index_name']
 
-    def manifest_name(self, bundle_name, version):
+    def manifest_name(self, bundle_name: str, version: int) -> str:
         return "%s-%d.json" % (bundle_name, version)
 
-    def path_for_manifest_for_bundle_version(self, bundle_name, version):
+    def path_for_manifest_for_bundle_version(self, bundle_name: str, version: int) -> str:
         manifest_filename = self.manifest_name(bundle_name, version)
         manifest_path = os.path.join(self.manifests_dir, manifest_filename)
         return manifest_path
 
-    def path_for_manifest(self, manifest):
+    def path_for_manifest(self, manifest: ZincManifest) -> str:
         return self.path_for_manifest_for_bundle_version(
             manifest.bundle_name, manifest.version)
 
-    def path_for_file_with_sha(self, sha, ext=None, format=None):
+    def path_for_file_with_sha(self, sha: str, ext: str = None, format=None) -> str:
 
         if ext is not None and format is not None:
             raise Exception("Should specify either `ext` or `format`, not both.")
@@ -76,19 +77,19 @@ class ZincCatalogPathHelper(object):
             file = file + '.' + ext
         return os.path.join(subdir, file)
 
-    def archive_name(self, bundle_name, version, flavor=None):
+    def archive_name(self, bundle_name: str, version: int, flavor: str = None):
         if flavor is None:
             return "%s-%d.tar" % (bundle_name, version)
         else:
             return "%s-%d~%s.tar" % (bundle_name, version, flavor)
 
     def path_for_archive_for_bundle_version(
-            self, bundle_name, version, flavor=None):
+            self, bundle_name: str, version: int, flavor: str = None):
         archive_filename = self.archive_name(bundle_name, version, flavor=flavor)
         archive_path = os.path.join(self.archives_dir, archive_filename)
         return archive_path
 
-    def path_for_flavorspec_name(self, flavorspec_name):
+    def path_for_flavorspec_name(self, flavorspec_name: str):
         filename = '%s.json' % flavorspec_name
         return os.path.join(self.config_flavorspec_dir, filename)
 
@@ -120,27 +121,27 @@ class ZincAbstractCatalog(object):
         """
         raise NotImplementedError()
 
-    def get_manifest(self, bundle_name, version):
+    def get_manifest(self, bundle_name: str, version: int):
         """
         Returns an *immutable* copy of the manifest for the specified
         `bundle_name` and version`.
         """
         raise NotImplementedError()
 
-    def update_bundle(self, new_manifest):
+    def update_bundle(self, new_manifest: ZincManifest):
         raise NotImplementedError()
 
     # special
-    def import_path(self, src_path):
+    def import_path(self, src_path: str):
         raise NotImplementedError()
 
-    def delete_bundle_version(self, bundle_name, version):
+    def delete_bundle_version(self, bundle_name: str, version: int):
         raise NotImplementedError()
 
-    def update_distribution(self, distribution_name, bundle_name, bundle_version, save_previous=True):
+    def update_distribution(self, distribution_name: str, bundle_name: str, bundle_version: int, save_previous: bool = True):
         raise NotImplementedError()
 
-    def delete_distribution(self, distribution_name, bundle_name):
+    def delete_distribution(self, distribution_name: str, bundle_name: str):
         raise NotImplementedError()
 
     def verify(self):
@@ -151,20 +152,24 @@ class ZincAbstractCatalog(object):
 
     # Non-abstract methods
 
-    def manifest_for_bundle(self, bundle_name, version=None):
+    def manifest_for_bundle(self, bundle_name: str, version: Optional[int] = None) -> Optional[ZincManifest]:
         """
         Get a manifest for bundle. If version is not specified, it gets the
         manifest with the highest version number.
         """
         index = self.get_index()
         all_versions = index.versions_for_bundle(bundle_name)
-        if version is None and len(all_versions) > 0:
-            version = all_versions[-1]
-        elif version not in all_versions:
-            return None  # throw exception?
-        return self.get_manifest(bundle_name, version)
 
-    def manifest_for_bundle_descriptor(self, bundle_descriptor):
+        if version is not None:
+            resolved_version = version
+        elif version is None and len(all_versions) > 0:
+            resolved_version = all_versions[-1]
+        else:
+            return None  # throw exception?
+
+        return self.get_manifest(bundle_name, resolved_version)
+
+    def manifest_for_bundle_descriptor(self, bundle_descriptor: str) -> Optional[ZincManifest]:
         """
         Convenience method to get a manifest by bundle_descriptor.
         """
@@ -172,7 +177,7 @@ class ZincAbstractCatalog(object):
             helpers.bundle_id_from_bundle_descriptor(bundle_descriptor),
             helpers.bundle_version_from_bundle_descriptor(bundle_descriptor))
 
-    def bundle_descriptors(self):
+    def bundle_descriptors(self) -> List[str]:
         bundle_descriptors = []
         index = self.get_index()
         for bundle_name in index.bundle_names():
@@ -278,7 +283,7 @@ class ZincCatalog(ZincAbstractCatalog):
             return f.read()
         return None
 
-    def _write(self, subpath: str, bytes: bytearray, raw=True, gzip=True, max_age=None):
+    def _write(self, subpath: str, bytes: bytes, raw: bool = True, gzip: bool = True, max_age: Optional[int] = None):
         if raw:
             self._storage.puts(subpath, bytes, max_age=max_age)
         if gzip:
@@ -477,32 +482,32 @@ class ZincCatalog(ZincAbstractCatalog):
             prev_distro = helpers.distro_previous_name(distribution_name)
             self.index.delete_distribution(prev_distro, bundle_name)
 
-    def get_flavorspec_names(self):
+    def get_flavorspec_names(self) -> List[str]:
         subpath = self.path_helper.config_flavorspec_dir
         return [os.path.splitext(p)[0] for p in self._storage.list(prefix=subpath)]
 
-    def get_flavorspec(self, flavorspec_name):
+    def get_flavorspec(self, flavorspec_name: str) -> ZincFlavorSpec:
         subpath = self._ph.path_for_flavorspec_name(flavorspec_name)
         bytes = self._read(subpath)
         return ZincFlavorSpec.from_bytes(bytes)
 
-    def update_flavorspec_from_json_string(self, name, json_string):
+    def update_flavorspec_from_json_string(self, name: str, json_string: str):
         subpath = self._ph.path_for_flavorspec_name(name)
         self._write(subpath, json_string.encode('utf8'), raw=True, gzip=False)
 
-    def update_flavorspec_from_path(self, src_path, name=None):
+    def update_flavorspec_from_path(self, src_path: str, name: str = None):
         with open(src_path, 'r') as src_file:
             json_string = src_file.read()
         if name is None:
             name = os.path.splitext(os.path.basename(src_path))[0]
         self.update_flavorspec_from_json_string(name, json_string)
 
-    def delete_flavorspec(self, name):
+    def delete_flavorspec(self, name: str):
         subpath = self._ph.path_for_flavorspec_name(name)
         self._storage.delete(subpath)
 
     @_ensure_index_lock
-    def clean(self, dry_run=False):
+    def clean(self, dry_run: bool = False):
         verb = 'Would remove' if dry_run else 'Removing'
 
         bundle_descriptors = self.bundle_descriptors()
@@ -550,6 +555,8 @@ class ZincCatalog(ZincAbstractCatalog):
         all_objects = set()
         for bundle_desc in bundle_descriptors:
             manifest = self.manifest_for_bundle_descriptor(bundle_desc)
+            if manifest is None:
+                continue
             for f, meta in manifest.files.items():
                 all_objects.add(meta['sha'])
 
