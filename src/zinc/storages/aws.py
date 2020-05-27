@@ -27,7 +27,7 @@ class S3StorageBackend(StorageBackend):
         assert bucket or url
         bucket_name = bucket or urlparse(url).netloc
         if '.' in bucket_name:
-            self._conn = S3Connection(aws_key, aws_secret, calling_format=OrdinaryCallingFormat())
+            self._conn = S3Connection(aws_key, aws_secret, host='us-west-1.s3.amazonaws.com', calling_format=OrdinaryCallingFormat())
         else:
             self._conn = S3Connection(aws_key, aws_secret)
         self._bucket = self._conn.get_bucket(bucket_name)
