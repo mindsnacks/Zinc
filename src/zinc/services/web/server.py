@@ -19,7 +19,7 @@ from config import CONFIG
 API_VERSION = '1.0'
 REDIS_URL = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379')
 REDIS = Redis.from_url(REDIS_URL)
-S3 = S3Connection(CONFIG['aws_key'], CONFIG['aws_secret'])
+S3 = S3Connection(CONFIG['aws_key'], CONFIG['aws_secret'], validate_certs=True)
 
 Coordinator = RedisCatalogCoordinator(redis=REDIS)
 Q = Queue(connection=REDIS)

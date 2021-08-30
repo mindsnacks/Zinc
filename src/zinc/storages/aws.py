@@ -22,7 +22,7 @@ class S3StorageBackend(StorageBackend):
         super(S3StorageBackend, self).__init__(**kwargs)
 
         assert s3connection or (aws_key and aws_secret)
-        self._conn = s3connection or S3Connection(aws_key, aws_secret)
+        self._conn = s3connection or S3Connection(aws_key, aws_secret, validate_certs=True)
 
         assert bucket or url
         bucket_name = bucket or urlparse(url).netloc
