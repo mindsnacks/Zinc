@@ -1,5 +1,5 @@
 import os
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 from lockfile import FileLock
 

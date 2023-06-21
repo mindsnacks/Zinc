@@ -5,10 +5,11 @@ import tempfile
 import zinc.utils as utils
 import zinc.helpers as helpers
 
+from zinc.models import ZincManifest
 from zinc.formats import Formats
 
 
-def build_archive_with_manifest(manifest, src_dir, dst_path, flavor=None):
+def build_archive_with_manifest(manifest: ZincManifest, src_dir, dst_path, flavor=None):
 
     files = manifest.get_all_files(flavor=flavor)
 
@@ -23,7 +24,7 @@ def build_archive_with_manifest(manifest, src_dir, dst_path, flavor=None):
             path = os.path.join(src_dir, f)
             arcname = helpers.append_file_extension(sha, ext)
 
-            ## TODO: write a test to ensure that file formats are written correctly
+            # TODO: write a test to ensure that file formats are written correctly
 
             if format == Formats.RAW:
                 tar.add(path, arcname=arcname)

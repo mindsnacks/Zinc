@@ -1,6 +1,6 @@
 import os
-from urlparse import urlparse
-from atomicfile import AtomicFile
+from urllib.parse import urlparse
+from atomicwrites import atomic_write
 from copy import copy
 
 import zinc.utils as utils
@@ -38,7 +38,7 @@ class FilesystemStorageBackend(StorageBackend):
 
     def get(self, subpath):
         abs_path = self._abs_path(subpath)
-        f = open(abs_path, 'r')
+        f = open(abs_path, 'rb')
         return f
 
     def get_meta(self, subpath):
@@ -52,7 +52,9 @@ class FilesystemStorageBackend(StorageBackend):
     def put(self, subpath, fileobj, **kwargs):
         abs_path = self._abs_path(subpath)
         utils.makedirs(os.path.dirname(abs_path))
-        with AtomicFile(abs_path, 'w') as f:
+
+        # TODO: is overwrite correct behavior here?
+        with atomic_write(abs_path, mode='wb', overwrite=True) as f:
             f.write(fileobj.read())
 
     def list(self, prefix=None):

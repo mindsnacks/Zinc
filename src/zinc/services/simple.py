@@ -1,11 +1,11 @@
 import os
-from multiprocessing import Process, Pipe
-from urlparse import urlparse
+#from multiprocessing import Process
+from urllib.parse import urlparse
 
 from zinc.coordinators.filesystem import FilesystemCatalogCoordinator
 from zinc.storages.filesystem import FilesystemStorageBackend
 from zinc.models import ZincIndex, ZincCatalogConfig
-from . import ZincServiceConsumer, ZincServiceProvider, ZincCatalog
+from . import ZincServiceConsumer, ZincCatalog
 
 from zinc.defaults import defaults
 import zinc.utils as utils
@@ -36,7 +36,7 @@ class SimpleServiceConsumer(ZincServiceConsumer):
     def _abs_path(self, subpath):
         return os.path.join(self._root_abs_path(), subpath)
 
-    ## TODO: fix cloning between this and zinc.client
+    # TODO: fix cloning between this and zinc.client
     def create_catalog(self, id=None, loc=None):
         assert id
         loc = loc or '.'
@@ -65,11 +65,10 @@ class SimpleServiceConsumer(ZincServiceConsumer):
     #    p.join()
     #    return index
 
-
-    ## TODO: tmp
+    # TODO: tmp
     #def process_command(self, command):
     #    parent_conn, child_conn = Pipe()
     #    p = Process(target=f, args=(self, child_conn, command))
     #    p.start()
-    #    print parent_conn.recv()
+    #    print(parent_conn.recv())
     #    p.join()
