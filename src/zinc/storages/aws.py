@@ -6,6 +6,7 @@ import logging
 
 from boto.s3.key import Key
 from boto.s3.connection import S3Connection
+from boto.s3.connection import OrdinaryCallingFormat
 import http  # for IncompleteRead exception
 
 from . import StorageBackend
@@ -22,11 +23,16 @@ class S3StorageBackend(StorageBackend):
         super(S3StorageBackend, self).__init__(**kwargs)
 
         assert s3connection or (aws_key and aws_secret)
-        self._conn = s3connection or S3Connection(aws_key, aws_secret)
 
         assert bucket or url
         bucket_name = bucket or urlparse(url).netloc
 
+        if s3connection is not None:
+            self._conn = s3connection
+        elif '.' in bucket_name:
+            self._conn = S3Connection(aws_key, aws_secret, host='us-west-1.s3.amazonaws.com', calling_format=OrdinaryCallingFormat())
+        else:
+            self._conn = S3Connection(aws_key, aws_secret)
         self._bucket = self._conn.get_bucket(bucket_name)
         self._prefix = prefix
 
