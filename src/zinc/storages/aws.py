@@ -1,12 +1,12 @@
 import os
 from tempfile import TemporaryFile
 from copy import copy
-from urlparse import urlparse
+from urllib.parse import urlparse
 import logging
 
 from boto.s3.key import Key
 from boto.s3.connection import S3Connection
-import httplib  # for IncompleteRead exception
+import http  # for IncompleteRead exception
 
 from . import StorageBackend
 from zinc.defaults import defaults
@@ -22,11 +22,10 @@ class S3StorageBackend(StorageBackend):
         super(S3StorageBackend, self).__init__(**kwargs)
 
         assert s3connection or (aws_key and aws_secret)
-        self._conn = s3connection or S3Connection(aws_key, aws_secret)
 
         assert bucket or url
         bucket_name = bucket or urlparse(url).netloc
-
+        self._conn = S3Connection(aws_key, aws_secret, is_secure=False, validate_certs=False)
         self._bucket = self._conn.get_bucket(bucket_name)
         self._prefix = prefix
 
@@ -58,7 +57,7 @@ class S3StorageBackend(StorageBackend):
                     t.write(key.read())
                     t.seek(0)
                     return t
-                except httplib.IncompleteRead as e:
+                except http.client.IncompleteRead as e:
                     log.warn('Caught IncompleteRead, retrying (%d/%d)' % (retry_count, max_retry_count))
                     log.warn('%s' % (e.message))
 

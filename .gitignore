@@ -30,3 +30,9 @@ pip-log.txt
 
 # Rope
 .ropeproject
+
+.pytest_cache
+__pycache__
+
+.vscode
+.mypy_cache/

@@ -1,4 +1,4 @@
-from StringIO import StringIO
+from io import BytesIO
 
 
 class StorageBackend(object):
@@ -23,12 +23,12 @@ class StorageBackend(object):
     def bind_to_catalog(self, id=None):
         raise NotImplementedError()
 
-    def puts(self, subpath, bytes, **kwargs):
+    def puts(self, subpath: str, bytes: bytearray, **kwargs):
         """Write string 'bytes' to subpath."""
-        fileobj = StringIO(bytes)
+        fileobj = BytesIO(bytes)
         self.put(subpath, fileobj, **kwargs)
 
-    ## Methods to override
+    # Methods to override
 
     def get(self, subpath):
         """Return file-like object at subpath."""

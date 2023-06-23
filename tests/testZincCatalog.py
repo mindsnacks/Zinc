@@ -1,3 +1,4 @@
+import unittest
 import os
 import logging
 import json
@@ -11,9 +12,8 @@ from zinc.storages import StorageBackend
 from zinc.client import connect, create_bundle_version
 
 import zinc.helpers as helpers
-import zinc.utils as utils
 
-from tests import *
+from tests import TempDirTestCase, create_random_file
 
 
 # TODO: relocate
@@ -45,22 +45,22 @@ class ZincCatalogPathHelperTestCase(unittest.TestCase):
         self.pathHelper = ZincCatalogPathHelper()
 
     def test_config_dir(self):
-        self.assertEquals(self.pathHelper.config_dir, "config")
+        self.assertEqual(self.pathHelper.config_dir, "config")
 
     def test_config_flavors_spec_dir(self):
-        self.assertEquals(self.pathHelper.config_flavorspec_dir, "config/flavorspecs")
+        self.assertEqual(self.pathHelper.config_flavorspec_dir, "config/flavorspecs")
 
     def test_path_for_flavor_spec_name(self):
         flavor_spec_name = "games"
         expected_path = "config/flavorspecs/%s.json" % flavor_spec_name
         actual_path = self.pathHelper.path_for_flavorspec_name(flavor_spec_name)
-        self.assertEquals(expected_path, actual_path)
+        self.assertEqual(expected_path, actual_path)
 
 
 class ZincCatalogTestCase(TempDirTestCase):
 
     def setUp(self):
-        super(ZincCatalogTestCase, self).setUp()
+        super().setUp()
 
         self.catalog_dir = os.path.join(self.dir, "catalog")
         os.mkdir(self.catalog_dir)
@@ -157,7 +157,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         self.assertTrue(2 in catalog.get_index().versions_for_bundle("meep"))
         # attempt to create same version again
         manifest2 = create_bundle_version(catalog, "meep", self.scratch_dir)
-        self.assertEquals(manifest1.version, manifest2.version)
+        self.assertEqual(manifest1.version, manifest2.version)
 
     def test_create_duplicate_bundle_version_with_force(self):
         catalog = self._build_test_catalog()
@@ -169,19 +169,19 @@ class ZincCatalogTestCase(TempDirTestCase):
         # attempt to create same version again, with force
         manifest2 = create_bundle_version(catalog, "meep", self.scratch_dir,
                                           force=True)
-        self.assertNotEquals(manifest1.version, manifest2.version)
+        self.assertNotEqual(manifest1.version, manifest2.version)
 
     def test_create_identical_bundle_version(self):
         catalog = self._build_test_catalog()
         create_bundle_version(catalog, "meep", self.scratch_dir)
-        self.assertEquals(len(catalog.get_index().versions_for_bundle("meep")), 1)
+        self.assertEqual(len(catalog.get_index().versions_for_bundle("meep")), 1)
 
     def test_path_for_manifest_with_name_version(self):
         catalog = self._build_test_catalog()
         manifest = ZincManifest(catalog.index.id, 'zoo', 1)
         path = ZincCatalogPathHelper().path_for_manifest(manifest)
         filename = os.path.split(path)[-1]
-        self.assertEquals(filename, 'zoo-1.json')
+        self.assertEqual(filename, 'zoo-1.json')
 
     def test_single_file_bundle_does_not_create_archive(self):
         catalog = create_catalog_at_path(self.catalog_dir, 'com.mindsnacks.test')
@@ -204,8 +204,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         flavor_spec = ZincFlavorSpec.from_dict({'dummy': ['+ *']})
         create_bundle_version(catalog, "meep", self.scratch_dir,
                               flavor_spec=flavor_spec)
-        archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1,
-                flavor='dummy')
+        archive_path = ZincCatalogPathHelper().path_for_archive_for_bundle_version("meep", 1, flavor='dummy')
         self.assertFalse(self.path_exists_in_catalog(archive_path))
 
     def test_skip_master_archive_and_no_flavor_specified(self):
@@ -237,7 +236,7 @@ class ZincCatalogTestCase(TempDirTestCase):
 
         # verify
         version = catalog.index.version_for_bundle(bundle_name, distro)
-        self.assertEquals(version, 1)
+        self.assertEqual(version, 1)
 
     def test_save_prev_distro_if_no_previous(self):
         # set up
@@ -270,12 +269,12 @@ class ZincCatalogTestCase(TempDirTestCase):
         # verify
         prev_distro = helpers.distro_previous_name(distro)
         prev_version = catalog.index.version_for_bundle(bundle_name, prev_distro)
-        self.assertEquals(prev_version, 1)
+        self.assertEqual(prev_version, 1)
 
     def add_dummy_flavorspec(self, catalog, flavorspec_name):
         flavorspec_string = json.dumps({'dummy': ['+ *']})
         subpath = catalog.path_helper.path_for_flavorspec_name(flavorspec_name)
-        catalog._storage.puts(subpath, flavorspec_string)
+        catalog._storage.puts(subpath, flavorspec_string.encode('utf8'))
 
     def test_update_flavorspec(self):
         #set up
@@ -298,7 +297,7 @@ class ZincCatalogTestCase(TempDirTestCase):
         actual_names = catalog.get_flavorspec_names()
 
         # verify
-        self.assertEquals(["test"], actual_names)
+        self.assertEqual(["test"], actual_names)
 
     def test_delete_flavorspec(self):
         # set up
@@ -311,4 +310,3 @@ class ZincCatalogTestCase(TempDirTestCase):
         # verify
         subpath = catalog.path_helper.path_for_flavorspec_name("test")
         self.assertFalse(os.path.exists(os.path.join(self.dir, subpath)))
-

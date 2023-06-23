@@ -8,7 +8,7 @@ from zinc.archives import build_archive_with_manifest
 
 log = logging.getLogger(__name__)
 
-## TODO: real ignore system
+# TODO: real ignore system
 IGNORE = ['.DS_Store']
 
 
@@ -40,8 +40,8 @@ class ZincBundleUpdateTask(object):
             val = utils.canonical_path(val)
         self._src_dir = val
 
-    @classmethod
-    def _build_archive(self, catalog, manifest, src_dir, flavor=None):
+    @staticmethod
+    def _build_archive(catalog, manifest, src_dir, flavor=None):
 
         archive_filename = catalog.path_helper.archive_name(manifest.bundle_name,
                                                             manifest.version,
@@ -86,8 +86,8 @@ class ZincBundleUpdateTask(object):
 
         filelist = self._import_files(self.src_dir, self.flavor_spec)
 
-        ## Check if it matches the newest version
-        ## TODO: optionally check it if matches any existing versions?
+        # Check if it matches the newest version
+        # TODO: optionally check it if matches any existing versions?
 
         if not self.force:
             existing_manifest = self.catalog.manifest_for_bundle(self.bundle_name)
@@ -96,14 +96,14 @@ class ZincBundleUpdateTask(object):
                 log.info("Found existing version with same contents.")
                 return existing_manifest
 
-        ## Build manifest
+        # Build manifest
 
         version = self.catalog._reserve_version_for_bundle(self.bundle_name)
         new_manifest = ZincManifest(self.catalog.id, self.bundle_name, version)
         new_manifest.files = filelist.clone(mutable=True)
         # TODO move into setter?
 
-        ## Handle archives
+        # Handle archives
 
         should_create_archives = len(filelist) > 1
         if should_create_archives:

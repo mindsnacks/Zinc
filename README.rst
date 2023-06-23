@@ -1,9 +1,6 @@
 Zinc
 ====
 
-.. image:: https://travis-ci.org/mindsnacks/Zinc.png?branch=develop
- :target: https://travis-ci.org/mindsnacks/Zinc
-
 Zinc is asset distribution system for designed mobile apps. Common use cases
 are for downloading content purchased through an in-app-purchase mechanism, or 
 to avoid packaging large files inside your app package if they may not be
@@ -59,7 +56,9 @@ License
 
 Zinc is distributed under a BSD-style license.
 
-    Copyright (c) 2011-2012 MindSnacks (http://mindsnacks.com/)
+    Copyright (c) 2011-2013 MindSnacks (http://mindsnacks.com/)
+    
+    Copyright (c) 2014-Present Andy Mroczkowski
         
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal

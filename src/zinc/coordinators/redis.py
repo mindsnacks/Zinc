@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import time
 import random
-from urlparse import urlparse
+from urllib.parse import urlparse
 from redis import Redis
 
 from . import CatalogCoordinator, LockException
