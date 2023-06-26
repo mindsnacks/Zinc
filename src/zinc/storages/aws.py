@@ -72,10 +72,11 @@ class S3StorageBackend(StorageBackend):
     def get_meta(self, subpath):
 
         keyname = self._get_keyname(subpath)
-        object_sumary_iterator = self._bucket.objects.filter(Prefix=keyname, MaxKeys=1)
-        if len(object_sumary_iterator) == 0:
+        object_summary_iterator = self._bucket.objects.filter(Prefix=keyname, MaxKeys=1)
+        object_summaries = list(object_summary_iterator)
+        if len(object_summaries) == 0:
             return None
-        object_summary = object_sumary_iterator[0]
+        object_summary = object_summaries[0]
         meta = dict()
         meta['size'] = object_summary.size
         return meta
