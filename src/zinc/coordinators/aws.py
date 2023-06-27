@@ -89,12 +89,10 @@ class Lock(object):
                     AttributeNames=[LOCK_TOKEN, LOCK_EXPIRES],
                     ConsistentRead=True
                 )
-                print(response)
                 lock_expires = None
                 lock_token = None
                 if 'Attributes' in response:
                     for attribute in response['Attributes']:
-                        print(attribute)
                         if 'Name' in attribute and 'Value' in attribute:
                             if attribute['Name'] == LOCK_EXPIRES:
                                 lock_expires = attribute['Value']
