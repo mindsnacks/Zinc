@@ -226,8 +226,24 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
         )
         client = session.client('sdb')
 
-        client.create_domain(DomainName=sdb_domain)
+        # client.create_domain(DomainName=sdb_domain)
+        self._ensure_domain_exists(client=client, sdb_domain=sdb_domain)
 
+    def _ensure_domain_exists(self, client=None, sdb_domain=None):
+        log.info("Calling SimpleDB_client.list_domains() to check for the name '%s'", sdb_domain)
+        response = client.list_domains(MaxNumberOfDomains=100)
+        domain_names = None
+        if 'DomainNames' in response:
+            domain_names = response['DomainNames']
+            log.info("SimpleDB_client.list_domains()['DomainNames'] == [%s]", ", ".join(domain_names))
+        else:
+            log.info("SimpleDB_client.list_domains() returned response without 'DomainNames' key")
+
+        if domain_names is None or sdb_domain not in domain_names:
+            log.info("Creating new domain with name '%s'", sdb_domain)
+            client.create_domain(DomainName=sdb_domain)
+        else:
+            log.info(f"Domain with name '{sdb_domain}' already exists")
         self._client = client
         self._domain_name = sdb_domain
 
