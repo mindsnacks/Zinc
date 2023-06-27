@@ -92,11 +92,14 @@ class Lock(object):
                 print(response)
                 lock_expires = None
                 lock_token = None
-                for attribute in response['Attributes']:
-                    if attribute['Name'] == LOCK_EXPIRES:
-                        lock_expires = attribute['Value']
-                    elif attribute['Name'] == LOCK_TOKEN:
-                        lock_token = attribute['Value']
+                if 'Attributes' in response:
+                    for attribute in response['Attributes']:
+                        print(attribute)
+                        if 'Name' in attribute and 'Value' in attribute:
+                            if attribute['Name'] == LOCK_EXPIRES:
+                                lock_expires = attribute['Value']
+                            elif attribute['Name'] == LOCK_TOKEN:
+                                lock_token = attribute['Value']
                 if self._expires != 0:
                     if lock_expires is None or time.time() > float(lock_expires):
                         log.info('Clearing expired lock...')
@@ -166,9 +169,10 @@ class Lock(object):
             ConsistentRead=True
         )
         lock_token = None
-        for attribute in response['Attributes']:
-            if attribute['Name'] == LOCK_TOKEN:
-                lock_token = attribute['Value']
+        if 'Attributes' in response:
+            for attribute in response['Attributes']:
+                if 'Name' in attribute and 'Value' in attribute and attribute['Name'] == LOCK_TOKEN:
+                    lock_token = attribute['Value']
         if lock_token == self._token:
             self._sdb_client.delete_attributes(
                 DomainName=self._sdb_domain_name,
