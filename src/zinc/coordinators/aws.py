@@ -132,7 +132,7 @@ class Lock(object):
                                 'Value': self._token
                             },
                             {
-                                'Nane': LOCK_EXPIRES,
+                                'Name': LOCK_EXPIRES,
                                 'Value': f"{time.time() + self._expires}"
                             },
                         ],
