@@ -135,7 +135,6 @@ class Lock(object):
                             {
                                 'Name': LOCK_EXPIRES,
                                 'Value': f"{time.time() + self._expires}",
-                                'Replace': True
                             },
                         ],
                         Expected={
@@ -187,7 +186,6 @@ class Lock(object):
                     },
                     {
                         'Name': LOCK_EXPIRES,
-                        'Value': '',
                     },
                 ],
                 Expected={
