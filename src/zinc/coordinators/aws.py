@@ -39,7 +39,7 @@ class Lock(object):
         `lock_token`."""
 
         attrs = self._get_lock_attrs()
-        log.debug('Refreshing lock... %s' % (attrs))
+        log.info('Refreshing lock... %s' % (attrs))
 
         self._sdb_client.put_attributes(
             DomainName=self._sdb_domain_name,
@@ -123,6 +123,7 @@ class Lock(object):
                             }
                         )
                 if lock_token is None:
+                    log.info('Putting attributes "lock_token" and "lock_expiry"')
                     self._sdb_client.put_attributes(
                         DomainName=self._sdb_domain_name,
                         ItemName=self._key,
@@ -174,6 +175,7 @@ class Lock(object):
                 if 'Name' in attribute and 'Value' in attribute and attribute['Name'] == LOCK_TOKEN:
                     lock_token = attribute['Value']
         if lock_token == self._token:
+            log.info('Releasing lock (Deleting "lock_token" and "lock_expiry" attributes)')
             self._sdb_client.delete_attributes(
                 DomainName=self._sdb_domain_name,
                 ItemName=self._key,
