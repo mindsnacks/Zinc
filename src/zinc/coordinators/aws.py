@@ -101,7 +101,7 @@ class Lock(object):
                             elif attribute['Name'] == LOCK_TOKEN:
                                 lock_token = attribute['Value']
                 if self._expires != 0:
-                    if lock_expires is None or time.time() > float(lock_expires):
+                    if lock_token is not None and (lock_expires is None or time.time() > float(lock_expires)):
                         log.info('Clearing expired lock...')
                         self._sdb_client.delete_attributes(
                             DomainName=self._sdb_domain_name,
