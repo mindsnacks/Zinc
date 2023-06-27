@@ -89,6 +89,7 @@ class Lock(object):
                     AttributeNames=[LOCK_TOKEN, LOCK_EXPIRES],
                     ConsistentRead=True
                 )
+                print(response)
                 lock_expires = None
                 lock_token = None
                 for attribute in response['Attributes']:
