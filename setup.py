@@ -13,7 +13,6 @@ install_requires = [
     # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
     "toml==0.10.0",
     "lockfile==0.9.1",
-    "boto==2.49.0",
     "boto3==1.26.160",
     "atomicwrites==1.3.0",
     "redis==4.4.4",
