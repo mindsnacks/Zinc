@@ -112,6 +112,7 @@ class Lock(object):
                                 'Exists': True
                             }
                         )
+                        lock_token = None
                 if lock_token is None:
                     log.info('Putting attributes "lock_token" and "lock_expiry"')
                     self._sdb_client.put_attributes(
