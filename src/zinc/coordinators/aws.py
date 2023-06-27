@@ -232,4 +232,4 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
     def valid_url(cls, url):
         urlcomps = urlparse(url)
         s = boto3.session.Session()
-        return urlcomps.scheme == 'sdb' and urlcomps.netloc in [r.name for r in s.get_available_regions('sdb')]
+        return urlcomps.scheme == 'sdb' and urlcomps.netloc in s.get_available_regions('sdb')
