@@ -106,19 +106,9 @@ class Lock(object):
                         self._sdb_client.delete_attributes(
                             DomainName=self._sdb_domain_name,
                             ItemName=self._key,
-                            Attributes=[
-                                {
-                                    'Name': LOCK_EXPIRES,
-                                    'Value': lock_expires or '',
-                                 },
-                                {
-                                    'Name': LOCK_TOKEN,
-                                    'Value': lock_token or '',
-                                },
-                            ],
                             Expected={
                                 'Name': LOCK_TOKEN,
-                                'Value': lock_token or self._token,
+                                'Value': lock_token,
                                 'Exists': True
                             }
                         )
