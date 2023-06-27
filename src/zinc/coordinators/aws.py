@@ -134,7 +134,8 @@ class Lock(object):
                             },
                             {
                                 'Name': LOCK_EXPIRES,
-                                'Value': f"{time.time() + self._expires}"
+                                'Value': f"{time.time() + self._expires}",
+                                'Replace': True
                             },
                         ],
                         Expected={
