@@ -175,19 +175,10 @@ class Lock(object):
                 if 'Name' in attribute and 'Value' in attribute and attribute['Name'] == LOCK_TOKEN:
                     lock_token = attribute['Value']
         if lock_token == self._token:
-            log.info('Releasing lock (Deleting "lock_token" and "lock_expiry" attributes)')
+            log.info(f'Releasing lock (Deleting all attributes for ItemName {self._key})')
             self._sdb_client.delete_attributes(
                 DomainName=self._sdb_domain_name,
                 ItemName=self._key,
-                Attributes=[
-                    {
-                        'Name': LOCK_TOKEN,
-                        'Value': self._token,
-                    },
-                    {
-                        'Name': LOCK_EXPIRES,
-                    },
-                ],
                 Expected={
                     'Name': LOCK_TOKEN,
                     'Value': self._token,
