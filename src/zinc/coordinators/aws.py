@@ -118,7 +118,7 @@ class Lock(object):
                             ],
                             Expected={
                                 'Name': LOCK_TOKEN,
-                                'Value': lock_token,
+                                'Value': lock_token or self._token,
                                 'Exists': True
                             }
                         )
