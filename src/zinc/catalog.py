@@ -284,6 +284,7 @@ class ZincCatalog(ZincAbstractCatalog):
         return None
 
     def _write(self, subpath: str, bytes: bytes, raw: bool = True, gzip: bool = True, max_age: Optional[int] = None):
+        log.info(f"ZincCatalog: _write() called with subpath == {subpath}, raw == {raw}, gzip == {gzip}")
         if raw:
             self._storage.puts(subpath, bytes, max_age=max_age)
         if gzip:
@@ -335,6 +336,7 @@ class ZincCatalog(ZincAbstractCatalog):
         return self._storage.get(subpath)
 
     def _write_file(self, sha, src_path, format=None):
+        log.info(f"ZincCatalog: _write_file() called with sha == {sha}, src_path == {src_path}, format == {format}")
         format = format or Formats.RAW  # default to RAW
         if format not in defaults['catalog_valid_formats']:
             raise Exception("Invalid format '%s'." % (format))
@@ -352,6 +354,8 @@ class ZincCatalog(ZincAbstractCatalog):
         return meta
 
     def _write_archive(self, bundle_name, version, src_path, flavor=None):
+        log.info(f"ZincCatalog: _write_archive() called with bundle_name == {bundle_name}, version == {version},"
+                 f" src_path == {src_path}, flavor == {flavor}")
         subpath = self._ph.path_for_archive_for_bundle_version(bundle_name,
                                                                version,
                                                                flavor=flavor)

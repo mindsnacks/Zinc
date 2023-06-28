@@ -82,6 +82,7 @@ class S3StorageBackend(StorageBackend):
         return meta
 
     def put(self, subpath, fileobj, max_age=None, **kwargs):
+        log.info(f"S3StorageBackend: put() called with subpath == '{subpath}'")
         keyname = self._get_keyname(subpath)
         self._bucket.upload_fileobj(fileobj, keyname)
 
