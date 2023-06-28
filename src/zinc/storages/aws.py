@@ -82,9 +82,14 @@ class S3StorageBackend(StorageBackend):
         return meta
 
     def put(self, subpath, fileobj, max_age=None, **kwargs):
-        log.info(f"S3StorageBackend: put() called with subpath == '{subpath}'")
+        log.info(f"S3StorageBackend: put() called with subpath == '{subpath}', max_age == {max_age}")
+        extra_args = None
+        if max_age is not None:
+            extra_args = {
+                'CacheControl': f'max-age={max_age}'
+            }
         keyname = self._get_keyname(subpath)
-        self._bucket.upload_fileobj(fileobj, keyname)
+        self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
 
     def list(self, prefix=None):
         contents = []
