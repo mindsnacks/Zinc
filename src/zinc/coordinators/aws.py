@@ -206,7 +206,6 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
         )
         client = session.client('sdb')
 
-        # client.create_domain(DomainName=sdb_domain)
         self._ensure_domain_exists(client=client, sdb_domain=sdb_domain)
 
     def _ensure_domain_exists(self, client=None, sdb_domain=None):
