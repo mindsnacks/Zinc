@@ -82,7 +82,7 @@ class S3StorageBackend(StorageBackend):
         return meta
 
     def put(self, subpath, fileobj, max_age=None, **kwargs):
-        log.info(f"S3StorageBackend: put() called with subpath == '{subpath}', max_age == {max_age}")
+        log.debug(f"S3StorageBackend: put() called. (subpath: '{subpath}', max_age: {max_age})")
         extra_args = None
         if max_age is not None:
             extra_args = {

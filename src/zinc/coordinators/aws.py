@@ -39,7 +39,7 @@ class Lock(object):
         `lock_token`."""
 
         attrs = self._get_lock_attrs()
-        log.info('Refreshing lock... %s' % (attrs))
+        log.debug(f'SimpleDBCatalogCoordinator.Lock: Refreshing lock... {str(attrs)}')
 
         self._sdb_client.put_attributes(
             DomainName=self._sdb_domain_name,
@@ -100,7 +100,7 @@ class Lock(object):
                                 lock_token = attribute['Value']
                 if self._expires != 0:
                     if lock_token is not None and (lock_expires is None or time.time() > float(lock_expires)):
-                        log.info('Clearing expired lock...')
+                        log.debug('SimpleDBCatalogCoordinator.Lock: Clearing expired lock...')
                         self._sdb_client.delete_attributes(
                             DomainName=self._sdb_domain_name,
                             ItemName=self._key,
@@ -112,7 +112,7 @@ class Lock(object):
                         )
                         lock_token = None
                 if lock_token is None:
-                    log.info('Putting attributes "lock_token" and "lock_expiry"')
+                    log.debug('SimpleDBCatalogCoordinator.Lock: Putting attributes "lock_token" and "lock_expiry"')
                     self._sdb_client.put_attributes(
                         DomainName=self._sdb_domain_name,
                         ItemName=self._key,
@@ -164,7 +164,8 @@ class Lock(object):
                 if 'Name' in attribute and 'Value' in attribute and attribute['Name'] == LOCK_TOKEN:
                     lock_token = attribute['Value']
         if lock_token == self._token:
-            log.info(f'Releasing lock (Deleting all attributes for ItemName {self._key})')
+            log.debug('SimpleDBCatalogCoordinator.Lock: Releasing lock '
+                      f'(Deleting all attributes for ItemName {self._key})')
             self._sdb_client.delete_attributes(
                 DomainName=self._sdb_domain_name,
                 ItemName=self._key,
@@ -209,20 +210,23 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
         self._ensure_domain_exists(client=client, sdb_domain=sdb_domain)
 
     def _ensure_domain_exists(self, client=None, sdb_domain=None):
-        log.info("Calling SimpleDB_client.list_domains() to check for the name '%s'", sdb_domain)
+        log.debug(f"SimpleDBCatalogCoordinator: Calling SimpleDB_client.list_domains() "
+                  f"to check for the name '{sdb_domain}'")
         response = client.list_domains(MaxNumberOfDomains=100)
         domain_names = None
         if 'DomainNames' in response:
             domain_names = response['DomainNames']
-            log.info("SimpleDB_client.list_domains()['DomainNames'] == [%s]", ", ".join(domain_names))
+            log.debug("SimpleDBCatalogCoordinator: SimpleDB_client.list_domains() returned response where "
+                      f"the key 'DomainNames' has the value [{', '.join(domain_names) }]")
         else:
-            log.info("SimpleDB_client.list_domains() returned response without 'DomainNames' key")
+            log.debug("SimpleDBCatalogCoordinator: SimpleDB_client.list_domains() returned "
+                      "response without 'DomainNames' key")
 
         if domain_names is None or sdb_domain not in domain_names:
-            log.info("Creating new domain with name '%s'", sdb_domain)
+            log.debug(f"SimpleDBCatalogCoordinator: Creating new domain with name '{sdb_domain}'")
             client.create_domain(DomainName=sdb_domain)
         else:
-            log.info(f"Domain with name '{sdb_domain}' already exists")
+            log.debug(f"SimpleDBCatalogCoordinator: Domain with name '{sdb_domain}' already exists")
         self._client = client
         self._domain_name = sdb_domain
 
