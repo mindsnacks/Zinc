@@ -123,7 +123,7 @@ class Lock(object):
                             },
                             {
                                 'Name': LOCK_EXPIRES,
-                                'Value': f"{time.time() + self._expires}",
+                                'Value': f'{time.time() + self._expires}',
                             },
                         ],
                         Expected={
@@ -140,7 +140,7 @@ class Lock(object):
                     log.debug('Sleeping')
                     time.sleep(1)
                 else:
-                    raise LockException("Failed to acquire lock within timeout.")
+                    raise LockException('Failed to acquire lock within timeout.')
 
             except botocore.exceptions.ClientError as error:
                 error_code = error.response['Error']['Code']
@@ -209,16 +209,16 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
         self._ensure_domain_exists(client=client, sdb_domain=sdb_domain)
 
     def _ensure_domain_exists(self, client=None, sdb_domain=None):
-        log.debug(f"SimpleDBCatalogCoordinator: Calling SimpleDB_client.list_domains() "
+        log.debug('SimpleDBCatalogCoordinator: Calling SimpleDB_client.list_domains() '
                   f"to check for the name '{sdb_domain}'")
         response = client.list_domains(MaxNumberOfDomains=100)
         domain_names = None
         if 'DomainNames' in response:
             domain_names = response['DomainNames']
-            log.debug("SimpleDBCatalogCoordinator: SimpleDB_client.list_domains() returned response where "
+            log.debug('SimpleDBCatalogCoordinator: SimpleDB_client.list_domains() returned response where '
                       f"the key 'DomainNames' has the value [{', '.join(domain_names) }]")
         else:
-            log.debug("SimpleDBCatalogCoordinator: SimpleDB_client.list_domains() returned "
+            log.debug('SimpleDBCatalogCoordinator: SimpleDB_client.list_domains() returned '
                       "response without 'DomainNames' key")
 
         if domain_names is None or sdb_domain not in domain_names:

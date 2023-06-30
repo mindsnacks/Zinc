@@ -62,7 +62,7 @@ class S3StorageBackend(StorageBackend):
 
     def get(self, subpath):
         keyname = self._get_keyname(subpath)
-        t = TemporaryFile(mode="w+b")
+        t = TemporaryFile(mode='w+b')
         self._bucket.download_fileobj(keyname, t)
         if t.tell() == 0:
             return None
@@ -95,7 +95,7 @@ class S3StorageBackend(StorageBackend):
         contents = []
         subpath = self._get_keyname(prefix)
         for object_summary in self._bucket.objects.filter(prefix=subpath):
-            if object_summary.key.endswith("/"):
+            if object_summary.key.endswith('/'):
                 # skip "directory" keys
                 continue
             rel_path = object_summary.key[len(subpath) + 1:]
