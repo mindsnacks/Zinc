@@ -211,7 +211,7 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
     def _ensure_domain_exists(self, client=None, sdb_domain=None):
         log.debug('SimpleDBCatalogCoordinator: Calling SimpleDB_client.list_domains() '
                   f"to check for the name '{sdb_domain}'")
-        response = client.list_domains(MaxNumberOfDomains=100)
+        response = client.list_domains()
         domain_names = None
         if 'DomainNames' in response:
             domain_names = response['DomainNames']
