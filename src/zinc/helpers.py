@@ -13,7 +13,7 @@ def make_bundle_id(catalog_id: str, bundle_name: str) -> str:
     return '%s.%s' % (catalog_id, bundle_name)
 
 
-def make_bundle_descriptor(bundle_id: str, version: int, flavor: str = None) -> str:
+def make_bundle_descriptor(bundle_id: str, version: int, flavor: Optional[str] = None) -> str:
     assert bundle_id
     assert version
     descriptor = '%s-%d' % (bundle_id, version)
