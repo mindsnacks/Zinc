@@ -19,9 +19,9 @@ Configurations:
 """
 
 from .formats import Formats
+from typing import Any, Dict
 
-defaults = dict()
-
+defaults: Dict[str, Any] = dict()
 
 defaults['zinc_format'] = '1'
 defaults['catalog_index_name'] = 'catalog.json'
