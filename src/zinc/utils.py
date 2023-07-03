@@ -19,7 +19,7 @@ from io import BytesIO
 from types import GeneratorType
 from itertools import tee
 
-Tee = tee([], 1)[0].__class__
+Tee: type = tee([], 1)[0].__class__
 
 
 class EnumMC(type):
@@ -65,7 +65,7 @@ def canonical_path(path: str) -> str:
     return path
 
 
-def makedirs(path: str) -> str:
+def makedirs(path: str):
     """Convenience method that ignores errors if directory already exists."""
     try:
         os.makedirs(path)

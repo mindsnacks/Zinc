@@ -1,5 +1,5 @@
 lockfile==0.9.1
-boto==2.49.0
+boto3==1.26.160
 toml
 requests
 jsonschema==1.3.0

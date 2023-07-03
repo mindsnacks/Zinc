@@ -64,7 +64,7 @@ class ZincCatalogPathHelper(object):
         return self.path_for_manifest_for_bundle_version(
             manifest.bundle_name, manifest.version)
 
-    def path_for_file_with_sha(self, sha: str, ext: str = None, format=None) -> str:
+    def path_for_file_with_sha(self, sha: str, ext: Optional[str] = None, format=None) -> str:
 
         if ext is not None and format is not None:
             raise Exception("Should specify either `ext` or `format`, not both.")
@@ -77,14 +77,14 @@ class ZincCatalogPathHelper(object):
             file = file + '.' + ext
         return os.path.join(subdir, file)
 
-    def archive_name(self, bundle_name: str, version: int, flavor: str = None):
+    def archive_name(self, bundle_name: str, version: int, flavor: Optional[str] = None):
         if flavor is None:
             return "%s-%d.tar" % (bundle_name, version)
         else:
             return "%s-%d~%s.tar" % (bundle_name, version, flavor)
 
     def path_for_archive_for_bundle_version(
-            self, bundle_name: str, version: int, flavor: str = None):
+            self, bundle_name: str, version: int, flavor: Optional[str] = None):
         archive_filename = self.archive_name(bundle_name, version, flavor=flavor)
         archive_path = os.path.join(self.archives_dir, archive_filename)
         return archive_path
@@ -284,6 +284,7 @@ class ZincCatalog(ZincAbstractCatalog):
         return None
 
     def _write(self, subpath: str, bytes: bytes, raw: bool = True, gzip: bool = True, max_age: Optional[int] = None):
+        log.debug(f'ZincCatalog: _write() called. (subpath: {subpath}, raw: {raw}, gzip: {gzip})')
         if raw:
             self._storage.puts(subpath, bytes, max_age=max_age)
         if gzip:
@@ -335,6 +336,7 @@ class ZincCatalog(ZincAbstractCatalog):
         return self._storage.get(subpath)
 
     def _write_file(self, sha, src_path, format=None):
+        log.debug(f'ZincCatalog: _write_file() called. (sha: {sha}, src_path: {src_path}, format: {format})')
         format = format or Formats.RAW  # default to RAW
         if format not in defaults['catalog_valid_formats']:
             raise Exception("Invalid format '%s'." % (format))
@@ -352,6 +354,8 @@ class ZincCatalog(ZincAbstractCatalog):
         return meta
 
     def _write_archive(self, bundle_name, version, src_path, flavor=None):
+        log.debug(f'ZincCatalog: _write_archive() called. (bundle_name: {bundle_name}, version: {version},'
+                  f' src_path: {src_path}, flavor: {flavor})')
         subpath = self._ph.path_for_archive_for_bundle_version(bundle_name,
                                                                version,
                                                                flavor=flavor)
@@ -495,7 +499,7 @@ class ZincCatalog(ZincAbstractCatalog):
         subpath = self._ph.path_for_flavorspec_name(name)
         self._write(subpath, json_string.encode('utf8'), raw=True, gzip=False)
 
-    def update_flavorspec_from_path(self, src_path: str, name: str = None):
+    def update_flavorspec_from_path(self, src_path: str, name: Optional[str] = None):
         with open(src_path, 'r') as src_file:
             json_string = src_file.read()
         if name is None:

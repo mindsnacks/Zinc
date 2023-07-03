@@ -8,6 +8,7 @@ from collections import namedtuple
 from urllib.parse import urlparse
 import toml
 import json
+from typing import Optional
 
 import zinc.helpers as helpers
 import zinc.utils as utils
@@ -212,7 +213,7 @@ class ResultSet(object):
 
 ################################################################################
 
-def catalog_list(catalog: ZincCatalog, distro: str = None, print_versions: bool = True, **kwargs):
+def catalog_list(catalog: ZincCatalog, distro: Optional[str] = None, print_versions: bool = True, **kwargs):
 
     index = catalog.get_index()
 
@@ -251,7 +252,8 @@ def catalog_list(catalog: ZincCatalog, distro: str = None, print_versions: bool 
     return ResultSet(results)
 
 
-def bundle_list(catalog: ZincCatalog, bundle_name: str, version_ish, print_sha: bool = False, flavor_name: str = None):
+def bundle_list(catalog: ZincCatalog, bundle_name: str, version_ish, print_sha: bool = False,
+                flavor_name: Optional[str] = None):
 
     version = _resolve_single_bundle_version(catalog, bundle_name, version_ish)
     manifest = catalog.manifest_for_bundle(bundle_name, version=version)

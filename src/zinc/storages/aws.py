@@ -4,12 +4,9 @@ from copy import copy
 from urllib.parse import urlparse
 import logging
 
-from boto.s3.key import Key
-from boto.s3.connection import S3Connection
-import http  # for IncompleteRead exception
+import boto3
 
 from . import StorageBackend
-from zinc.defaults import defaults
 
 log = logging.getLogger(__name__)
 
@@ -25,9 +22,27 @@ class S3StorageBackend(StorageBackend):
 
         assert bucket or url
         bucket_name = bucket or urlparse(url).netloc
-        self._conn = S3Connection(aws_key, aws_secret, is_secure=False, validate_certs=False)
-        self._bucket = self._conn.get_bucket(bucket_name)
+        session = boto3.session.Session(aws_access_key_id=aws_key, aws_secret_access_key=aws_secret)
+        connection = session.resource('s3')
+        self._bucket = self._get_bucket(bucket_name, connection)
         self._prefix = prefix
+
+    def _get_bucket(self, bucket_name, connection):
+        import botocore.exceptions
+        bucket = connection.Bucket(bucket_name)
+        exists = True
+        try:
+            connection.meta.client.head_bucket(Bucket=bucket_name)
+        except botocore.exceptions.ClientError as error:
+            error_code = error.response['Error']['Code']
+            if error_code == '404':
+                exists = False
+            else:
+                raise error
+        if exists:
+            return bucket
+        else:
+            return None
 
     @classmethod
     def valid_url(cls, url):
@@ -46,48 +61,46 @@ class S3StorageBackend(StorageBackend):
             return subpath
 
     def get(self, subpath):
-        key = self._bucket.get_key(self._get_keyname(subpath))
-        if key is not None:
-            t = TemporaryFile()
-            retry_count = 0
-            max_retry_count = defaults['storage_aws_read_retry_count']
-            while retry_count < max_retry_count:
-                try:
-                    retry_count = retry_count + 1
-                    t.write(key.read())
-                    t.seek(0)
-                    return t
-                except http.client.IncompleteRead as e:
-                    log.warn('Caught IncompleteRead, retrying (%d/%d)' % (retry_count, max_retry_count))
-                    log.warn('%s' % (e.message))
-
-        return None
+        keyname = self._get_keyname(subpath)
+        t = TemporaryFile(mode='w+b')
+        self._bucket.download_fileobj(keyname, t)
+        if t.tell() == 0:
+            return None
+        t.seek(0)
+        return t
 
     def get_meta(self, subpath):
-        key = self._bucket.lookup(self._get_keyname(subpath))
-        if key is None:
+
+        keyname = self._get_keyname(subpath)
+        object_summary_iterator = self._bucket.objects.filter(Prefix=keyname, MaxKeys=1)
+        object_summaries = list(object_summary_iterator)
+        if len(object_summaries) == 0:
             return None
+        object_summary = object_summaries[0]
         meta = dict()
-        meta['size'] = key.size
+        meta['size'] = object_summary.size
         return meta
 
     def put(self, subpath, fileobj, max_age=None, **kwargs):
-        k = Key(self._bucket)
-        k.key = self._get_keyname(subpath)
+        log.debug(f"S3StorageBackend: put() called. (subpath: '{subpath}', max_age: {max_age})")
+        extra_args = None
         if max_age is not None:
-            k.set_metadata('Cache-Control', 'max-age=%d' % (max_age))
-        k.set_contents_from_file(fileobj)
+            extra_args = {
+                'CacheControl': f'max-age={max_age}'
+            }
+        keyname = self._get_keyname(subpath)
+        self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
 
     def list(self, prefix=None):
         contents = []
         subpath = self._get_keyname(prefix)
-        for k in self._bucket.list(prefix=subpath):
-            if k.name.endswith("/"):
+        for object_summary in self._bucket.objects.filter(prefix=subpath):
+            if object_summary.key.endswith('/'):
                 # skip "directory" keys
                 continue
-            rel_path = k.name[len(subpath) + 1:]
+            rel_path = object_summary.key[len(subpath) + 1:]
             contents.append(rel_path)
         return contents
 
     def delete(self, subpath):
-        self._bucket.delete_key(self._get_keyname(subpath))
+        self._bucket.objects.delete([self._get_keyname(subpath)])

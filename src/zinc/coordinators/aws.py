@@ -4,8 +4,8 @@ import uuid
 import logging
 from threading import Timer
 
-import boto.sdb
-from boto.exception import SDBResponseError
+import boto3
+import botocore.exceptions
 
 from . import CatalogCoordinator, LockException
 
@@ -16,7 +16,7 @@ LOCK_EXPIRES = 'lock_expiry'
 
 
 class Lock(object):
-    def __init__(self, sdb_domain, key, expires=None, timeout=None):
+    def __init__(self, sdb_client, sdb_domain_name, key, expires=None, timeout=None):
 
         self._timeout = timeout or 10
         self._expires = expires or 300
@@ -25,7 +25,8 @@ class Lock(object):
         # the timeout
         assert self._expires == 0 or (self._expires > self._timeout and self._expires >= 60)
 
-        self._sdb_domain = sdb_domain
+        self._sdb_client = sdb_client
+        self._sdb_domain_name = sdb_domain_name
         self._key = key
         self._token = str(uuid.uuid1())
         self._refresh = self._expires / 4
@@ -38,11 +39,24 @@ class Lock(object):
         `lock_token`."""
 
         attrs = self._get_lock_attrs()
-        log.debug('Refreshing lock... %s' % (attrs))
+        log.debug(f'SimpleDBCatalogCoordinator.Lock: Refreshing lock... {str(attrs)}')
 
-        self._sdb_domain.put_attributes(
-            self._key, attrs,
-            expected_value=[LOCK_TOKEN, self._token])
+        self._sdb_client.put_attributes(
+            DomainName=self._sdb_domain_name,
+            ItemName=self._key,
+            Attributes=[
+                {
+                    'Name': LOCK_EXPIRES,
+                    'Value': f"{time.time() + self._expires}",
+                    'Replace': True
+                },
+            ],
+            Expected={
+                'Name': LOCK_TOKEN,
+                'Value': self._token,
+                'Exists': True
+            }
+        )
 
     def _schedule_timer(self):
         self._timer = Timer(self._refresh, self._timer_fired)
@@ -69,26 +83,54 @@ class Lock(object):
         timeout = self._timeout
         while timeout >= 0:
             try:
-                item = self._sdb_domain.get_item(self._key, consistent_read=True)
-
-                # check expiration
-                if item is not None and self._expires != 0:
-                    lock_expires = item.get(LOCK_EXPIRES)
-                    if lock_expires is None \
-                       or time.time() > float(lock_expires):
-                        log.info('Clearing expired lock...')
-                        self._sdb_domain.delete_attributes(
-                            self._key, [LOCK_TOKEN, LOCK_EXPIRES],
-                            expected_values=[LOCK_TOKEN, item[LOCK_TOKEN]])
-
-                # try to get the lock
-                if item is None or item.get(LOCK_TOKEN) is None:
-
-                    # try to write, expecting token to be UNSET
-                    self._sdb_domain.put_attributes(
-                        self._key, self._get_lock_attrs(),
-                        expected_value=[LOCK_TOKEN, False])
-
+                response = self._sdb_client.get_attributes(
+                    DomainName=self._sdb_domain_name,
+                    ItemName=self._key,
+                    AttributeNames=[LOCK_TOKEN, LOCK_EXPIRES],
+                    ConsistentRead=True
+                )
+                lock_expires = None
+                lock_token = None
+                if 'Attributes' in response:
+                    for attribute in response['Attributes']:
+                        if 'Name' in attribute and 'Value' in attribute:
+                            if attribute['Name'] == LOCK_EXPIRES:
+                                lock_expires = attribute['Value']
+                            elif attribute['Name'] == LOCK_TOKEN:
+                                lock_token = attribute['Value']
+                if self._expires != 0:
+                    if lock_token is not None and (lock_expires is None or time.time() > float(lock_expires)):
+                        log.debug('SimpleDBCatalogCoordinator.Lock: Clearing expired lock...')
+                        self._sdb_client.delete_attributes(
+                            DomainName=self._sdb_domain_name,
+                            ItemName=self._key,
+                            Expected={
+                                'Name': LOCK_TOKEN,
+                                'Value': lock_token,
+                                'Exists': True
+                            }
+                        )
+                        lock_token = None
+                if lock_token is None:
+                    log.debug('SimpleDBCatalogCoordinator.Lock: Putting attributes "lock_token" and "lock_expiry"')
+                    self._sdb_client.put_attributes(
+                        DomainName=self._sdb_domain_name,
+                        ItemName=self._key,
+                        Attributes=[
+                            {
+                                'Name': LOCK_TOKEN,
+                                'Value': self._token
+                            },
+                            {
+                                'Name': LOCK_EXPIRES,
+                                'Value': f'{time.time() + self._expires}',
+                            },
+                        ],
+                        Expected={
+                            'Name': LOCK_TOKEN,
+                            'Exists': False
+                        }
+                    )
                     self._is_locked = True
                     self._schedule_timer()
                     return
@@ -98,22 +140,41 @@ class Lock(object):
                     log.debug('Sleeping')
                     time.sleep(1)
                 else:
-                    raise LockException("Failed to acquire lock within timeout.")
+                    raise LockException('Failed to acquire lock within timeout.')
 
-            except SDBResponseError as sdberr:
-                if sdberr.status == 409:
+            except botocore.exceptions.ClientError as error:
+                error_code = error.response['Error']['Code']
+                if error_code == '409':
                     pass  # we will retry
                 else:
-                    raise sdberr
+                    raise error
 
     def release(self):
         if self._timer is not None:
             self._timer.cancel()
-        item = self._sdb_domain.get_item(self._key, consistent_read=True)
-        if item is not None and item[LOCK_TOKEN] == self._token:
-            self._sdb_domain.delete_attributes(
-                self._key, [LOCK_TOKEN, LOCK_EXPIRES],
-                expected_values=[LOCK_TOKEN, self._token])
+        response = self._sdb_client.get_attributes(
+            DomainName=self._sdb_domain_name,
+            ItemName=self._key,
+            AttributeNames=[LOCK_TOKEN],
+            ConsistentRead=True
+        )
+        lock_token = None
+        if 'Attributes' in response:
+            for attribute in response['Attributes']:
+                if 'Name' in attribute and 'Value' in attribute and attribute['Name'] == LOCK_TOKEN:
+                    lock_token = attribute['Value']
+        if lock_token == self._token:
+            log.debug('SimpleDBCatalogCoordinator.Lock: Releasing lock '
+                      f'(Deleting all attributes for ItemName {self._key})')
+            self._sdb_client.delete_attributes(
+                DomainName=self._sdb_domain_name,
+                ItemName=self._key,
+                Expected={
+                    'Name': LOCK_TOKEN,
+                    'Value': self._token,
+                    'Exists': True
+                }
+            )
         self._is_locked = False
 
     def __enter__(self):
@@ -138,18 +199,42 @@ class SimpleDBCatalogCoordinator(CatalogCoordinator):
         if sdb_domain == '':
             sdb_domain = 'zinc'
 
-        self._conn = boto.sdb.connect_to_region(sdb_region,
-                                                aws_access_key_id=aws_key,
-                                                aws_secret_access_key=aws_secret,
-                                                is_secure=False,
-                                                validate_certs=False)
-        self._domain = self._conn.create_domain(sdb_domain)
+        session = boto3.session.Session(
+            aws_access_key_id=aws_key,
+            aws_secret_access_key=aws_secret,
+            region_name=sdb_region,
+        )
+        client = session.client('sdb')
+
+        self._ensure_domain_exists(client=client, sdb_domain=sdb_domain)
+
+    def _ensure_domain_exists(self, client=None, sdb_domain=None):
+        log.debug('SimpleDBCatalogCoordinator: Calling SimpleDB_client.list_domains() '
+                  f"to check for the name '{sdb_domain}'")
+        response = client.list_domains()
+        domain_names = None
+        if 'DomainNames' in response:
+            domain_names = response['DomainNames']
+            log.debug('SimpleDBCatalogCoordinator: SimpleDB_client.list_domains() returned response where '
+                      f"the key 'DomainNames' has the value [{', '.join(domain_names) }]")
+        else:
+            log.debug('SimpleDBCatalogCoordinator: SimpleDB_client.list_domains() returned '
+                      "response without 'DomainNames' key")
+
+        if domain_names is None or sdb_domain not in domain_names:
+            log.debug(f"SimpleDBCatalogCoordinator: Creating new domain with name '{sdb_domain}'")
+            client.create_domain(DomainName=sdb_domain)
+        else:
+            log.debug(f"SimpleDBCatalogCoordinator: Domain with name '{sdb_domain}' already exists")
+        self._client = client
+        self._domain_name = sdb_domain
 
     def get_index_lock(self, domain=None, timeout=None, **kwargs):
         assert domain
-        return Lock(self._domain, domain, timeout=timeout)
+        return Lock(self._client, self._domain_name, domain, timeout=timeout)
 
     @classmethod
     def valid_url(cls, url):
         urlcomps = urlparse(url)
-        return urlcomps.scheme == 'sdb' and urlcomps.netloc in [r.name for r in boto.sdb.regions()]
+        s = boto3.session.Session()
+        return urlcomps.scheme == 'sdb' and urlcomps.netloc in s.get_available_regions('sdb')

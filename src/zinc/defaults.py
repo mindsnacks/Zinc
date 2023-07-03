@@ -16,13 +16,12 @@ Configurations:
 :catalog_valid_formats: A list of valid formats for objects in the catalog.
 :catalog_lock_timeout: Timeout for acquiring a lock on the catalog via a coordinator.
 :catalog_prev_distro_prefix: The prefix to use when writing the previous distro.
-:storage_aws_read_retry_count: Number of times to retry an operation using an 'S3StorageBackend'.
 """
 
 from .formats import Formats
+from typing import Any, Dict
 
-defaults = dict()
-
+defaults: Dict[str, Any] = dict()
 
 defaults['zinc_format'] = '1'
 defaults['catalog_index_name'] = 'catalog.json'
@@ -33,4 +32,3 @@ defaults['catalog_preferred_formats'] = [Formats.GZ, Formats.RAW]
 defaults['catalog_valid_formats'] = defaults['catalog_preferred_formats']
 defaults['catalog_lock_timeout'] = 60
 defaults['catalog_prev_distro_prefix'] = '_'
-defaults['storage_aws_read_retry_count'] = 3
