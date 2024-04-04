@@ -3,12 +3,21 @@ from tempfile import TemporaryFile
 from copy import copy
 from urllib.parse import urlparse
 import logging
+import sys
 
 import boto3
 
 from . import StorageBackend
 
 log = logging.getLogger(__name__)
+
+log.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+log.addHandler(handler)
+
 
 
 class S3StorageBackend(StorageBackend):
@@ -35,6 +44,7 @@ class S3StorageBackend(StorageBackend):
         content = self._bucket.objects.filter(Prefix=self._prefix)
         for item in content:
             bucket_contents.append(item.key)
+            log.debug(f"Adding to cache: {item.key}")
         return bucket_contents
 
 
@@ -64,6 +74,7 @@ class S3StorageBackend(StorageBackend):
         cpy = copy(self)
         cpy._prefix = id
         # TODO gate this.
+        log.debug(f"Binding to catalog {id}")
         cpy._bucket_contents = cpy.__cache_contents()
         return cpy
 
@@ -106,9 +117,9 @@ class S3StorageBackend(StorageBackend):
 
         # Skip cache for index/catalog, and any cached file.
         if keyname in self._bucket_contents and not any(keyname in x for x in ["index.json", "catalog.json"]):
-          print(f"Would skip upload for {keyname}")
+          log.debug(f"Would skip upload for {keyname}")
         else:
-          print(f"Uploading {keyname}")
+          log.debug(f"Uploading {keyname}")
 
         self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
 
