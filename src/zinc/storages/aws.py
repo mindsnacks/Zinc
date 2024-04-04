@@ -18,7 +18,7 @@ class S3StorageBackend(StorageBackend):
 
         super(S3StorageBackend, self).__init__(**kwargs)
 
-        assert s3connection or (aws_key and aws_secret)
+        #assert s3connection or (aws_key and aws_secret)
 
         assert bucket or url
         bucket_name = bucket or urlparse(url).netloc
@@ -95,6 +95,7 @@ class S3StorageBackend(StorageBackend):
 
     def put(self, subpath, fileobj, max_age=None, **kwargs):
         log.debug(f"S3StorageBackend: put() called. (subpath: '{subpath}', max_age: {max_age})")
+
         extra_args = None
         if max_age is not None:
             extra_args = {
@@ -104,9 +105,11 @@ class S3StorageBackend(StorageBackend):
 
         # Skip cache for index/catalog, and any cached file.
         if keyname in self._bucket_contents and not any(keyname in x for x in ["index.json", "catalog.json"]):
-          log.debug(f"Skipping upload for {keyname}, previously uploaded.")
+          print(f"Would skip upload for {keyname}")
         else:
-            self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
+          print(f"Uploading {keyname}")
+
+        self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
 
     def list(self, prefix=None):
         contents = []
