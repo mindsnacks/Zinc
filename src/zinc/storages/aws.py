@@ -3,15 +3,14 @@ from tempfile import TemporaryFile
 from copy import copy
 from urllib.parse import urlparse
 import logging
-import sys
+
+from os.path import exists
 
 import boto3
 
 from . import StorageBackend
 
 log = logging.getLogger(__name__)
-
-
 
 
 class S3StorageBackend(StorageBackend):
@@ -21,7 +20,7 @@ class S3StorageBackend(StorageBackend):
 
         super(S3StorageBackend, self).__init__(**kwargs)
 
-        #assert s3connection or (aws_key and aws_secret)
+        assert s3connection or (aws_key and aws_secret)
 
         assert bucket or url
         bucket_name = bucket or urlparse(url).netloc
@@ -29,17 +28,6 @@ class S3StorageBackend(StorageBackend):
         connection = session.resource('s3')
         self._bucket = self._get_bucket(bucket_name, connection)
         self._prefix = prefix
-        self._bucket_contents = list()
-
-
-
-    def __cache_contents(self):
-        bucket_contents = list()
-        content = self._bucket.objects.filter(Prefix=self._prefix)
-        for item in content:
-            bucket_contents.append(item.key)
-        return bucket_contents
-
 
     def _get_bucket(self, bucket_name, connection):
         import botocore.exceptions
@@ -66,9 +54,6 @@ class S3StorageBackend(StorageBackend):
         assert id
         cpy = copy(self)
         cpy._prefix = id
-        # TODO gate this.
-        log.debug(f"Binding to catalog {id}")
-        cpy._bucket_contents.extend(cpy.__cache_contents())
         return cpy
 
     def _get_keyname(self, subpath):
@@ -78,10 +63,13 @@ class S3StorageBackend(StorageBackend):
             return subpath
 
     def get(self, subpath):
-        log.debug(f"Get for {subpath}")
         keyname = self._get_keyname(subpath)
         t = TemporaryFile(mode='w+b')
-        self._bucket.download_fileobj(keyname, t)
+        cache_location = os.environ.get('ZINC_CACHE')
+        if cache_location and exists(os.path.join(cache_location, keyname)):
+            t = file.open(os.path.join(cache_location,keyname), 'rb')
+        else:
+            self._bucket.download_fileobj(keyname, t)
         if t.tell() == 0:
             return None
         t.seek(0)
@@ -101,20 +89,12 @@ class S3StorageBackend(StorageBackend):
 
     def put(self, subpath, fileobj, max_age=None, **kwargs):
         log.debug(f"S3StorageBackend: put() called. (subpath: '{subpath}', max_age: {max_age})")
-
         extra_args = None
         if max_age is not None:
             extra_args = {
                 'CacheControl': f'max-age={max_age}'
             }
         keyname = self._get_keyname(subpath)
-
-        # Skip cache for index/catalog, and any cached file.
-        if subpath in self._bucket_contents and not any(subpath in x for x in ["index.json", "catalog.json"]):
-          log.debug(f"Would skip upload for {subpath}")
-        else:
-          log.debug(f"Uploading {subpath}")
-
         self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
 
     def list(self, prefix=None):
