@@ -11,12 +11,6 @@ from . import StorageBackend
 
 log = logging.getLogger(__name__)
 
-log.setLevel(logging.DEBUG)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-log.addHandler(handler)
 
 
 
@@ -44,7 +38,6 @@ class S3StorageBackend(StorageBackend):
         content = self._bucket.objects.filter(Prefix=self._prefix)
         for item in content:
             bucket_contents.append(item.key)
-            log.debug(f"Adding to cache: {item.key}")
         return bucket_contents
 
 
@@ -75,7 +68,7 @@ class S3StorageBackend(StorageBackend):
         cpy._prefix = id
         # TODO gate this.
         log.debug(f"Binding to catalog {id}")
-        cpy._bucket_contents = cpy.__cache_contents()
+        cpy._bucket_contents.extend(cpy.__cache_contents())
         return cpy
 
     def _get_keyname(self, subpath):
@@ -85,6 +78,7 @@ class S3StorageBackend(StorageBackend):
             return subpath
 
     def get(self, subpath):
+        log.debug(f"Get for {subpath}")
         keyname = self._get_keyname(subpath)
         t = TemporaryFile(mode='w+b')
         self._bucket.download_fileobj(keyname, t)
@@ -116,10 +110,10 @@ class S3StorageBackend(StorageBackend):
         keyname = self._get_keyname(subpath)
 
         # Skip cache for index/catalog, and any cached file.
-        if keyname in self._bucket_contents and not any(keyname in x for x in ["index.json", "catalog.json"]):
-          log.debug(f"Would skip upload for {keyname}")
+        if subpath in self._bucket_contents and not any(subpath in x for x in ["index.json", "catalog.json"]):
+          log.debug(f"Would skip upload for {subpath}")
         else:
-          log.debug(f"Uploading {keyname}")
+          log.debug(f"Uploading {subpath}")
 
         self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
 
