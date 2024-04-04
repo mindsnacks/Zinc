@@ -26,9 +26,8 @@ class S3StorageBackend(StorageBackend):
         connection = session.resource('s3')
         self._bucket = self._get_bucket(bucket_name, connection)
         self._prefix = prefix
+        self._bucket_contents = list()
 
-        # TODO gate this.
-        self._bucket_contents = self.__cache_contents()
 
 
     def __cache_contents(self):
@@ -64,6 +63,8 @@ class S3StorageBackend(StorageBackend):
         assert id
         cpy = copy(self)
         cpy._prefix = id
+        # TODO gate this.
+        cpy._bucket_contents = cpy.__cache_contents()
         return cpy
 
     def _get_keyname(self, subpath):
