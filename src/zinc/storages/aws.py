@@ -27,6 +27,18 @@ class S3StorageBackend(StorageBackend):
         self._bucket = self._get_bucket(bucket_name, connection)
         self._prefix = prefix
 
+        # TODO gate this.
+        self._bucket_contents = self.__cache_contents()
+
+
+    def __cache_contents(self):
+        bucket_contents = list()
+        content = self._bucket.objects.filter(Prefix=self._prefix)
+        for item in content:
+            bucket_contents.append(item.key)
+        return bucket_contents
+
+
     def _get_bucket(self, bucket_name, connection):
         import botocore.exceptions
         bucket = connection.Bucket(bucket_name)
@@ -89,7 +101,12 @@ class S3StorageBackend(StorageBackend):
                 'CacheControl': f'max-age={max_age}'
             }
         keyname = self._get_keyname(subpath)
-        self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
+
+        # Skip cache for index/catalog, and any cached file.
+        if keyname in self._bucket_contents and not any(keyname in x for x in ["index.json", "catalog.json"]):
+          log.debug(f"Skipping upload for {keyname}, previously uploaded.")
+        else:
+            self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
 
     def list(self, prefix=None):
         contents = []
