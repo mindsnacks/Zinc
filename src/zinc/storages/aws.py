@@ -4,6 +4,8 @@ from copy import copy
 from urllib.parse import urlparse
 import logging
 
+from os.path import exists
+
 import boto3
 
 from . import StorageBackend
@@ -63,10 +65,16 @@ class S3StorageBackend(StorageBackend):
     def get(self, subpath):
         keyname = self._get_keyname(subpath)
         t = TemporaryFile(mode='w+b')
-        self._bucket.download_fileobj(keyname, t)
-        if t.tell() == 0:
-            return None
-        t.seek(0)
+        cache_location = os.environ.get('ZINC_CACHE')
+        if cache_location and exists(os.path.join(cache_location, keyname)):
+            log.info(f"GET Cache hit: {subpath} ({keyname})")
+            t = open(os.path.join(cache_location,keyname), 'rb')
+        else:
+            log.info(f"GET Cache miss: {subpath} ({keyname})")
+            self._bucket.download_fileobj(keyname, t)
+            if t.tell() == 0:
+                return None
+            t.seek(0)
         return t
 
     def get_meta(self, subpath):
