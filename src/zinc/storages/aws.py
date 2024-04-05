@@ -67,7 +67,7 @@ class S3StorageBackend(StorageBackend):
         t = TemporaryFile(mode='w+b')
         cache_location = os.environ.get('ZINC_CACHE')
         if cache_location and exists(os.path.join(cache_location, keyname)):
-            t = file.open(os.path.join(cache_location,keyname), 'rb')
+            t = open(os.path.join(cache_location,keyname), 'rb')
         else:
             self._bucket.download_fileobj(keyname, t)
         if t.tell() == 0:
