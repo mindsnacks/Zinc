@@ -91,11 +91,14 @@ class S3StorageBackend(StorageBackend):
 
     def put(self, subpath, fileobj, max_age=None, **kwargs):
         log.debug(f"S3StorageBackend: put() called. (subpath: '{subpath}', max_age: {max_age})")
-        extra_args = None
+        extra_args = dict()
         if max_age is not None:
             extra_args = {
                 'CacheControl': f'max-age={max_age}'
             }
+        if subpath.endswith('.json'):
+            extra_args['ContentType'] = 'application/json'
+
         keyname = self._get_keyname(subpath)
         self._bucket.upload_fileobj(fileobj, keyname, ExtraArgs=extra_args)
 
