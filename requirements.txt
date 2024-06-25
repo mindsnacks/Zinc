@@ -1,7 +1,7 @@
-lockfile==0.9.1
-boto3==1.26.160
+lockfile
+boto3
 toml
 requests
-jsonschema==1.3.0
-atomicwrites==1.3.0
-redis==4.4.4
+jsonschema
+atomicwrites
+redis
