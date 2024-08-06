@@ -13,11 +13,16 @@ This module implements models that represent core concepts of the Zinc system.
 
 
 import json
-from collections import MutableMapping
+import sys
 from functools import wraps
 from pkg_resources import resource_string
 import jsonschema
 from typing import Dict
+
+if sys.version_info[:2] >= (3, 8):
+    from collections.abc import MutableMapping
+else:
+    from collections import MutableMapping
 
 from .defaults import defaults
 from .pathfilter import PathFilter
