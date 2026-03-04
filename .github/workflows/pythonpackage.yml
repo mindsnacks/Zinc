@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.LINUX_RUNNER }}
     steps:
     - uses: actions/checkout@v3
 
